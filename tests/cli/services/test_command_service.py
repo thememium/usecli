@@ -152,8 +152,8 @@ class TestCommandServiceLoadCommands:
                 second_call_path = calls[1][0][0]
                 assert "custom" in str(second_call_path)
 
-    def test_load_commands_calls_both_load_from_dir(self):
-        """Test load_commands calls _load_from_dir exactly twice."""
+    def test_load_commands_calls_all_load_from_dir(self):
+        """Test load_commands calls _load_from_dir for defaults, custom, and project directories."""
         app = MagicMock()
         service = CommandService(app=app)
 
@@ -161,7 +161,7 @@ class TestCommandServiceLoadCommands:
             with patch.object(service, "_load_from_dir") as mock_load_from_dir:
                 service.load_commands()
 
-                assert mock_load_from_dir.call_count == 2
+                assert mock_load_from_dir.call_count == 3
 
     def test_load_commands_correct_directory_paths(self):
         """Test load_commands uses correct directory paths."""
@@ -175,9 +175,11 @@ class TestCommandServiceLoadCommands:
                 calls = mock_load_from_dir.call_args_list
                 defaults_path = calls[0][0][0]
                 custom_path = calls[1][0][0]
+                project_path = calls[2][0][0]
 
                 assert str(defaults_path).endswith("cli/commands/defaults")
                 assert str(custom_path).endswith("cli/commands/custom")
+                assert str(project_path).endswith("cli/commands")
 
     def test_load_commands_execution_order(self):
         """Test load_commands executes in correct order."""
