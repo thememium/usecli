@@ -1,0 +1,78 @@
+[project]
+name = "usecli"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [{ name = "Edward Boswell", email = "thememium@gmail.com" }]
+requires-python = ">=3.12"
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Operating System :: OS Independent",
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+]
+dependencies = [
+  "case-converter>=1.2.0",
+  "click>=8.3.1",
+  "fzf-bin>=0.67.0",
+  "jinja2>=3.1.6",
+  "pyfiglet>=1.0.4",
+  "pyyaml>=6.0.2",
+  "rich>=14.3.1",
+  "simple-term-menu>=1.6.6",
+  "typer>=0.21.1",
+]
+license = "MIT"
+license-files = ["LICEN[CS]E*"]
+
+[project.urls]
+Homepage = "https://github.com/thememium/usecli"
+Issues = "https://github.com/thememium/usecli/issues"
+
+[project.scripts]
+usecli = "usecli:run_app"
+
+[build-system]
+requires = ["uv_build>=0.10.2,<0.11.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+  "deptry>=0.24.0",
+  "isort>=7.0.0",
+  "poethepoet>=0.41.0",
+  "pytest>=9.0.2",
+  "ruff>=0.15.1",
+  "ty>=0.0.17",
+]
+
+[tool.deptry]
+known_first_party = ["usecli"]
+
+[tool.deptry.package_module_name_map]
+case-converter = "caseconverter"
+
+[tool.deptry.per_rule_ignores]
+DEP002 = ["fzf-bin"]
+
+[tool.poe.tasks]
+dev = "uv run usecli"
+clean-full = "sh -c 'uv run isort . && uv run ruff check . && uv run ruff format . && uv run deptry . && uv run ty check'"
+clean = "sh -c 'uv run isort . && uv run ruff format .'"
+test = "uv run pytest tests/ -v"
+sort = "uv run isort ."
+lint = "uv run ruff check ."
+format = "uv run ruff format ."
+deptry = "uv deptry ."
+typecheck = "uv run ty check"
+release = "bash scripts/release.sh"
+
+[tool.ty]
+
+[tool.ty.src]
+include = ["src", "tests"]
+exclude = ["**/__pycache__", "**/.venv"]
+
+[tool.ty.rules]
+# Ty uses rule = "level" format (error, warn, ignore)
+# See all rules at: https://docs.astral.sh/ty/reference/rules/
