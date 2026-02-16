@@ -9,8 +9,7 @@ from rich.console import Console
 
 from usecli.cli.config.colors import COLOR
 from usecli.cli.core.base_command import BaseCommand
-from usecli.shared.config.globals import CUSTOM_COMMANDS_DIR, TEMPLATES_DIR
-from usecli.shared.config.manager import get_config
+from usecli.shared.config.globals import PROJECT_COMMANDS_DIR, TEMPLATES_DIR
 
 console = Console()
 
@@ -26,9 +25,6 @@ class MakeCommand(BaseCommand):
         """Return the command description."""
         return "Create a new CLI command"
 
-    def visible(self) -> bool:
-        return get_config().is_dev()
-
     def handle(
         self, name: str = typer.Argument(..., help="The name of the command")
     ) -> None:
@@ -42,8 +38,8 @@ class MakeCommand(BaseCommand):
         command_name = snakecase(clean_name.replace(":", "_"))
         file_name = f"{snakecase(clean_name.replace(':', '_'))}_command.py"
 
-        CUSTOM_COMMANDS_DIR.mkdir(parents=True, exist_ok=True)
-        target_file = CUSTOM_COMMANDS_DIR / file_name
+        PROJECT_COMMANDS_DIR.mkdir(parents=True, exist_ok=True)
+        target_file = PROJECT_COMMANDS_DIR / file_name
 
         if target_file.exists():
             console.print(
