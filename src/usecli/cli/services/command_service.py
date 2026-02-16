@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING
 import typer
 
 from usecli.cli.core.base_command import BaseCommand
-from usecli.shared.config.globals import PACKAGE_ROOT
+from usecli.shared.config.globals import PACKAGE_ROOT, PROJECT_COMMANDS_DIR
 
 if TYPE_CHECKING:
     pass
@@ -38,10 +38,11 @@ class CommandService:
         self.version = "0.0.0"
 
     def load_commands(self) -> None:
-        """Load all commands from defaults and custom directories."""
+        """Load all commands from defaults, custom, and project directories."""
         self._load_version()
         self._load_from_dir(PACKAGE_ROOT / "cli/commands/defaults")
         self._load_from_dir(PACKAGE_ROOT / "cli/commands/custom")
+        self._load_from_dir(PROJECT_COMMANDS_DIR)
 
     def _load_version(self) -> None:
         """Load version from package metadata."""
