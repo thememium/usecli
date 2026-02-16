@@ -42,7 +42,7 @@ def print_title(title: str | None = None) -> None:
  █████▓▓▓▓▓▒▒▒▒▒░░░░░░░░░░░░░░▒▒▒▒▒▓▓▓▓▓█████
         """
     try:
-        if title is None or title.lower()== "usecli":
+        if title is None or title.lower() == "usecli":
             console.print(f"[{COLOR.PRIMARY}]{default_title_text}")
             return
 
