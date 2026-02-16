@@ -12,17 +12,17 @@ console = Console()
 
 
 def get_project_name() -> str:
-    """Get the project name from package metadata.
-
-    Returns:
-        The project name from package metadata, or "usecli" if not found.
-    """
+    """Get the project name from package metadata."""
     try:
         meta = metadata("usecli")
         name = meta["Name"] if "Name" in meta else "usecli"
+
+        if name == "usecli":
+            return "useCli"
+
         return name
     except PackageNotFoundError:
-        return "usecli"
+        return "useCli"
 
 
 def print_title(title: str | None = None) -> None:
