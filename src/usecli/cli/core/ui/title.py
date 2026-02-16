@@ -42,7 +42,7 @@ def print_title(title: str | None = None) -> None:
  █████▓▓▓▓▓▒▒▒▒▒░░░░░░░░░░░░░░▒▒▒▒▒▓▓▓▓▓█████
         """
     try:
-        if title is None or title == "usecli":
+        if title is None or title.lower()== "usecli":
             console.print(f"[{COLOR.PRIMARY}]{default_title_text}")
             return
 
@@ -52,7 +52,7 @@ def print_title(title: str | None = None) -> None:
         title_text = pyfiglet.figlet_format(text=title, font="big")
         console.print(f"[{COLOR.PRIMARY}]{title_text}")
     except (ImportError, ModuleNotFoundError):
-        if title is None or title == "usecli":
+        if title is None or title.lower() == "usecli":
             console.print(f"[{COLOR.PRIMARY}]{default_title_text}")
             return
 
