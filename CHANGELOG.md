@@ -1,6 +1,19 @@
 # Changelog
 
 
+## v0.1.2
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.1...v0.1.2)
+
+### 🏡 Chore
+
+- **uv:** Update version ([0ddb579](https://github.com/thememium/usecli/commit/0ddb579))
+- **pyproject:** Lower Python requirement from >=3.12 to >=3.10 ([58a7537](https://github.com/thememium/usecli/commit/58a7537))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.1
 
 
