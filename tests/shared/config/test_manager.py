@@ -38,6 +38,7 @@ def sample_config():
         "show_setup": False,
         "commands_dir": "my_commands",
         "environment": "dev",
+        "command_name": "mycli",
     }
 
 
@@ -74,6 +75,7 @@ class TestConfigManagerDefaults:
         assert manager.get("show_setup") is True
         assert manager.get("commands_dir") == "commands"
         assert manager.get("environment") == "prod"
+        assert manager.get("command_name") == "usecli"
 
     def test_default_environment_methods(self, temp_project_dir):
         manager = ConfigManager()

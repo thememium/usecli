@@ -68,6 +68,9 @@ class InitCommand(BaseCommand):
         commands_dir: str = typer.Option(
             "commands", help="Directory for custom commands"
         ),
+        command_name: str = typer.Option(
+            "mycli", help="Command name for your CLI (e.g., 'mycli' for 'mycli help')"
+        ),
         force: bool = typer.Option(
             False, "--force", "-f", help="Overwrite existing config without prompting"
         ),
@@ -98,6 +101,7 @@ class InitCommand(BaseCommand):
             title=title,
             description=description,
             commands_dir=commands_dir,
+            command_name=command_name,
         )
 
         # Check if config already exists
@@ -141,8 +145,9 @@ class InitCommand(BaseCommand):
                 f"[bold {COLOR.PRIMARY}]usecli initialized![/bold {COLOR.PRIMARY}]\n\n"
                 f"Title: {title}\n"
                 f"Description: {description}\n"
-                f"Commands Directory: {commands_dir}\n\n"
-                f"Create new commands with: [bold {COLOR.COMMAND}]usecli make:command <name>[/bold {COLOR.COMMAND}]",
+                f"Commands Directory: {commands_dir}\n"
+                f"Command Name: {command_name}\n\n"
+                f"Create new commands with: [bold {COLOR.COMMAND}]{command_name} make:command <name>[/bold {COLOR.COMMAND}]",
                 title="usecli Init",
                 border_style=COLOR.PANEL_PRIMARY,
             )

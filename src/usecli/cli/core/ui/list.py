@@ -10,6 +10,7 @@ from rich.console import Console
 
 from usecli.cli.config.colors import COLOR
 from usecli.cli.core.ui.title import get_project_name, print_title
+from usecli.shared.config import get_config
 
 if TYPE_CHECKING:
     pass
@@ -39,8 +40,10 @@ def list_commands(app: typer.Typer, prefix_filter: str | None = None) -> None:
         max(len(name) for name in all_command_names) if all_command_names else 0
     )
 
+    command_name = get_config().get("command_name", "usecli")
+
     console.print(f"[bold {COLOR.SECONDARY}]Usage:[/bold {COLOR.SECONDARY}]")
-    console.print(f"  [{COLOR.PRIMARY}]usecli [OPTIONS] [ARGUMENTS]")
+    console.print(f"  [{COLOR.PRIMARY}]{command_name} [OPTIONS] [ARGUMENTS]")
     console.print()
 
     console.print(f"[bold {COLOR.SECONDARY}]Options:")
@@ -149,8 +152,12 @@ def list_group_commands(group_app: typer.Typer, group_name: str) -> None:
         max(len(name) for name in all_command_names) if all_command_names else 0
     )
 
+    command_name = get_config().get("command_name", "usecli")
+
     console.print(f"[bold {COLOR.SECONDARY}]Usage:[/bold {COLOR.SECONDARY}]")
-    console.print(f"  [{COLOR.PRIMARY}]usecli {group_name} [COMMAND] [OPTIONS][/]")
+    console.print(
+        f"  [{COLOR.PRIMARY}]{command_name} {group_name} [COMMAND] [OPTIONS][/]"
+    )
     console.print()
 
     console.print(f"[bold {COLOR.SECONDARY}]Options:")

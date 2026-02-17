@@ -49,6 +49,7 @@ class ConfigManager:
         "show_setup": True,
         "commands_dir": "commands",
         "environment": "prod",
+        "command_name": "usecli",
     }
 
     CONFIG_FILENAME = "usecli.config.toml"
