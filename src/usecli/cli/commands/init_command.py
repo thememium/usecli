@@ -118,7 +118,7 @@ class InitCommand(BaseCommand):
             "A custom CLI tool", help="Description for your CLI"
         ),
         commands_dir: str = typer.Option(
-            "commands", help="Directory for custom commands"
+            "cli/commands", help="Directory for custom commands"
         ),
         command_name: str = typer.Option(
             "mycli", help="Command name for your CLI (e.g., 'mycli' for 'mycli help')"
