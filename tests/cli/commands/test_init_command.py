@@ -81,6 +81,56 @@ class TestInitCommandPyprojectToml:
         assert 'title = "Test CLI"' in content
         assert 'description = "Test description"' in content
 
+    def test_adds_project_script_entry(self, temp_project_dir, init_command):
+        pyproject = temp_project_dir / "pyproject.toml"
+        pyproject.write_text("[project]\nname = 'test'\n")
+
+        init_command.handle(
+            DEFAULT_TITLE,
+            DEFAULT_DESCRIPTION,
+            DEFAULT_COMMANDS_DIR,
+            command_name="mycli",
+            force=True,
+        )
+
+        content = pyproject.read_text()
+        assert "[project.scripts]" in content
+        assert 'mycli = "usecli:run_app"' in content
+
+    def test_appends_project_script_entry(self, temp_project_dir, init_command):
+        pyproject = temp_project_dir / "pyproject.toml"
+        pyproject.write_text(
+            "[project]\nname = 'test'\n\n[project.scripts]\nfoo = \"foo:main\"\n"
+        )
+
+        init_command.handle(
+            DEFAULT_TITLE,
+            DEFAULT_DESCRIPTION,
+            DEFAULT_COMMANDS_DIR,
+            command_name="mycli",
+            force=True,
+        )
+
+        content = pyproject.read_text()
+        assert "[project.scripts]" in content
+        assert 'foo = "foo:main"' in content
+        assert 'mycli = "usecli:run_app"' in content
+
+    def test_skips_project_script_for_usecli(self, temp_project_dir, init_command):
+        pyproject = temp_project_dir / "pyproject.toml"
+        pyproject.write_text("[project]\nname = 'test'\n")
+
+        init_command.handle(
+            DEFAULT_TITLE,
+            DEFAULT_DESCRIPTION,
+            DEFAULT_COMMANDS_DIR,
+            command_name="usecli",
+            force=True,
+        )
+
+        content = pyproject.read_text()
+        assert "[project.scripts]" not in content
+
     def test_skips_when_user_declines_overwrite(self, temp_project_dir, init_command):
         pyproject = temp_project_dir / "pyproject.toml"
         pyproject.write_text('[tool.usecli]\ntitle = "Existing"\n')
