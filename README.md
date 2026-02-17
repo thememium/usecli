@@ -3,7 +3,7 @@
 <!-- PROJECT LOGO -->
 <div align="center">
   <a href="https://github.com/thememium/usecli">
-    <img src="docs/images/usecli-logo.png" alt="useCli" width="480" height="217">
+    <img src="docs/images/usecli-logo.png" alt="useCli" width="360" height="162">
   </a>
 
   <!-- <h3 align="center">useCli</h3> -->
