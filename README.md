@@ -3,7 +3,7 @@
 <!-- PROJECT LOGO -->
 <div align="center">
   <a href="https://github.com/thememium/usecli">
-    <img src="docs/images/usecli-logo.png" alt="useCli" width="480" height="157">
+    <img src="docs/images/usecli-logo.png" alt="useCli" width="480" height="217">
   </a>
 
   <!-- <h3 align="center">useCli</h3> -->
@@ -93,52 +93,26 @@ useCli is an elegant CLI framework for Python. It provides a beautiful, interact
 
 ### Prerequisites
 
-- Python 3.12 or higher
+- Python 3.10 or higher
 - [uv](https://github.com/astral-sh/uv) (recommended) or pip
 
 ### Installation
 
-#### Quick Install (Recommended)
+#### Add as a Dependency
 
-Install usecli as a global CLI tool from the repository:
-
-```sh
-uv tool install --from git+https://github.com/thememium/usecli.git usecli
-```
-
-Or with pipx:
+To add usecli to your project's dependencies:
 
 ```sh
-pipx install git+https://github.com/thememium/usecli.git
-```
-
-#### Development Install
-
-1. Clone the repository:
-
-```sh
-git clone https://github.com/thememium/usecli.git
-cd usecli
-```
-
-2. Install dependencies with uv:
-
-```sh
-uv sync
+uv add "usecli @ git+https://github.com/thememium/usecli.git"
 ```
 
 Or with pip:
 
 ```sh
-pip install -e .
+pip install git+https://github.com/thememium/usecli.git
 ```
 
-3. Verify installation:
 
-```sh
-usecli --version
-usecli help           # Show all available commands
-```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
