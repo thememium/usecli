@@ -561,6 +561,7 @@ dependencies = [
     { name = "pyyaml" },
     { name = "rich" },
     { name = "simple-term-menu" },
+    { name = "tomli" },
     { name = "typer" },
 ]
 
@@ -584,6 +585,7 @@ requires-dist = [
     { name = "pyyaml", specifier = ">=6.0.2" },
     { name = "rich", specifier = ">=14.3.1" },
     { name = "simple-term-menu", specifier = ">=1.6.6" },
+    { name = "tomli", specifier = ">=2.4.0" },
     { name = "typer", specifier = ">=0.21.1" },
 ]
 
