@@ -19,8 +19,11 @@ class TestGetProjectName:
     """Test suite for get_project_name() function."""
 
     @patch("usecli.cli.core.ui.title.metadata")
-    def test_get_project_name_with_valid_metadata(self, mock_metadata):
+    def test_get_project_name_with_valid_metadata(
+        self, mock_metadata, tmp_path, monkeypatch
+    ):
         """Test get_project_name() with valid package metadata."""
+        monkeypatch.chdir(tmp_path)
         mock_meta = {"Name": "test-cli-project"}
         mock_metadata.return_value = mock_meta
 
@@ -30,8 +33,11 @@ class TestGetProjectName:
         mock_metadata.assert_called_once_with("usecli")
 
     @patch("usecli.cli.core.ui.title.metadata")
-    def test_get_project_name_returns_default_on_package_not_found(self, mock_metadata):
+    def test_get_project_name_returns_default_on_package_not_found(
+        self, mock_metadata, tmp_path, monkeypatch
+    ):
         """Test get_project_name() returns 'usecli' when package not found."""
+        monkeypatch.chdir(tmp_path)
         from importlib.metadata import PackageNotFoundError
 
         mock_metadata.side_effect = PackageNotFoundError("usecli")
@@ -41,8 +47,11 @@ class TestGetProjectName:
         assert result == "useCli"
 
     @patch("usecli.cli.core.ui.title.metadata")
-    def test_get_project_name_usecli_default(self, mock_metadata):
+    def test_get_project_name_usecli_default(
+        self, mock_metadata, tmp_path, monkeypatch
+    ):
         """Test get_project_name() returns default usecli name."""
+        monkeypatch.chdir(tmp_path)
         mock_meta = {"Name": "usecli"}
         mock_metadata.return_value = mock_meta
 
@@ -178,3 +187,18 @@ class TestPrintTitle:
 
         # Should not raise exception
         mock_console.print.assert_called()
+
+    @patch("usecli.cli.core.ui.title.metadata")
+    def test_get_project_name_from_project_scripts(
+        self, mock_metadata, tmp_path, monkeypatch
+    ):
+        monkeypatch.chdir(tmp_path)
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text(
+            "[project]\nname = 'test'\n\n[project.scripts]\nmycli = \"usecli:run_app\"\n"
+        )
+
+        result = get_project_name()
+
+        assert result == "mycli"
+        mock_metadata.assert_not_called()
