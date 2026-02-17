@@ -122,8 +122,8 @@ class TestCommandServiceLoadCommands:
 
                 mock_load_version.assert_called_once()
 
-    def test_load_commands_calls_load_from_dir_defaults(self):
-        """Test load_commands calls _load_from_dir for defaults directory."""
+    def test_load_commands_calls_load_from_dir_commands(self):
+        """Test load_commands calls _load_from_dir for commands directory."""
         app = MagicMock()
         service = CommandService(app=app)
 
@@ -131,14 +131,14 @@ class TestCommandServiceLoadCommands:
             with patch.object(service, "_load_from_dir") as mock_load_from_dir:
                 service.load_commands()
 
-                # First call should be for defaults
+                # First call should be for commands
                 calls = mock_load_from_dir.call_args_list
                 assert len(calls) >= 1
                 first_call_path = calls[0][0][0]
-                assert "defaults" in str(first_call_path)
+                assert "commands" in str(first_call_path)
 
-    def test_load_commands_calls_load_from_dir_custom(self):
-        """Test load_commands calls _load_from_dir for custom directory."""
+    def test_load_commands_calls_load_from_dir_project(self):
+        """Test load_commands calls _load_from_dir for project directory."""
         app = MagicMock()
         service = CommandService(app=app)
 
@@ -146,14 +146,14 @@ class TestCommandServiceLoadCommands:
             with patch.object(service, "_load_from_dir") as mock_load_from_dir:
                 service.load_commands()
 
-                # Second call should be for custom
+                # Second call should be for project commands
                 calls = mock_load_from_dir.call_args_list
                 assert len(calls) >= 2
                 second_call_path = calls[1][0][0]
-                assert "custom" in str(second_call_path)
+                assert "commands" in str(second_call_path)
 
     def test_load_commands_calls_all_load_from_dir(self):
-        """Test load_commands calls _load_from_dir for defaults, custom, and project directories."""
+        """Test load_commands calls _load_from_dir for commands and project directories."""
         app = MagicMock()
         service = CommandService(app=app)
 
@@ -161,7 +161,7 @@ class TestCommandServiceLoadCommands:
             with patch.object(service, "_load_from_dir") as mock_load_from_dir:
                 service.load_commands()
 
-                assert mock_load_from_dir.call_count == 3
+                assert mock_load_from_dir.call_count == 2
 
     def test_load_commands_correct_directory_paths(self):
         """Test load_commands uses correct directory paths."""
@@ -173,12 +173,10 @@ class TestCommandServiceLoadCommands:
                 service.load_commands()
 
                 calls = mock_load_from_dir.call_args_list
-                defaults_path = calls[0][0][0]
-                custom_path = calls[1][0][0]
-                project_path = calls[2][0][0]
+                commands_path = calls[0][0][0]
+                project_path = calls[1][0][0]
 
-                assert str(defaults_path).endswith("cli/commands/defaults")
-                assert str(custom_path).endswith("cli/commands/custom")
+                assert str(commands_path).endswith("cli/commands")
                 assert str(project_path).endswith("cli/commands")
 
     def test_load_commands_execution_order(self):
@@ -201,8 +199,8 @@ class TestCommandServiceLoadCommands:
                 service.load_commands()
 
                 assert call_order[0] == "version"
-                assert call_order[1] == "defaults"
-                assert call_order[2] == "custom"
+                assert call_order[1] == "commands"
+                assert call_order[2] == "commands"
 
 
 # =============================================================================
