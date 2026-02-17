@@ -1,6 +1,26 @@
 # Changelog
 
 
+## v0.1.4
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.3...v0.1.4)
+
+### 🚀 Enhancements
+
+- **init_command:** Add automatic [project.scripts] entry for custom command name ([0bafe99](https://github.com/thememium/usecli/commit/0bafe99))
+
+### 🏡 Chore
+
+- **uv:** Update version ([deee776](https://github.com/thememium/usecli/commit/deee776))
+
+### ✅ Tests
+
+- **init_command:** Adds project scripts tests ([08075dc](https://github.com/thememium/usecli/commit/08075dc))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.3
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.2...v0.1.3)
