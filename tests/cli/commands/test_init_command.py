@@ -88,7 +88,7 @@ class TestInitCommandPyprojectToml:
         with patch("rich.prompt.Confirm.ask") as mock_ask:
             mock_ask.return_value = False
             init_command.handle(
-                DEFAULT_TITLE, DEFAULT_DESCRIPTION, DEFAULT_COMMANDS_DIR, False
+                DEFAULT_TITLE, DEFAULT_DESCRIPTION, DEFAULT_COMMANDS_DIR, force=False
             )
 
         content = pyproject.read_text()
@@ -102,7 +102,7 @@ class TestInitCommandPyprojectToml:
         with patch("rich.prompt.Confirm.ask") as mock_ask:
             mock_ask.return_value = True
             init_command.handle(
-                "New CLI", "New description", DEFAULT_COMMANDS_DIR, False
+                "New CLI", "New description", DEFAULT_COMMANDS_DIR, force=False
             )
 
         content = pyproject.read_text()
@@ -173,7 +173,7 @@ class TestInitCommandStandaloneConfig:
         with patch("rich.prompt.Confirm.ask") as mock_ask:
             mock_ask.return_value = False
             init_command.handle(
-                DEFAULT_TITLE, DEFAULT_DESCRIPTION, DEFAULT_COMMANDS_DIR, False
+                DEFAULT_TITLE, DEFAULT_DESCRIPTION, DEFAULT_COMMANDS_DIR, force=False
             )
 
         content = config_path.read_text()
