@@ -8,7 +8,6 @@ Configuration is loaded from (in priority order):
 
 from __future__ import annotations
 
-import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -49,21 +48,7 @@ class ConfigManager:
         "description": "A customizable CLI framework",
         "show_setup": True,
         "commands_dir": "commands",
-        "templates_dir": ".usecli/templates",
         "environment": "prod",
-        "logging": {
-            "level": "info",
-            "file_enabled": False,
-            "file_path": "usecli.log",
-        },
-        "features": {
-            "auto_update_check": True,
-            "analytics": False,
-        },
-        "defaults": {
-            "editor": os.environ.get("EDITOR", "vim"),
-            "assistant": "auto",
-        },
     }
 
     CONFIG_FILENAME = "usecli.config.toml"
