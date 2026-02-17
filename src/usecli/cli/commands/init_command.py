@@ -59,6 +59,56 @@ class InitCommand(BaseCommand):
             return "usecli.config.toml"
         return None
 
+    def _add_project_script(self, pyproject_path: Path, command_name: str) -> bool:
+        """Add [project.scripts] entry for the custom command name.
+
+        Args:
+            pyproject_path: Path to pyproject.toml
+            command_name: The custom command name
+
+        Returns:
+            True if a change was made, False otherwise
+        """
+        if not pyproject_path.exists():
+            return False
+
+        content = pyproject_path.read_text()
+        script_line = f'{command_name} = "usecli:run_app"'
+
+        # Check if already exists
+        if f'{command_name} = "usecli:run_app"' in content:
+            return False
+
+        # Check if [project.scripts] section exists
+        if "[project.scripts]" in content:
+            # Add entry to existing section
+            pattern = r"(\[project\.scripts\].*?)(?=\n\[|\Z)"
+            match = re.search(pattern, content, re.DOTALL)
+            if match:
+                section = match.group(1)
+                # Add the new script entry
+                new_section = section.rstrip() + f"\n{script_line}\n"
+                content = (
+                    content[: match.start()] + new_section + content[match.end() :]
+                )
+                pyproject_path.write_text(content)
+                return True
+        else:
+            # Add new [project.scripts] section before [tool.usecli] or at end
+            if "[tool.usecli]" in content:
+                # Insert before [tool.usecli]
+                content = content.replace(
+                    "[tool.usecli]",
+                    f"[project.scripts]\n{script_line}\n\n[tool.usecli]",
+                )
+            else:
+                # Append to end
+                content = content.rstrip() + f"\n\n[project.scripts]\n{script_line}\n"
+            pyproject_path.write_text(content)
+            return True
+
+        return False
+
     def handle(
         self,
         title: str = typer.Option("My CLI", help="Title for your CLI"),
@@ -133,10 +183,22 @@ class InitCommand(BaseCommand):
                 console.print(
                     f"[{COLOR.SUCCESS}]Added [tool.usecli] to {pyproject_path}[/{COLOR.SUCCESS}]"
                 )
+
+            # Add [project.scripts] entry for custom command name
+            if command_name != "usecli":
+                if self._add_project_script(pyproject_path, command_name):
+                    console.print(
+                        f"[{COLOR.SUCCESS}]Added [project.scripts] entry for '{command_name}'[/{COLOR.SUCCESS}]"
+                    )
         else:
             config_toml_path.write_text(config_content)
             console.print(
                 f"[{COLOR.SUCCESS}]Created {config_toml_path}[/{COLOR.SUCCESS}]"
+            )
+            console.print(
+                f"[{COLOR.WARNING}]Note: To use '{command_name}' command, add this to your pyproject.toml:[/{COLOR.WARNING}]\n"
+                f"[project.scripts]\n"
+                f'{command_name} = "usecli:run_app"'
             )
 
         # Show summary
