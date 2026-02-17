@@ -38,10 +38,9 @@ class CommandService:
         self.version = "0.0.0"
 
     def load_commands(self) -> None:
-        """Load all commands from defaults, custom, and project directories."""
+        """Load all commands from the commands directory and project directories."""
         self._load_version()
-        self._load_from_dir(PACKAGE_ROOT / "cli/commands/defaults")
-        self._load_from_dir(PACKAGE_ROOT / "cli/commands/custom")
+        self._load_from_dir(PACKAGE_ROOT / "cli/commands")
         self._load_from_dir(PROJECT_COMMANDS_DIR)
 
     def _load_version(self) -> None:
