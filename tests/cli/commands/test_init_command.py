@@ -81,6 +81,61 @@ class TestInitCommandPyprojectToml:
         assert 'title = "Test CLI"' in content
         assert 'description = "Test description"' in content
 
+    def test_auto_syncs_when_venv_exists(self, temp_project_dir, init_command):
+        pyproject = temp_project_dir / "pyproject.toml"
+        pyproject.write_text("[project]\nname = 'test'\n")
+        (temp_project_dir / ".venv").mkdir()
+
+        with patch("usecli.cli.commands.init_command.shutil.which") as mock_which:
+            with patch("usecli.cli.commands.init_command.subprocess.run") as mock_run:
+                mock_which.return_value = "/usr/bin/uv"
+                mock_run.return_value = MagicMock(returncode=0)
+
+                init_command.handle(
+                    DEFAULT_TITLE,
+                    DEFAULT_DESCRIPTION,
+                    DEFAULT_COMMANDS_DIR,
+                    command_name="mycli",
+                    force=True,
+                )
+
+                mock_run.assert_called_once_with(
+                    ["/usr/bin/uv", "sync"],
+                    capture_output=True,
+                    text=True,
+                )
+
+    def test_skips_auto_sync_without_venv(self, temp_project_dir, init_command):
+        pyproject = temp_project_dir / "pyproject.toml"
+        pyproject.write_text("[project]\nname = 'test'\n")
+
+        with patch("usecli.cli.commands.init_command.subprocess.run") as mock_run:
+            init_command.handle(
+                DEFAULT_TITLE,
+                DEFAULT_DESCRIPTION,
+                DEFAULT_COMMANDS_DIR,
+                command_name="mycli",
+                force=True,
+            )
+
+            mock_run.assert_not_called()
+
+    def test_adds_build_system_when_missing(self, temp_project_dir, init_command):
+        pyproject = temp_project_dir / "pyproject.toml"
+        pyproject.write_text("[project]\nname = 'test'\n")
+
+        init_command.handle(
+            DEFAULT_TITLE,
+            DEFAULT_DESCRIPTION,
+            DEFAULT_COMMANDS_DIR,
+            command_name="mycli",
+            force=True,
+        )
+
+        content = pyproject.read_text()
+        assert "[build-system]" in content
+        assert 'build-backend = "setuptools.build_meta"' in content
+
     def test_adds_project_script_entry(self, temp_project_dir, init_command):
         pyproject = temp_project_dir / "pyproject.toml"
         pyproject.write_text("[project]\nname = 'test'\n")

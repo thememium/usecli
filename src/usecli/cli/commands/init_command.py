@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import re
+import shutil
+import subprocess
 from pathlib import Path
 
 import typer
@@ -60,33 +62,20 @@ class InitCommand(BaseCommand):
         return None
 
     def _add_project_script(self, pyproject_path: Path, command_name: str) -> bool:
-        """Add [project.scripts] entry for the custom command name.
-
-        Args:
-            pyproject_path: Path to pyproject.toml
-            command_name: The custom command name
-
-        Returns:
-            True if a change was made, False otherwise
-        """
         if not pyproject_path.exists():
             return False
 
         content = pyproject_path.read_text()
         script_line = f'{command_name} = "usecli:run_app"'
 
-        # Check if already exists
         if f'{command_name} = "usecli:run_app"' in content:
             return False
 
-        # Check if [project.scripts] section exists
         if "[project.scripts]" in content:
-            # Add entry to existing section
             pattern = r"(\[project\.scripts\].*?)(?=\n\[|\Z)"
             match = re.search(pattern, content, re.DOTALL)
             if match:
                 section = match.group(1)
-                # Add the new script entry
                 new_section = section.rstrip() + f"\n{script_line}\n"
                 content = (
                     content[: match.start()] + new_section + content[match.end() :]
@@ -94,20 +83,33 @@ class InitCommand(BaseCommand):
                 pyproject_path.write_text(content)
                 return True
         else:
-            # Add new [project.scripts] section before [tool.usecli] or at end
             if "[tool.usecli]" in content:
-                # Insert before [tool.usecli]
                 content = content.replace(
                     "[tool.usecli]",
                     f"[project.scripts]\n{script_line}\n\n[tool.usecli]",
                 )
             else:
-                # Append to end
                 content = content.rstrip() + f"\n\n[project.scripts]\n{script_line}\n"
             pyproject_path.write_text(content)
             return True
 
         return False
+
+    def _ensure_build_system(self, pyproject_path: Path) -> bool:
+        if not pyproject_path.exists():
+            return False
+
+        content = pyproject_path.read_text()
+        if "[build-system]" in content:
+            return False
+
+        build_system = (
+            "[build-system]\n"
+            'requires = ["setuptools>=68", "wheel"]\n'
+            'build-backend = "setuptools.build_meta"\n\n'
+        )
+        pyproject_path.write_text(build_system + content)
+        return True
 
     def handle(
         self,
@@ -184,12 +186,36 @@ class InitCommand(BaseCommand):
                     f"[{COLOR.SUCCESS}]Added [tool.usecli] to {pyproject_path}[/{COLOR.SUCCESS}]"
                 )
 
-            # Add [project.scripts] entry for custom command name
             if command_name != "usecli":
                 if self._add_project_script(pyproject_path, command_name):
                     console.print(
                         f"[{COLOR.SUCCESS}]Added [project.scripts] entry for '{command_name}'[/{COLOR.SUCCESS}]"
                     )
+                if self._ensure_build_system(pyproject_path):
+                    console.print(
+                        f"[{COLOR.SUCCESS}]Added build-system to pyproject.toml[/{COLOR.SUCCESS}]"
+                    )
+                venv_path = cwd / ".venv"
+                if venv_path.exists():
+                    uv_path = shutil.which("uv")
+                    if uv_path:
+                        result = subprocess.run(
+                            [uv_path, "sync"],
+                            capture_output=True,
+                            text=True,
+                        )
+                        if result.returncode == 0:
+                            console.print(
+                                f"[{COLOR.SUCCESS}]Synced environment with '{command_name}' entry point[/{COLOR.SUCCESS}]"
+                            )
+                        else:
+                            console.print(
+                                f"[{COLOR.WARNING}]Failed to sync environment. Run 'uv sync'[/{COLOR.WARNING}]"
+                            )
+                    else:
+                        console.print(
+                            f"[{COLOR.WARNING}]uv not found. Run 'uv sync' to enable '{command_name}'[/{COLOR.WARNING}]"
+                        )
         else:
             config_toml_path.write_text(config_content)
             console.print(
