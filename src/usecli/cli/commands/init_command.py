@@ -15,6 +15,7 @@ from rich.prompt import Confirm
 
 from usecli.cli.config.colors import COLOR
 from usecli.cli.core.base_command import BaseCommand
+from usecli.cli.core.ui.title import get_script_command_name
 
 console = Console()
 
@@ -60,40 +61,6 @@ class InitCommand(BaseCommand):
         if config_toml_path.exists():
             return "usecli.config.toml"
         return None
-
-    def _add_project_script(self, pyproject_path: Path, command_name: str) -> bool:
-        if not pyproject_path.exists():
-            return False
-
-        content = pyproject_path.read_text()
-        script_line = f'{command_name} = "usecli:run_app"'
-
-        if f'{command_name} = "usecli:run_app"' in content:
-            return False
-
-        if "[project.scripts]" in content:
-            pattern = r"(\[project\.scripts\].*?)(?=\n\[|\Z)"
-            match = re.search(pattern, content, re.DOTALL)
-            if match:
-                section = match.group(1)
-                new_section = section.rstrip() + f"\n{script_line}\n"
-                content = (
-                    content[: match.start()] + new_section + content[match.end() :]
-                )
-                pyproject_path.write_text(content)
-                return True
-        else:
-            if "[tool.usecli]" in content:
-                content = content.replace(
-                    "[tool.usecli]",
-                    f"[project.scripts]\n{script_line}\n\n[tool.usecli]",
-                )
-            else:
-                content = content.rstrip() + f"\n\n[project.scripts]\n{script_line}\n"
-            pyproject_path.write_text(content)
-            return True
-
-        return False
 
     def _ensure_build_system(self, pyproject_path: Path) -> bool:
         if not pyproject_path.exists():
@@ -165,9 +132,6 @@ class InitCommand(BaseCommand):
         commands_dir: str = typer.Option(
             "cli/commands", help="Directory for custom commands"
         ),
-        command_name: str = typer.Option(
-            "mycli", help="Command name for your CLI (e.g., 'mycli' for 'mycli help')"
-        ),
         force: bool = typer.Option(
             False, "--force", "-f", help="Overwrite existing config without prompting"
         ),
@@ -203,7 +167,6 @@ class InitCommand(BaseCommand):
             title=title,
             description=description,
             commands_dir=commands_dir,
-            command_name=command_name,
         )
 
         # Check if config already exists
@@ -236,11 +199,8 @@ class InitCommand(BaseCommand):
                     f"[{COLOR.SUCCESS}]Added [tool.usecli] to {pyproject_path}[/{COLOR.SUCCESS}]"
                 )
 
-            if command_name != "usecli":
-                if self._add_project_script(pyproject_path, command_name):
-                    console.print(
-                        f"[{COLOR.SUCCESS}]Added [project.scripts] entry for '{command_name}'[/{COLOR.SUCCESS}]"
-                    )
+            script_command = get_script_command_name()
+            if script_command and script_command != "usecli":
                 if self._ensure_build_system(pyproject_path):
                     console.print(
                         f"[{COLOR.SUCCESS}]Added build-system to pyproject.toml[/{COLOR.SUCCESS}]"
@@ -260,7 +220,7 @@ class InitCommand(BaseCommand):
                         )
                         if result.returncode == 0:
                             console.print(
-                                f"[{COLOR.SUCCESS}]Synced environment with '{command_name}' entry point[/{COLOR.SUCCESS}]"
+                                f"[{COLOR.SUCCESS}]Synced environment with '{script_command}' entry point[/{COLOR.SUCCESS}]"
                             )
                         else:
                             console.print(
@@ -268,7 +228,7 @@ class InitCommand(BaseCommand):
                             )
                     else:
                         console.print(
-                            f"[{COLOR.WARNING}]uv not found. Run 'uv sync' to enable '{command_name}'[/{COLOR.WARNING}]"
+                            f"[{COLOR.WARNING}]uv not found. Run 'uv sync' to enable '{script_command}'[/{COLOR.WARNING}]"
                         )
         else:
             config_toml_path.write_text(config_content)
@@ -276,20 +236,28 @@ class InitCommand(BaseCommand):
                 f"[{COLOR.SUCCESS}]Created {config_toml_path}[/{COLOR.SUCCESS}]"
             )
             console.print(
-                f"[{COLOR.WARNING}]Note: To use '{command_name}' command, add this to your pyproject.toml:[/{COLOR.WARNING}]\n"
+                f"[{COLOR.WARNING}]Note: To create a CLI entry point, add this to your pyproject.toml:[/{COLOR.WARNING}]\n"
                 f"[project.scripts]\n"
-                f'{command_name} = "usecli:run_app"'
+                f'mycli = "usecli:run_app"'
             )
 
         # Show summary
+        summary_command = get_script_command_name()
+        command_summary = ""
+        if summary_command:
+            command_summary = (
+                f"Command: {summary_command}\n\n"
+                f"Create new commands with: [bold {COLOR.COMMAND}]{summary_command} make:command <name>[/bold {COLOR.COMMAND}]"
+            )
+        else:
+            command_summary = "Create new commands after adding a [project.scripts] entry for usecli:run_app."
         console.print(
             Panel.fit(
                 f"[bold {COLOR.PRIMARY}]usecli initialized![/bold {COLOR.PRIMARY}]\n\n"
                 f"Title: {title}\n"
                 f"Description: {description}\n"
                 f"Commands Directory: {commands_dir}\n"
-                f"Command Name: {command_name}\n\n"
-                f"Create new commands with: [bold {COLOR.COMMAND}]{command_name} make:command <name>[/bold {COLOR.COMMAND}]",
+                f"{command_summary}",
                 title="usecli Init",
                 border_style=COLOR.PANEL_PRIMARY,
             )

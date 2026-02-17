@@ -39,9 +39,16 @@ def _get_script_command_name() -> str | None:
     return None
 
 
+def get_script_command_name(default: str | None = None) -> str | None:
+    command_name = _get_script_command_name()
+    if command_name:
+        return command_name
+    return default
+
+
 def get_project_name() -> str:
     """Get the project name from package metadata."""
-    command_name = _get_script_command_name()
+    command_name = get_script_command_name()
     if command_name:
         return "useCli" if command_name == "usecli" else command_name
 
