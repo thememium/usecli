@@ -106,9 +106,41 @@ class InitCommand(BaseCommand):
         build_system = (
             "[build-system]\n"
             'requires = ["setuptools>=68", "wheel"]\n'
-            'build-backend = "setuptools.build_meta"\n\n'
+            'build-backend = "setuptools.build_meta"\n'
         )
-        pyproject_path.write_text(build_system + content)
+        pyproject_path.write_text(content.rstrip() + f"\n\n{build_system}\n")
+        return True
+
+    def _add_setuptools_package_discovery(
+        self, pyproject_path: Path, commands_dir: str
+    ) -> bool:
+        if not pyproject_path.exists():
+            return False
+
+        content = pyproject_path.read_text()
+        if "[tool.setuptools.packages.find]" in content:
+            return False
+
+        parts = Path(commands_dir).parts
+        if not parts:
+            return False
+
+        root_package = parts[0]
+        discovery_block = (
+            "[tool.setuptools.packages.find]\n"
+            'where = ["."]\n'
+            f'include = ["{root_package}*"]\n\n'
+        )
+
+        if "[tool.usecli]" in content:
+            content = content.replace(
+                "[tool.usecli]",
+                f"{discovery_block}[tool.usecli]",
+            )
+        else:
+            content = content.rstrip() + f"\n\n{discovery_block}"
+
+        pyproject_path.write_text(content)
         return True
 
     def handle(
@@ -194,6 +226,10 @@ class InitCommand(BaseCommand):
                 if self._ensure_build_system(pyproject_path):
                     console.print(
                         f"[{COLOR.SUCCESS}]Added build-system to pyproject.toml[/{COLOR.SUCCESS}]"
+                    )
+                if self._add_setuptools_package_discovery(pyproject_path, commands_dir):
+                    console.print(
+                        f"[{COLOR.SUCCESS}]Added setuptools package discovery to pyproject.toml[/{COLOR.SUCCESS}]"
                     )
                 venv_path = cwd / ".venv"
                 if venv_path.exists():

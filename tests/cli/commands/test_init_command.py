@@ -135,6 +135,24 @@ class TestInitCommandPyprojectToml:
         content = pyproject.read_text()
         assert "[build-system]" in content
         assert 'build-backend = "setuptools.build_meta"' in content
+        assert content.strip().endswith('build-backend = "setuptools.build_meta"')
+
+    def test_adds_setuptools_package_discovery(self, temp_project_dir, init_command):
+        pyproject = temp_project_dir / "pyproject.toml"
+        pyproject.write_text("[project]\nname = 'test'\n")
+
+        init_command.handle(
+            DEFAULT_TITLE,
+            DEFAULT_DESCRIPTION,
+            DEFAULT_COMMANDS_DIR,
+            command_name="mycli",
+            force=True,
+        )
+
+        content = pyproject.read_text()
+        assert "[tool.setuptools.packages.find]" in content
+        assert 'where = ["."]' in content
+        assert 'include = ["cli*"]' in content
 
     def test_adds_project_script_entry(self, temp_project_dir, init_command):
         pyproject = temp_project_dir / "pyproject.toml"
