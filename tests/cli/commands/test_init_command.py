@@ -14,7 +14,7 @@ from usecli.cli.commands.init_command import InitCommand
 
 DEFAULT_TITLE = "My CLI"
 DEFAULT_DESCRIPTION = "A custom CLI tool"
-DEFAULT_COMMANDS_DIR = "commands"
+DEFAULT_COMMANDS_DIR = "cli/commands"
 
 
 @pytest.fixture
@@ -37,7 +37,7 @@ def init_command(mock_console):
 
 class TestInitCommandDirectoryCreation:
     def test_creates_commands_directory(self, temp_project_dir, init_command):
-        commands_dir = temp_project_dir / "commands"
+        commands_dir = temp_project_dir / "cli" / "commands"
         assert not commands_dir.exists()
 
         init_command.handle(
@@ -57,8 +57,8 @@ class TestInitCommandDirectoryCreation:
         assert commands_path.is_dir()
 
     def test_handles_existing_commands_directory(self, temp_project_dir, init_command):
-        commands_dir = temp_project_dir / "commands"
-        commands_dir.mkdir()
+        commands_dir = temp_project_dir / "cli" / "commands"
+        commands_dir.mkdir(parents=True)
 
         init_command.handle(
             DEFAULT_TITLE, DEFAULT_DESCRIPTION, DEFAULT_COMMANDS_DIR, force=True
@@ -330,7 +330,7 @@ class TestInitCommandDefaults:
         content = config_path.read_text()
         assert 'title = "My CLI"' in content
         assert 'description = "A custom CLI tool"' in content
-        assert 'commands_dir = "commands"' in content
+        assert 'commands_dir = "cli/commands"' in content
         assert "show_setup = true" in content
 
 
@@ -338,12 +338,12 @@ class TestInitCommandIntegration:
     def test_full_init_workflow_with_pyproject(self, temp_project_dir, init_command):
         pyproject = temp_project_dir / "pyproject.toml"
         pyproject.write_text("[project]\nname = 'test-project'\n")
-        commands_dir = temp_project_dir / "commands"
+        commands_dir = temp_project_dir / "cli" / "commands"
 
         init_command.handle(
             "Integration Test CLI",
             "Integration test description",
-            "commands",
+            DEFAULT_COMMANDS_DIR,
             force=True,
         )
 
@@ -357,7 +357,7 @@ class TestInitCommandIntegration:
         assert not config_toml.exists()
 
     def test_full_init_workflow_without_pyproject(self, temp_project_dir, init_command):
-        commands_dir = temp_project_dir / "commands"
+        commands_dir = temp_project_dir / "cli" / "commands"
         config_toml = temp_project_dir / "usecli.config.toml"
 
         init_command.handle(

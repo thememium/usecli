@@ -73,7 +73,7 @@ class TestConfigManagerDefaults:
         assert manager.get("title") == "usecli"
         assert manager.get("description") == "A customizable CLI framework"
         assert manager.get("show_setup") is True
-        assert manager.get("commands_dir") == "commands"
+        assert manager.get("commands_dir") == "cli/commands"
         assert manager.get("environment") == "prod"
         assert manager.get("command_name") == "usecli"
 
