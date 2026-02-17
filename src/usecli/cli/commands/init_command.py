@@ -11,6 +11,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Confirm
 
+from usecli.cli.config.colors import COLOR
 from usecli.cli.core.base_command import BaseCommand
 
 console = Console()
@@ -79,10 +80,12 @@ class InitCommand(BaseCommand):
         # Create the commands directory
         if not commands_path.exists():
             commands_path.mkdir(parents=True, exist_ok=True)
-            console.print(f"[green]Created commands directory:[/green] {commands_path}")
+            console.print(
+                f"[{COLOR.SUCCESS}]Created commands directory:[/{COLOR.SUCCESS}] {commands_path}"
+            )
         else:
             console.print(
-                f"[yellow]Commands directory already exists:[/yellow] {commands_path}"
+                f"[{COLOR.WARNING}]Commands directory already exists:[/{COLOR.WARNING}] {commands_path}"
             )
 
         # Load the template
@@ -102,12 +105,14 @@ class InitCommand(BaseCommand):
 
         if existing_source and not force:
             should_overwrite = Confirm.ask(
-                f"[yellow]usecli config already exists in {existing_source}.[/yellow]\n"
+                f"[{COLOR.WARNING}]usecli config already exists in {existing_source}.[/{COLOR.WARNING}]\n"
                 f"Do you want to overwrite it?",
                 default=False,
             )
             if not should_overwrite:
-                console.print("[yellow]Skipping config update.[/yellow]")
+                console.print(
+                    f"[{COLOR.WARNING}]Skipping config update.[/{COLOR.WARNING}]"
+                )
                 return
 
         # Check if pyproject.toml exists
@@ -116,25 +121,29 @@ class InitCommand(BaseCommand):
             if "[tool.usecli]" in content:
                 self._replace_config_in_pyproject(pyproject_path, config_content)
                 console.print(
-                    f"[green]Updated [tool.usecli] in {pyproject_path}[/green]"
+                    f"[{COLOR.SUCCESS}]Updated [tool.usecli] in {pyproject_path}[/{COLOR.SUCCESS}]"
                 )
             else:
                 with open(pyproject_path, "a") as f:
                     f.write("\n\n" + config_content)
-                console.print(f"[green]Added [tool.usecli] to {pyproject_path}[/green]")
+                console.print(
+                    f"[{COLOR.SUCCESS}]Added [tool.usecli] to {pyproject_path}[/{COLOR.SUCCESS}]"
+                )
         else:
             config_toml_path.write_text(config_content)
-            console.print(f"[green]Created {config_toml_path}[/green]")
+            console.print(
+                f"[{COLOR.SUCCESS}]Created {config_toml_path}[/{COLOR.SUCCESS}]"
+            )
 
         # Show summary
         console.print(
             Panel.fit(
-                f"[bold green]usecli initialized![/bold green]\n\n"
+                f"[bold {COLOR.PRIMARY}]usecli initialized![/bold {COLOR.PRIMARY}]\n\n"
                 f"Title: {title}\n"
                 f"Description: {description}\n"
                 f"Commands Directory: {commands_dir}\n\n"
-                f"Create new commands with: [bold]usecli make:command <name>[/bold]",
+                f"Create new commands with: [bold {COLOR.COMMAND}]usecli make:command <name>[/bold {COLOR.COMMAND}]",
                 title="usecli Init",
-                border_style="green",
+                border_style=COLOR.PANEL_PRIMARY,
             )
         )
