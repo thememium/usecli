@@ -1,4 +1,4 @@
-"""Global configuration and paths for usecli."""
+"""Global paths for usecli."""
 
 from __future__ import annotations
 
@@ -17,6 +17,6 @@ TEMPLATES_DIR = CLI_ROOT / "templates"
 # Project paths (for generated commands in the current working directory)
 PROJECT_COMMANDS_DIR = Path.cwd() / "cli" / "commands"
 
-# Global config paths
-GLOBAL_CONFIG_DIR = Path.home() / ".config" / "usecli"
-GLOBAL_CONFIG_PATH = GLOBAL_CONFIG_DIR / "config.yaml"
+# Config file names
+PYPROJECT_TOML = "pyproject.toml"
+USECLI_CONFIG_TOML = "usecli.config.toml"
