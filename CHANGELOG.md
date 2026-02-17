@@ -1,6 +1,41 @@
 # Changelog
 
 
+## v0.1.3
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.2...v0.1.3)
+
+### 🚀 Enhancements
+
+- **config:** Add usecli.toml Jinja2 template and simplify defaults ([35d57d6](https://github.com/thememium/usecli/commit/35d57d6))
+- **cli:** Add InitCommand to initialise usecli projects and tests ([5bebf42](https://github.com/thememium/usecli/commit/5bebf42))
+- **init:** Add interactive overwrite prompts and --force flag ([a78ecca](https://github.com/thememium/usecli/commit/a78ecca))
+- **cli:** Add configurable command name option ([59e98d9](https://github.com/thememium/usecli/commit/59e98d9))
+
+### 💅 Refactors
+
+- **globals.py:** Rename config constants to file name constants and update docstring ([912cbab](https://github.com/thememium/usecli/commit/912cbab))
+- **config:** Replace YAML global/local config with TOML project config ([73ebcdc](https://github.com/thememium/usecli/commit/73ebcdc))
+- **init_command:** Use centralized color constants for console output ([b326ad4](https://github.com/thememium/usecli/commit/b326ad4))
+- **tests:** Use keyword argument `force` for init_command.handle calls ([d978004](https://github.com/thememium/usecli/commit/d978004))
+
+### 📖 Documentation
+
+- **readme:** Increase logo height, lower Python version requirement, revise install guide ([d6dbb58](https://github.com/thememium/usecli/commit/d6dbb58))
+- **readme:** Reduce logo image dimensions ([f2f8937](https://github.com/thememium/usecli/commit/f2f8937))
+
+### 📦 Build
+
+- **pyproject:** Add tomli dependency ([c3630d2](https://github.com/thememium/usecli/commit/c3630d2))
+
+### 🏡 Chore
+
+- **uv:** Update version ([4018d70](https://github.com/thememium/usecli/commit/4018d70))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.2
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.1...v0.1.2)
