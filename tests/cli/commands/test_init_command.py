@@ -38,6 +38,7 @@ def init_command(mock_console):
 class TestInitCommandDirectoryCreation:
     def test_creates_commands_directory(self, temp_project_dir, init_command):
         commands_dir = temp_project_dir / "cli" / "commands"
+        cli_dir = temp_project_dir / "cli"
         assert not commands_dir.exists()
 
         init_command.handle(
@@ -46,6 +47,8 @@ class TestInitCommandDirectoryCreation:
 
         assert commands_dir.exists()
         assert commands_dir.is_dir()
+        assert (cli_dir / "__init__.py").exists()
+        assert (commands_dir / "__init__.py").exists()
 
     def test_creates_custom_commands_directory(self, temp_project_dir, init_command):
         custom_dir = "my_custom_commands"
@@ -55,6 +58,7 @@ class TestInitCommandDirectoryCreation:
 
         assert commands_path.exists()
         assert commands_path.is_dir()
+        assert (commands_path / "__init__.py").exists()
 
     def test_handles_existing_commands_directory(self, temp_project_dir, init_command):
         commands_dir = temp_project_dir / "cli" / "commands"
@@ -65,6 +69,7 @@ class TestInitCommandDirectoryCreation:
         )
 
         assert commands_dir.exists()
+        assert (commands_dir / "__init__.py").exists()
 
 
 class TestInitCommandPyprojectToml:

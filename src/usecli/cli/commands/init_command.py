@@ -143,6 +143,19 @@ class InitCommand(BaseCommand):
         pyproject_path.write_text(content)
         return True
 
+    def _ensure_package_init_files(self, commands_path: Path, cwd: Path) -> bool:
+        created = False
+        init_paths = [commands_path / "__init__.py"]
+        if commands_path.parent != cwd:
+            init_paths.append(commands_path.parent / "__init__.py")
+
+        for init_path in init_paths:
+            if not init_path.exists():
+                init_path.touch()
+                created = True
+
+        return created
+
     def handle(
         self,
         title: str = typer.Option("My CLI", help="Title for your CLI"),
@@ -173,6 +186,11 @@ class InitCommand(BaseCommand):
         else:
             console.print(
                 f"[{COLOR.WARNING}]Commands directory already exists:[/{COLOR.WARNING}] {commands_path}"
+            )
+
+        if self._ensure_package_init_files(commands_path, cwd):
+            console.print(
+                f"[{COLOR.SUCCESS}]Added __init__.py files for package discovery[/{COLOR.SUCCESS}]"
             )
 
         # Load the template
