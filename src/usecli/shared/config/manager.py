@@ -46,7 +46,6 @@ class ConfigManager:
     DEFAULT_CONFIG: dict[str, Any] = {
         "title": "usecli",
         "description": "A customizable CLI framework",
-        "show_setup": True,
         "commands_dir": "cli/commands",
         "environment": "prod",
         "command_name": "usecli",

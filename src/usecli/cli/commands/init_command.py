@@ -6,6 +6,7 @@ import re
 import shutil
 import subprocess
 from pathlib import Path
+from typing import Annotated
 
 import typer
 from jinja2 import Template
@@ -15,7 +16,7 @@ from rich.prompt import Confirm
 
 from usecli.cli.config.colors import COLOR
 from usecli.cli.core.base_command import BaseCommand
-from usecli.cli.core.ui.title import get_script_command_name
+from usecli.cli.core.validators import validate_command_name
 
 console = Console()
 
@@ -185,6 +186,17 @@ class InitCommand(BaseCommand):
         commands_dir: str = typer.Option(
             "cli/commands", help="Directory for custom commands"
         ),
+        command_name: Annotated[
+            str,
+            typer.Option(
+                "--command-name",
+                "-c",
+                help="Command name for your CLI entry point",
+                prompt="Project script command name",
+                show_default=True,
+                callback=validate_command_name,
+            ),
+        ] = "usecli",
         force: bool = typer.Option(
             False, "--force", "-f", help="Overwrite existing config without prompting"
         ),
@@ -237,6 +249,8 @@ class InitCommand(BaseCommand):
                 )
                 return
 
+        scripts_status: str | None = None
+
         # Check if pyproject.toml exists
         if pyproject_path.exists():
             content = pyproject_path.read_text()
@@ -252,9 +266,8 @@ class InitCommand(BaseCommand):
                     f"[{COLOR.SUCCESS}]Added [tool.usecli] to {pyproject_path}[/{COLOR.SUCCESS}]"
                 )
 
-            script_command = get_script_command_name(default="usecli") or "usecli"
             scripts_status = self._ensure_project_scripts(
-                pyproject_path, script_command, force
+                pyproject_path, command_name, force
             )
             if scripts_status == "added":
                 console.print(
@@ -290,7 +303,7 @@ class InitCommand(BaseCommand):
                         )
                         if result.returncode == 0:
                             console.print(
-                                f"[{COLOR.SUCCESS}]Synced environment with '{script_command}' entry point[/{COLOR.SUCCESS}]"
+                                f"[{COLOR.SUCCESS}]Synced environment with '{command_name}' entry point[/{COLOR.SUCCESS}]"
                             )
                         else:
                             console.print(
@@ -298,7 +311,7 @@ class InitCommand(BaseCommand):
                             )
                     else:
                         console.print(
-                            f"[{COLOR.WARNING}]uv not found. Run 'uv sync' to enable '{script_command}'[/{COLOR.WARNING}]"
+                            f"[{COLOR.WARNING}]uv not found. Run 'uv sync' to enable '{command_name}'[/{COLOR.WARNING}]"
                         )
         else:
             config_toml_path.write_text(config_content)
@@ -308,11 +321,15 @@ class InitCommand(BaseCommand):
             console.print(
                 f"[{COLOR.WARNING}]Note: To create a CLI entry point, add this to your pyproject.toml:[/{COLOR.WARNING}]\n"
                 f"[project.scripts]\n"
-                f'usecli = "usecli:run_app"'
+                f'{command_name} = "usecli:run_app"'
             )
 
         # Show summary
-        summary_command = get_script_command_name()
+        summary_command = (
+            command_name
+            if scripts_status in {"added", "updated", "unchanged"}
+            else None
+        )
         command_summary = ""
         if summary_command:
             command_summary = (
