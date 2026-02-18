@@ -56,7 +56,7 @@ def test_custom_help_command_invoke_calls_run_interactive():
 
     with patch("usecli.app", app):
         with patch(
-            "usecli.cli.commands.defaults.base.fzf_command.run_interactive"
+            "usecli.cli.commands.defaults.base.internal.fzf_command.run_interactive"
         ) as mock_run:
             with pytest.raises(Exit):
                 cmd.invoke(ctx)
@@ -70,7 +70,7 @@ def test_main_interactive_calls_run_interactive():
     ctx.invoked_subcommand = "about"
 
     with patch(
-        "usecli.cli.commands.defaults.base.fzf_command.run_interactive"
+        "usecli.cli.commands.defaults.base.internal.fzf_command.run_interactive"
     ) as mock_run:
         with pytest.raises(typer.Exit):
             main(ctx=ctx, version=False, help=False, interactive=True)
