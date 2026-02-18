@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 from typing import Annotated
 
@@ -13,6 +14,11 @@ from jinja2 import Template
 from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Confirm, Prompt
+
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import tomli as tomllib
 
 from usecli.cli.config.colors import COLOR
 from usecli.cli.core.base_command import BaseCommand
@@ -178,6 +184,25 @@ class InitCommand(BaseCommand):
 
         return created
 
+    def _get_existing_usecli_script_name(self, pyproject_path: Path) -> str | None:
+        if not pyproject_path.exists():
+            return None
+
+        try:
+            data = tomllib.loads(pyproject_path.read_text())
+        except (tomllib.TOMLDecodeError, OSError):
+            return None
+
+        scripts = data.get("project", {}).get("scripts", {})
+        if not isinstance(scripts, dict):
+            return None
+
+        for name, target in scripts.items():
+            if target == "usecli:run_app":
+                return name
+
+        return None
+
     def _prompt_command_name(self, command_name: str) -> str:
         prompt_text = f"[bold {COLOR.SECONDARY}]Project script command name[/bold {COLOR.SECONDARY}]"
         first_attempt = True
@@ -218,6 +243,9 @@ class InitCommand(BaseCommand):
         config_toml_path = cwd / "usecli.config.toml"
 
         console.print()
+        existing_command_name = self._get_existing_usecli_script_name(pyproject_path)
+        if existing_command_name and command_name == "usecli":
+            command_name = existing_command_name
         command_name = self._prompt_command_name(command_name)
         console.print()
         title = Prompt.ask(
