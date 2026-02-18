@@ -142,7 +142,9 @@ def main(
         raise typer.Exit()
 
     if interactive:
-        from usecli.cli.commands.defaults.base.fzf_command import run_interactive
+        from usecli.cli.commands.defaults.base.internal.fzf_command import (
+            run_interactive,
+        )
 
         cmd_parts = [ctx.invoked_subcommand] if ctx.invoked_subcommand else None
         run_interactive(app, cmd_parts=cmd_parts)

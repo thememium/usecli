@@ -63,6 +63,9 @@ class CommandService:
             if path.name == "__init__.py":
                 continue
 
+            if "internal" in path.parts:
+                continue
+
             module = self._import_file(path)
             if not module:
                 continue
