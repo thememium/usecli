@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import inspect
 import os
+import shutil
 import subprocess
 import sys
 from typing import TYPE_CHECKING, Any
@@ -154,6 +155,10 @@ class FzfCommand(BaseCommand):
         Returns:
             The selected string or None if cancelled.
         """
+        if not sys.stdin.isatty() or not sys.stdout.isatty() or not shutil.which("fzf"):
+            selection = terminal_menu(options, title=prompt.strip())
+            return selection[0] if selection else None
+
         input_data = "\n".join(options)
 
         fzf_args = [
