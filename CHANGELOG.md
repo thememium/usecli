@@ -1,6 +1,22 @@
 # Changelog
 
 
+## v0.1.8
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.7...v0.1.8)
+
+### 🚀 Enhancements
+
+- **cli:** Enable interspersed arguments in custom help command ([90ae906](https://github.com/thememium/usecli/commit/90ae906))
+
+### 🏡 Chore
+
+- **uv:** Update version ([f3e70b4](https://github.com/thememium/usecli/commit/f3e70b4))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.7
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.6...v0.1.7)
