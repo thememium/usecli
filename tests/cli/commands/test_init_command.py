@@ -31,8 +31,10 @@ def mock_console():
 
 @pytest.fixture
 def init_command(mock_console):
-    mock_app = MagicMock()
-    return InitCommand(mock_app)
+    with patch("usecli.cli.commands.init_command.Prompt.ask") as mock_prompt:
+        mock_prompt.side_effect = lambda *args, **kwargs: kwargs.get("default", "")
+        mock_app = MagicMock()
+        yield InitCommand(mock_app)
 
 
 class TestInitCommandDirectoryCreation:
