@@ -12,7 +12,6 @@ from rich.console import Console
 from typer.core import TyperCommand
 
 from usecli.cli.config.colors import COLOR
-from usecli.ui import Confirm
 
 if TYPE_CHECKING:
     from click.core import Context as ClickContext

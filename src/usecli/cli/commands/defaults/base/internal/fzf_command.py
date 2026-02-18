@@ -86,6 +86,8 @@ def _get_optional_options(
         option_names = ", ".join(param.opts)
         if "--help" in option_names:
             continue
+        if "--interactive" in option_names or "-i" in option_names:
+            continue
 
         help_text = param.help or ""
         param_name = param.name or ""
