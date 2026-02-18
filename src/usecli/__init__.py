@@ -117,6 +117,9 @@ def main(
         None, "--version", "-v", help="Show the version and exit.", is_eager=True
     ),
     help: bool = typer.Option(None, "--help", "-h", is_eager=True),
+    interactive: bool = typer.Option(
+        False, "--interactive", "-i", help="Run in interactive mode", is_eager=True
+    ),
 ) -> None:
     """Main callback for the CLI application.
 
@@ -136,6 +139,13 @@ def main(
         console.print(
             f"[bold blue]CLI Version:[/bold blue] [green]{service.version}[/green]"
         )
+        raise typer.Exit()
+
+    if interactive:
+        from usecli.cli.commands.defaults.base.fzf_command import run_interactive
+
+        cmd_parts = [ctx.invoked_subcommand] if ctx.invoked_subcommand else None
+        run_interactive(app, cmd_parts=cmd_parts)
         raise typer.Exit()
 
     if ctx.invoked_subcommand is None:
