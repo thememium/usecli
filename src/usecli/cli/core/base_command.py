@@ -171,6 +171,7 @@ class CustomHelpCommand(TyperCommand):
         """
         context_settings = kwargs.get("context_settings") or {}
         context_settings["help_option_names"] = ["--help", "-h"]
+        context_settings.setdefault("allow_interspersed_args", True)
         kwargs["context_settings"] = context_settings
         super().__init__(*args, **kwargs)
         if not hasattr(self, "params"):
