@@ -322,9 +322,6 @@ class BaseCommand(ABC):
         signature = self.signature()
         signature_parts = signature.split()
 
-        # Wrap handle with interactive boolean prompts
-        wrapped_handle = self._wrap_handle_with_interactive_prompts()
-
         # Check if this is a space-separated nested command signature (e.g., "spec show")
         # vs a command with argument placeholders (e.g., "test-cmd <name>")
         # Only 2-part signatures where the second part is a valid subcommand
@@ -346,7 +343,7 @@ class BaseCommand(ABC):
                 help=self.description(),
                 cls=CustomHelpCommand,
             )
-            cmd_decorator(wrapped_handle)
+            cmd_decorator(self.handle)
         else:
             # Single-level command (e.g., "help", "init", "config:set", "make:command")
             name = signature_parts[0]
@@ -355,69 +352,7 @@ class BaseCommand(ABC):
                 help=self.description(),
                 cls=CustomHelpCommand,
             )
-            cmd_decorator(wrapped_handle)
-
-    def _wrap_handle_with_interactive_prompts(self) -> Any:
-        """Wrap handle method to prompt for boolean options when not provided.
-
-        Inspects the handle method signature for boolean parameters with default
-        values and prompts the user interactively when those parameters are not
-        explicitly provided on the command line.
-
-        Returns:
-            Wrapped handle function with interactive prompting.
-        """
-        import inspect
-
-        import click
-
-        sig = inspect.signature(self.handle)
-        bool_params = {
-            name: param.default
-            for name, param in sig.parameters.items()
-            if param.annotation is bool
-            or (param.default is not None and isinstance(param.default, bool))
-        }
-
-        def wrapped(*args: Any, **kwargs: Any) -> Any:
-            import sys
-
-            is_interactive = sys.stdin.isatty() and sys.stdout.isatty()
-            if not is_interactive:
-                return self.handle(*args, **kwargs)
-
-            ctx = click.get_current_context()
-
-            for param_name, default_value in bool_params.items():
-                # If param not in kwargs or equals default, it wasn't explicitly provided
-                if param_name not in kwargs or kwargs[param_name] == default_value:
-                    # Check if it was explicitly provided via command line
-                    param_obj = next(
-                        (p for p in ctx.command.params if p.name == param_name), None
-                    )
-                    if param_obj:
-                        # Check if this param was explicitly set by the user
-                        param_value = ctx.params.get(param_name, default_value)
-                        if param_value == default_value:
-                            # Prompt interactively for the boolean value
-                            prompt_text = f"Enable {param_name.replace('_', ' ')}?"
-                            kwargs[param_name] = Confirm.ask(
-                                prompt_text, default=default_value
-                            )
-                    else:
-                        # No param object found, prompt interactively
-                        prompt_text = f"Enable {param_name.replace('_', ' ')}?"
-                        kwargs[param_name] = Confirm.ask(
-                            prompt_text, default=default_value
-                        )
-
-            return self.handle(*args, **kwargs)
-
-        setattr(wrapped, "__signature__", sig)
-        setattr(wrapped, "__name__", self.handle.__name__)
-        setattr(wrapped, "__doc__", self.handle.__doc__)
-
-        return wrapped
+            cmd_decorator(self.handle)
 
     def _is_valid_subcommand_name(self, name: str) -> bool:
         """Check if a string is a valid subcommand name (not an argument placeholder).

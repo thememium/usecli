@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from typing import Any
 
+import click
 import typer
+
+from usecli.ui import Confirm
 
 
 def Argument(
@@ -80,12 +83,36 @@ def Option(
     if is_flag and default is None:
         default = False
 
+    user_callback = kwargs.pop("callback", None)
+    should_prompt = (
+        (is_flag or isinstance(default, bool))
+        and "prompt" not in kwargs
+        and "confirmation_prompt" not in kwargs
+    )
+
+    def callback(ctx: click.Context, param: click.Parameter, value: Any) -> Any:
+        name = param.name
+        if should_prompt and ctx is not None and name is not None:
+            if ctx.resilient_parsing:
+                return value
+            source = ctx.get_parameter_source(name)
+            if source == click.core.ParameterSource.DEFAULT:
+                if ctx.info_name is not None and ctx.find_root().params.get(
+                    "interactive"
+                ):
+                    prompt_text = f"Enable {name.replace('_', ' ')}?"
+                    value = Confirm.ask(prompt_text, default=bool(default))
+        if user_callback is not None:
+            return user_callback(ctx, param, value)
+        return value
+
     return typer.Option(
         default,
         *param_decls,
         help=help,
         show_default=show_default,
         show_choices=show_choices,
+        callback=callback,
         **kwargs,
     )
 

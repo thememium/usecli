@@ -60,54 +60,44 @@ def _get_required_arguments(command: ClickCommand) -> list[tuple[str, str, type]
     return required
 
 
-def _get_optional_options(command: ClickCommand) -> list[tuple[str, str, str, type]]:
-    callback = command.callback
-    if not callback:
+def _get_optional_options(
+    command: ClickCommand | typer.models.CommandInfo,
+) -> list[tuple[str, str, str, type]]:
+    click_command: click.Command | None
+    if isinstance(command, click.Command):
+        click_command = command
+    elif isinstance(command, typer.models.CommandInfo):
+        click_command = typer.main.get_command_from_info(
+            command,
+            pretty_exceptions_short=False,
+            rich_markup_mode=None,
+        )
+    else:
+        click_command = None
+
+    if click_command is None or not click_command.params:
         return []
 
     options: list[tuple[str, str, str, type]] = []
-    sig = inspect.signature(callback)
-    for param_name, param in sig.parameters.items():
-        if param_name == "self":
+    for param in click_command.params:
+        if not isinstance(param, click.Option):
             continue
 
-        is_option = False
-        default_value = param.default
-
-        if default_value is inspect.Parameter.empty:
+        option_names = ", ".join(param.opts)
+        if "--help" in option_names:
             continue
 
-        if hasattr(default_value, "default"):
-            if default_value.default is not ...:
-                is_option = True
+        help_text = param.help or ""
+        param_name = param.name or ""
+
+        if param.is_flag or isinstance(param.type, click.types.BoolParamType):
+            param_type = bool
+        elif isinstance(param.type, click.types.IntParamType):
+            param_type = int
         else:
-            is_option = True
+            param_type = str
 
-        if is_option:
-            option_names = ""
-            try:
-                param_decls = getattr(default_value, "param_decls", [])
-                if param_decls:
-                    option_names = ", ".join(param_decls)
-                else:
-                    option_names = f"--{param_name.replace('_', '-')}"
-            except AttributeError:
-                option_names = f"--{param_name.replace('_', '-')}"
-
-            if "--help" in option_names:
-                continue
-
-            help_text = ""
-            try:
-                help_text = getattr(default_value, "help", "") or ""
-            except AttributeError:
-                pass
-
-            param_type: type = param.annotation
-            if param_type is inspect.Parameter.empty:
-                param_type = str
-
-            options.append((param_name, option_names, help_text, param_type))
+        options.append((param_name, option_names, help_text, param_type))
 
     return options
 
