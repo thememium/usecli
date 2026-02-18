@@ -84,10 +84,25 @@ class NestedCommandRegistry:
             help_flag: bool = typer.Option(
                 False, "--help", "-h", is_eager=True, help="Show help for this group"
             ),
+            interactive: bool = typer.Option(
+                False,
+                "--interactive",
+                "-i",
+                help="Run in interactive mode",
+            ),
         ) -> None:
             """Callback for the command group."""
             if help_flag:
                 self._show_group_help(group_name)
+                raise typer.Exit()
+
+            if interactive and ctx.invoked_subcommand is None:
+                from usecli import app
+                from usecli.cli.commands.defaults.base.fzf_command import (
+                    run_interactive,
+                )
+
+                run_interactive(app, cmd_parts=[group_name])
                 raise typer.Exit()
 
             if ctx.invoked_subcommand is None:
@@ -158,6 +173,33 @@ class CustomHelpCommand(TyperCommand):
         context_settings["help_option_names"] = ["--help", "-h"]
         kwargs["context_settings"] = context_settings
         super().__init__(*args, **kwargs)
+        if not self._has_interactive_option():
+            self.params.append(
+                Option(
+                    ["--interactive", "-i"],
+                    is_flag=True,
+                    help="Run in interactive mode",
+                )
+            )
+
+    def _has_interactive_option(self) -> bool:
+        return any(
+            isinstance(param, Option)
+            and ("--interactive" in param.opts or "-i" in param.opts)
+            for param in self.params
+        )
+
+    def invoke(self, ctx: ClickContext) -> Any:
+        interactive = ctx.params.pop("interactive", False)
+        if interactive:
+            from usecli import app
+            from usecli.cli.commands.defaults.base.fzf_command import run_interactive
+
+            cmd_parts = ctx.command_path.split()[1:]
+            run_interactive(app, cmd_parts=cmd_parts)
+            raise Exit()
+
+        return super().invoke(ctx)
 
     def format_help(self, ctx: ClickContext, formatter: HelpFormatter) -> None:
         """Format help output with Rich styling.
