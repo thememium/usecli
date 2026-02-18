@@ -1,6 +1,45 @@
 # Changelog
 
 
+## v0.1.6
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.5...v0.1.6)
+
+### 🚀 Enhancements
+
+- **cli:** Add interactive fzf command for command discovery ([6650412](https://github.com/thememium/usecli/commit/6650412))
+- **init:** Add automatic management of [project.scripts] in pyproject.toml ([d269813](https://github.com/thememium/usecli/commit/d269813))
+- **cli:** Allow custom command name for entry point ([33c198c](https://github.com/thememium/usecli/commit/33c198c))
+- **cli:** Add interactive prompting for init command parameters and validation ([1fefcd8](https://github.com/thememium/usecli/commit/1fefcd8))
+- **init_command:** Detect existing usecli script in pyproject.toml and reuse it ([10cce33](https://github.com/thememium/usecli/commit/10cce33))
+
+### 🩹 Fixes
+
+- **test:** Update patch target for run_interactive after module relocation ([e9abc6f](https://github.com/thememium/usecli/commit/e9abc6f))
+
+### 💅 Refactors
+
+- **cli:** Update fzf_command import path to internal module ([9a130dd](https://github.com/thememium/usecli/commit/9a130dd))
+- **usecli:** Relocate fzf command to internal package and skip internal modules ([3f39087](https://github.com/thememium/usecli/commit/3f39087))
+- **config:** Remove deprecated `show_setup` option from config and tests ([2ce6409](https://github.com/thememium/usecli/commit/2ce6409))
+
+### 📖 Documentation
+
+- **readme:** Rename Interactive FZF to Interactive Mode and remove FZF references ([dc53631](https://github.com/thememium/usecli/commit/dc53631))
+- **pyproject, cli:** Update project description and CLI help text for clarity ([0302658](https://github.com/thememium/usecli/commit/0302658))
+
+### 🏡 Chore
+
+- **uv:** Update version ([a26113a](https://github.com/thememium/usecli/commit/a26113a))
+
+### ✅ Tests
+
+- **cli:** Mock Prompt.ask in InitCommand fixture to avoid interactive prompts ([f7ad1a3](https://github.com/thememium/usecli/commit/f7ad1a3))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.5
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.4...v0.1.5)
