@@ -1,8 +1,15 @@
 from __future__ import annotations
 
 import platform
+import sys
 from importlib.metadata import PackageNotFoundError, requires
 from importlib.metadata import version as get_version
+from pathlib import Path
+
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import tomli as tomllib
 
 from rich.console import Console
 
@@ -37,6 +44,23 @@ def _get_dependencies() -> list[str]:
         return []
 
 
+def _get_script_commands() -> list[str]:
+    pyproject_path = Path.cwd() / "pyproject.toml"
+    if not pyproject_path.exists():
+        return []
+
+    try:
+        data = tomllib.loads(pyproject_path.read_text())
+    except (tomllib.TOMLDecodeError, OSError):
+        return []
+
+    scripts = data.get("project", {}).get("scripts", {})
+    if not isinstance(scripts, dict):
+        return []
+
+    return [name for name in scripts.keys() if isinstance(name, str) and name.strip()]
+
+
 class AboutCommand(BaseCommand):
     def signature(self) -> str:
         return "about"
@@ -68,9 +92,10 @@ class AboutCommand(BaseCommand):
         console.print(f"[bold {COLOR.PRIMARY}]Entry Points[/bold {COLOR.PRIMARY}]")
         console.print(f"[{COLOR.PRIMARY}]─" * 78)
 
-        self._print_row("usecli", "Primary command")
-        self._print_row("spec", "Alias")
-        self._print_row("us", "Short alias")
+        script_commands = _get_script_commands() or ["usecli"]
+        for index, command in enumerate(script_commands):
+            label = "Primary command" if index == 0 else "Command"
+            self._print_row(command, label)
 
         console.print()
         console.print(f"[bold {COLOR.PRIMARY}]Dependencies[/bold {COLOR.PRIMARY}]")
