@@ -41,6 +41,7 @@
     <li>
       <a href="#usage">Usage</a>
       <ul>
+        <li><a href="#create-your-own-cli">Create Your Own CLI</a></li>
         <li><a href="#available-commands">Available Commands</a></li>
         <li><a href="#prefix-matching">Prefix Matching</a></li>
         <li><a href="#interactive-mode">Interactive Mode</a></li>
@@ -118,6 +119,22 @@ pip install git+https://github.com/thememium/usecli.git
 
 ## Usage
 
+### Create Your Own CLI
+
+Initialize a new CLI in your project:
+
+```sh
+usecli init
+```
+
+This prompts for your CLI title, description, commands directory, and entry point name. It creates the commands package, writes a useCli config (`[tool.usecli]` in `pyproject.toml` or `usecli.config.toml`), and ensures a `[project.scripts]` entry points to `usecli:run_app`.
+
+After init, run your CLI (default command name is `usecli`) and scaffold commands:
+
+```sh
+usecli make:command mycommand
+```
+
 ### Available Commands
 
 ```
@@ -127,6 +144,7 @@ pip install git+https://github.com/thememium/usecli.git
 │  Core Commands:                                                             │
 │    about              Display detailed information about the application    │
 │    help               Show help information                                 │
+│    init               Initialize usecli in the current project              │
 │    inspire            Display an inspirational quote                        │
 │                                                                             │
 │  Development:                                                               │
