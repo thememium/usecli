@@ -173,6 +173,8 @@ class CustomHelpCommand(TyperCommand):
         context_settings["help_option_names"] = ["--help", "-h"]
         kwargs["context_settings"] = context_settings
         super().__init__(*args, **kwargs)
+        if not hasattr(self, "params"):
+            self.params = []
         if not self._has_interactive_option():
             self.params.append(
                 Option(
@@ -186,7 +188,7 @@ class CustomHelpCommand(TyperCommand):
         return any(
             isinstance(param, Option)
             and ("--interactive" in param.opts or "-i" in param.opts)
-            for param in self.params
+            for param in getattr(self, "params", [])
         )
 
     def invoke(self, ctx: ClickContext) -> Any:
