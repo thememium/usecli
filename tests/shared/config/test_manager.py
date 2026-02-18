@@ -35,7 +35,6 @@ def sample_config():
     return {
         "title": "My CLI",
         "description": "A test CLI",
-        "show_setup": False,
         "commands_dir": "my_commands",
         "environment": "dev",
         "command_name": "mycli",
@@ -72,7 +71,6 @@ class TestConfigManagerDefaults:
 
         assert manager.get("title") == "usecli"
         assert manager.get("description") == "A customizable CLI framework"
-        assert manager.get("show_setup") is True
         assert manager.get("commands_dir") == "cli/commands"
         assert manager.get("environment") == "prod"
         assert manager.get("command_name") == "usecli"
@@ -91,7 +89,6 @@ class TestConfigManagerPyproject:
 [tool.usecli]
 title = "My Project CLI"
 description = "Custom CLI"
-show_setup = false
 commands_dir = "custom_cmds"
 """)
 
@@ -99,7 +96,6 @@ commands_dir = "custom_cmds"
 
         assert manager.get("title") == "My Project CLI"
         assert manager.get("description") == "Custom CLI"
-        assert manager.get("show_setup") is False
         assert manager.get("commands_dir") == "custom_cmds"
 
     def test_pyproject_takes_precedence_over_defaults(self, temp_project_dir):
@@ -189,9 +185,8 @@ class TestConfigManagerPriority:
         assert manager.get("commands_dir") == "dir2"
 
     def test_merged_config_keeps_unique_values(self, temp_project_dir):
-        # Standalone has show_setup
         standalone = temp_project_dir / "usecli.config.toml"
-        standalone.write_text("[usecli]\nshow_setup = false")
+        standalone.write_text('[usecli]\ncommand_name = "mycli"')
 
         # pyproject has title
         pyproject = temp_project_dir / "pyproject.toml"
@@ -201,7 +196,7 @@ class TestConfigManagerPriority:
 
         # Should have both values
         assert manager.get("title") == "Merged"
-        assert manager.get("show_setup") is False
+        assert manager.get("command_name") == "mycli"
 
 
 class TestConfigManagerErrors:

@@ -312,7 +312,6 @@ class TestInitCommandStandaloneConfig:
         assert 'title = "Test CLI"' in content
         assert 'description = "Test description"' in content
         assert 'commands_dir = "custom_cmds"' in content
-        assert "show_setup = true" in content
 
     def test_prompts_to_overwrite_existing_standalone_config(
         self, temp_project_dir, init_command
@@ -376,7 +375,6 @@ class TestInitCommandDefaults:
         assert 'title = "My CLI"' in content
         assert 'description = "A custom CLI tool"' in content
         assert 'commands_dir = "cli/commands"' in content
-        assert "show_setup = true" in content
 
 
 class TestInitCommandIntegration:
