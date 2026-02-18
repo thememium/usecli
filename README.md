@@ -43,7 +43,7 @@
       <ul>
         <li><a href="#available-commands">Available Commands</a></li>
         <li><a href="#prefix-matching">Prefix Matching</a></li>
-        <li><a href="#interactive-fzf">Interactive FZF</a></li>
+        <li><a href="#interactive-mode">Interactive Mode</a></li>
       </ul>
     </li>
     <li>
@@ -73,7 +73,6 @@ useCli is an elegant CLI framework for Python. It provides a beautiful, interact
 - **Command Scaffolding**: Generate new commands instantly with `make:command`
 - **Modular Architecture**: Separate default commands from custom commands
 - **Interactive Menus**: Built-in terminal menu utilities for enhanced user experience
-- **FZF Integration**: Interactive command finder with fuzzy search capabilities
 - **Error Handling**: Styled error messages with custom exception classes
 - **Type Safety**: Full type hints throughout the codebase
 
@@ -82,7 +81,6 @@ useCli is an elegant CLI framework for Python. It provides a beautiful, interact
 - **Typer**: Modern CLI framework for building command-line interfaces
 - **Click**: Python package for creating beautiful command-line interfaces
 - **Rich**: Library for rich text and beautiful formatting in the terminal
-- **fzf**: Command-line fuzzy finder integration
 - **simple-term-menu**: Interactive terminal menus
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
@@ -129,7 +127,6 @@ pip install git+https://github.com/thememium/usecli.git
 │  Core Commands:                                                             │
 │    about              Display detailed information about the application    │
 │    help               Show help information                                 │
-│    fzf                Interactive command finder using fzf                  │
 │    inspire            Display an inspirational quote                        │
 │                                                                             │
 │  Development:                                                               │
@@ -150,20 +147,15 @@ usecli ma:co       # Runs 'make:command'
 
 If your prefix matches multiple commands, useCli will display a filtered list for you to choose from.
 
-### Interactive FZF
+### Interactive Mode
 
-The `fzf` command provides an interactive command finder:
+Every command supports an `--interactive` (or `-i`) option. This opens the interactive command runner instead of executing the command directly.
 
 ```sh
-usecli fzf
+usecli --interactive
+usecli help --interactive
+usecli make:command --interactive
 ```
-
-This opens an interactive menu where you can:
-- Fuzzy search through all available commands
-- Navigate with arrow keys or Ctrl+N/Ctrl+P
-- Select a command to run interactively
-- Get prompted for required arguments
-- Select optional flags with multi-select menus
 
 ### Creating New Commands
 
@@ -292,7 +284,7 @@ src/usecli/
 ├── cli/
 │   ├── commands/                  # Command implementations
 │   │   ├── defaults/             # Built-in commands
-│   │   │   ├── base/             # Core commands (about, help, fzf, inspire)
+│   │   │   ├── base/             # Core commands (about, help, inspire)
 │   │   │   ├── core/             # Utility commands
 │   │   │   └── make/             # Code generation commands
 │   │   └── custom/               # User-defined commands
