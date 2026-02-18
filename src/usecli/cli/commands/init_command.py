@@ -110,6 +110,59 @@ class InitCommand(BaseCommand):
         pyproject_path.write_text(content)
         return True
 
+    def _ensure_project_scripts(
+        self, pyproject_path: Path, command_name: str, force: bool
+    ) -> str:
+        if not pyproject_path.exists():
+            return "missing"
+
+        content = pyproject_path.read_text()
+        entry_line = f'{command_name} = "usecli:run_app"'
+        section_pattern = r"\[project\.scripts\].*?(?=\n\[|\Z)"
+        match = re.search(section_pattern, content, flags=re.DOTALL)
+
+        if not match:
+            new_content = content.rstrip() + f"\n\n[project.scripts]\n{entry_line}\n"
+            pyproject_path.write_text(new_content)
+            return "added"
+
+        block = match.group(0)
+        entry_pattern = (
+            rf"^\s*{re.escape(command_name)}\s*=\s*[\"\'](?P<target>[^\"\']+)[\"\']\s*$"
+        )
+        entry_match = re.search(entry_pattern, block, flags=re.MULTILINE)
+
+        if entry_match:
+            target = entry_match.group("target")
+            if target == "usecli:run_app":
+                return "unchanged"
+
+            if not force:
+                should_overwrite = Confirm.ask(
+                    f"[{COLOR.WARNING}]Existing [project.scripts] entry for '{command_name}' detected.[/{COLOR.WARNING}]\n"
+                    "Do you want to overwrite it?",
+                    default=False,
+                )
+                if not should_overwrite:
+                    return "skipped"
+
+            updated_block = re.sub(
+                entry_pattern,
+                entry_line,
+                block,
+                flags=re.MULTILINE,
+            )
+            new_content = (
+                content[: match.start()] + updated_block + content[match.end() :]
+            )
+            pyproject_path.write_text(new_content)
+            return "updated"
+
+        updated_block = block.rstrip() + f"\n{entry_line}\n"
+        new_content = content[: match.start()] + updated_block + content[match.end() :]
+        pyproject_path.write_text(new_content)
+        return "added"
+
     def _ensure_package_init_files(self, commands_path: Path, cwd: Path) -> bool:
         created = False
         init_paths = [commands_path / "__init__.py"]
@@ -199,16 +252,33 @@ class InitCommand(BaseCommand):
                     f"[{COLOR.SUCCESS}]Added [tool.usecli] to {pyproject_path}[/{COLOR.SUCCESS}]"
                 )
 
-            script_command = get_script_command_name()
-            if script_command and script_command != "usecli":
-                if self._ensure_build_system(pyproject_path):
-                    console.print(
-                        f"[{COLOR.SUCCESS}]Added build-system to pyproject.toml[/{COLOR.SUCCESS}]"
-                    )
-                if self._add_setuptools_package_discovery(pyproject_path, commands_dir):
-                    console.print(
-                        f"[{COLOR.SUCCESS}]Added setuptools package discovery to pyproject.toml[/{COLOR.SUCCESS}]"
-                    )
+            script_command = get_script_command_name(default="usecli") or "usecli"
+            scripts_status = self._ensure_project_scripts(
+                pyproject_path, script_command, force
+            )
+            if scripts_status == "added":
+                console.print(
+                    f"[{COLOR.SUCCESS}]Added [project.scripts] to {pyproject_path}[/{COLOR.SUCCESS}]"
+                )
+            elif scripts_status == "updated":
+                console.print(
+                    f"[{COLOR.SUCCESS}]Updated [project.scripts] in {pyproject_path}[/{COLOR.SUCCESS}]"
+                )
+            elif scripts_status == "skipped":
+                console.print(
+                    f"[{COLOR.WARNING}]Skipped [project.scripts] update.[/{COLOR.WARNING}]"
+                )
+
+            if self._ensure_build_system(pyproject_path):
+                console.print(
+                    f"[{COLOR.SUCCESS}]Added build-system to pyproject.toml[/{COLOR.SUCCESS}]"
+                )
+            if self._add_setuptools_package_discovery(pyproject_path, commands_dir):
+                console.print(
+                    f"[{COLOR.SUCCESS}]Added setuptools package discovery to pyproject.toml[/{COLOR.SUCCESS}]"
+                )
+
+            if scripts_status in {"added", "updated", "unchanged"}:
                 venv_path = cwd / ".venv"
                 if venv_path.exists():
                     uv_path = shutil.which("uv")
@@ -238,7 +308,7 @@ class InitCommand(BaseCommand):
             console.print(
                 f"[{COLOR.WARNING}]Note: To create a CLI entry point, add this to your pyproject.toml:[/{COLOR.WARNING}]\n"
                 f"[project.scripts]\n"
-                f'mycli = "usecli:run_app"'
+                f'usecli = "usecli:run_app"'
             )
 
         # Show summary

@@ -163,7 +163,7 @@ class TestInitCommandPyprojectToml:
         assert 'where = ["."]' in content
         assert 'include = ["cli*"]' in content
 
-    def test_does_not_add_project_script_entry(self, temp_project_dir, init_command):
+    def test_adds_project_script_entry(self, temp_project_dir, init_command):
         pyproject = temp_project_dir / "pyproject.toml"
         pyproject.write_text("[project]\nname = 'test'\n")
 
@@ -175,7 +175,8 @@ class TestInitCommandPyprojectToml:
         )
 
         content = pyproject.read_text()
-        assert "[project.scripts]" not in content
+        assert "[project.scripts]" in content
+        assert 'usecli = "usecli:run_app"' in content
 
     def test_preserves_existing_project_script_entries(
         self, temp_project_dir, init_command
@@ -195,6 +196,40 @@ class TestInitCommandPyprojectToml:
         content = pyproject.read_text()
         assert "[project.scripts]" in content
         assert 'foo = "foo:main"' in content
+        assert 'usecli = "usecli:run_app"' in content
+
+    def test_prompts_before_overwriting_project_script_entry(
+        self, temp_project_dir, init_command
+    ):
+        pyproject = temp_project_dir / "pyproject.toml"
+        pyproject.write_text(
+            "[project]\nname = 'test'\n\n[project.scripts]\nusecli = \"other:main\"\n"
+        )
+
+        with patch("rich.prompt.Confirm.ask") as mock_ask:
+            mock_ask.return_value = False
+            init_command.handle(
+                DEFAULT_TITLE, DEFAULT_DESCRIPTION, DEFAULT_COMMANDS_DIR, force=False
+            )
+
+        content = pyproject.read_text()
+        assert 'usecli = "other:main"' in content
+        assert 'usecli = "usecli:run_app"' not in content
+
+    def test_overwrites_project_script_entry_with_force(
+        self, temp_project_dir, init_command
+    ):
+        pyproject = temp_project_dir / "pyproject.toml"
+        pyproject.write_text(
+            "[project]\nname = 'test'\n\n[project.scripts]\nusecli = \"other:main\"\n"
+        )
+
+        init_command.handle(
+            DEFAULT_TITLE, DEFAULT_DESCRIPTION, DEFAULT_COMMANDS_DIR, force=True
+        )
+
+        content = pyproject.read_text()
+        assert 'usecli = "usecli:run_app"' in content
 
     def test_skips_when_user_declines_overwrite(self, temp_project_dir, init_command):
         pyproject = temp_project_dir / "pyproject.toml"
