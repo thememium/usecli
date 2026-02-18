@@ -7,6 +7,7 @@ import os
 import shutil
 import subprocess
 import sys
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 import click
@@ -177,6 +178,7 @@ def run_interactive(
     cmd_parts: list[str] | None = None,
     extra_args: list[str] | None = None,
 ) -> None:
+    script_name = Path(sys.argv[0]).name or "usecli"
     commands: list[dict[str, Any]] = []
 
     for command in app.registered_commands:
@@ -240,7 +242,7 @@ def run_interactive(
             padding_len = max_name_len - len(cmd["name"]) + 4
             options.append(build_option_line(cmd, padding_len))
 
-        selection = _run_fzf_menu(options, prompt="usecli » ")
+        selection = _run_fzf_menu(options, prompt=f"{script_name} » ")
         if selection is None:
             ErrorHandler.display_warning("No command selected")
             return
@@ -280,7 +282,9 @@ def run_interactive(
                 padding_len = max_sub_name_len - len(cmd["name"]) + 4
                 sub_options.append(build_option_line(cmd, padding_len))
 
-            sub_selection = _run_fzf_menu(sub_options, prompt=f"usecli {cmd_name} » ")
+            sub_selection = _run_fzf_menu(
+                sub_options, prompt=f"{script_name} {cmd_name} » "
+            )
             if sub_selection is None:
                 ErrorHandler.display_warning("No subcommand selected")
                 return
@@ -310,7 +314,7 @@ def run_interactive(
     )
     if required_args:
         help_result = subprocess.run(
-            f"usecli {cmd_name} --help",
+            f"{script_name} {cmd_name} --help",
             shell=True,
             capture_output=True,
             text=True,
@@ -477,7 +481,7 @@ def run_interactive(
                     else " ".join(option_values)
                 )
 
-    full_cmd = f"usecli {cmd_name}{' ' + extra if extra else ''}"
+    full_cmd = f"{script_name} {cmd_name}{' ' + extra if extra else ''}"
 
     console.print()
     console.rule(
