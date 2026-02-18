@@ -169,6 +169,18 @@ def list_group_commands(group_app: typer.Typer, group_name: str) -> None:
     console.print(
         f"  [{COLOR.OPTION}]{help_flags}[/{COLOR.OPTION}]{help_padding}Show this message and exit."
     )
+
+    click_group = typer.main.get_command(group_app)
+    if click_group.params:
+        for param in click_group.params:
+            flags = ", ".join(param.opts)
+            if "--help" in flags:
+                continue
+            description = getattr(param, "help", "") or ""
+            padding = " " * (longest_name_length - len(flags) + SPACER_LENGTH)
+            console.print(
+                f"  [{COLOR.OPTION}]{flags}[/{COLOR.OPTION}]{padding}{description}"
+            )
     console.print()
 
     commands: list[dict[str, str]] = []
