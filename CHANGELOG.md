@@ -1,6 +1,34 @@
 # Changelog
 
 
+## v0.1.7
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.6...v0.1.7)
+
+### 🚀 Enhancements
+
+- **cli:** Expose core UI components and refactor command template ([3e1c357](https://github.com/thememium/usecli/commit/3e1c357))
+- **menu:** Add Menu wrapper for terminal_menu utility ([05af0ab](https://github.com/thememium/usecli/commit/05af0ab))
+- **usecli:** Add Argument and Option wrappers for typer parameters ([c56bb7b](https://github.com/thememium/usecli/commit/c56bb7b))
+- **usecli:** Add UI component wrappers for Rich ([186d6aa](https://github.com/thememium/usecli/commit/186d6aa))
+- **cli:** Add interactive prompts and rich console output to command template ([9d4e568](https://github.com/thememium/usecli/commit/9d4e568))
+- **cli:** Add interactive prompts for missing boolean flags ([b2d25f6](https://github.com/thememium/usecli/commit/b2d25f6))
+- **fzf_command:** Replace hard‑coded “usecli” with dynamic script name ([a9c45d0](https://github.com/thememium/usecli/commit/a9c45d0))
+- **about:** Display script commands from pyproject.toml ([191dd81](https://github.com/thememium/usecli/commit/191dd81))
+
+### 💅 Refactors
+
+- **cli:** Improve option handling and remove interactive wrapper ([fc0afc2](https://github.com/thememium/usecli/commit/fc0afc2))
+- **cli:** Skip interactive flags in optional options and drop unused Confirm import ([bb67c63](https://github.com/thememium/usecli/commit/bb67c63))
+
+### 🏡 Chore
+
+- **uv:** Update version ([9fca435](https://github.com/thememium/usecli/commit/9fca435))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.6
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.5...v0.1.6)
