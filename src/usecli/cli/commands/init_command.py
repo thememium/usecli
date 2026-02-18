@@ -12,10 +12,11 @@ import typer
 from jinja2 import Template
 from rich.console import Console
 from rich.panel import Panel
-from rich.prompt import Confirm
+from rich.prompt import Confirm, Prompt
 
 from usecli.cli.config.colors import COLOR
 from usecli.cli.core.base_command import BaseCommand
+from usecli.cli.core.exceptions import UsecliBadParameter
 from usecli.cli.core.validators import validate_command_name
 
 console = Console()
@@ -177,6 +178,19 @@ class InitCommand(BaseCommand):
 
         return created
 
+    def _prompt_command_name(self, command_name: str) -> str:
+        prompt_text = f"[bold {COLOR.SECONDARY}]Project script command name[/bold {COLOR.SECONDARY}]"
+        first_attempt = True
+        while True:
+            if not first_attempt:
+                console.print()
+            first_attempt = False
+            value = Prompt.ask(prompt_text, default=command_name)
+            try:
+                return validate_command_name(value)
+            except UsecliBadParameter as error:
+                error.show()
+
     def handle(
         self,
         title: str = typer.Option("My CLI", help="Title for your CLI"),
@@ -192,8 +206,6 @@ class InitCommand(BaseCommand):
                 "--command-name",
                 "-c",
                 help="Command name for your CLI entry point",
-                prompt="Project script command name",
-                show_default=True,
                 callback=validate_command_name,
             ),
         ] = "usecli",
@@ -204,6 +216,25 @@ class InitCommand(BaseCommand):
         cwd = Path.cwd()
         pyproject_path = cwd / "pyproject.toml"
         config_toml_path = cwd / "usecli.config.toml"
+
+        console.print()
+        command_name = self._prompt_command_name(command_name)
+        console.print()
+        title = Prompt.ask(
+            f"[bold {COLOR.SECONDARY}]CLI title[/bold {COLOR.SECONDARY}]",
+            default=title,
+        )
+        console.print()
+        description = Prompt.ask(
+            f"[bold {COLOR.SECONDARY}]CLI description[/bold {COLOR.SECONDARY}]",
+            default=description,
+        )
+        console.print()
+        commands_dir = Prompt.ask(
+            f"[bold {COLOR.SECONDARY}]Commands directory[/bold {COLOR.SECONDARY}]",
+            default=commands_dir,
+        )
+        console.print()
         commands_path = cwd / commands_dir
 
         # Create the commands directory
