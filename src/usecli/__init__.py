@@ -99,7 +99,7 @@ class FilteredListCommand(click.Command):
 
 
 app = typer.Typer(
-    help="Usecli CLI - A tool for managing and utilizing specification files.",
+    help="Usecli CLI - An elegant CLI framework for Python",
     invoke_without_command=True,
     no_args_is_help=False,
     cls=PrefixMatchingGroup,

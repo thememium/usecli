@@ -1,7 +1,7 @@
 [project]
 name = "usecli"
 version = "0.1.5"
-description = "Add your description here"
+description = "An elegant CLI framework for Python"
 readme = "README.md"
 authors = [{ name = "Edward Boswell", email = "thememium@gmail.com" }]
 requires-python = ">=3.10"
