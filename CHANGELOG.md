@@ -1,6 +1,44 @@
 # Changelog
 
 
+## v0.1.5
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.4...v0.1.5)
+
+### 🚀 Enhancements
+
+- **init_command:** Add automatic build‑system section and uv environment sync ([ef12db5](https://github.com/thememium/usecli/commit/ef12db5))
+- **cli/ui:** Infer project name from pyproject scripts ([caa8c47](https://github.com/thememium/usecli/commit/caa8c47))
+- **config:** Set default commands_dir to "cli/commands" ([171f540](https://github.com/thememium/usecli/commit/171f540))
+- **cli:** Add setuptools package discovery to pyproject.toml and improve build‑system insertion ([2064a3a](https://github.com/thememium/usecli/commit/2064a3a))
+- **init_command:** Add automatic creation of __init__.py files ([79c787d](https://github.com/thememium/usecli/commit/79c787d))
+- **fzf_command:** Add graceful fallback when fzf is unavailable or not a TTY ([1210cb2](https://github.com/thememium/usecli/commit/1210cb2))
+- **usecli:** Add --interactive flag to run CLI in interactive mode ([93e00fa](https://github.com/thememium/usecli/commit/93e00fa))
+- **cli:** Display Typer group command options in list output ([8128dc8](https://github.com/thememium/usecli/commit/8128dc8))
+- **cli:** Add interactive mode flag to commands and groups ([0f101bf](https://github.com/thememium/usecli/commit/0f101bf))
+
+### 🩹 Fixes
+
+- **base_command:** Ensure params attribute exists to prevent attribute errors ([3b5312f](https://github.com/thememium/usecli/commit/3b5312f))
+
+### 💅 Refactors
+
+- **cli:** Centralize script command name handling and drop legacy command_name option ([c1e9e9f](https://github.com/thememium/usecli/commit/c1e9e9f))
+- **fzf_command:** Extract helper functions and simplify FzfCommand class ([1ad605e](https://github.com/thememium/usecli/commit/1ad605e))
+
+### 🏡 Chore
+
+- **uv:** Update version ([b438735](https://github.com/thememium/usecli/commit/b438735))
+
+### ✅ Tests
+
+- **cli:** Update default commands directory to cli/commands in tests ([e97e70b](https://github.com/thememium/usecli/commit/e97e70b))
+- **cli:** Add unit tests for interactive option handling ([0f92a07](https://github.com/thememium/usecli/commit/0f92a07))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.4
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.3...v0.1.4)
