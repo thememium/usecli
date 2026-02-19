@@ -26,7 +26,7 @@ from usecli.cli.config.colors import COLOR
 from usecli.cli.core.base_command import BaseCommand
 from usecli.cli.core.exceptions import UsecliBadParameter
 from usecli.cli.core.validators import validate_command_name
-from usecli.menu import Menu
+from usecli.cli.utils.interactive.terminal_menu import terminal_menu
 
 console = Console()
 
@@ -227,14 +227,17 @@ class InitCommand(BaseCommand):
 
     def _prompt_title_font(self, default_font: str = "big") -> str:
         fonts = self._get_figlet_fonts()
-        selection = Menu.select(
+        selection = terminal_menu(
             fonts,
-            title=(
-                "Select a figlet font for your CLI title "
-                "(enter to confirm, esc to keep default):"
-            ),
+            title="Select a figlet font for your CLI title\n(typing searches)\nUp/Down move  PgUp/PgDn scroll",
+            search=True,
+            search_key="/",
+            show_search_hint=False,
+            status_bar="Enter = select | Esc = quit",
+            preview_command=lambda value: f"Preview:\n{value}\n",
+            preview_size=0.70,
         )
-        return selection or default_font
+        return selection[0] if selection else default_font
 
     def handle(
         self,

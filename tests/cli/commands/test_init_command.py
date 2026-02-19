@@ -32,9 +32,11 @@ def mock_console():
 @pytest.fixture
 def init_command(mock_console):
     with patch("usecli.cli.commands.init_command.Prompt.ask") as mock_prompt:
-        with patch("usecli.cli.commands.init_command.Menu.select") as mock_menu:
+        with patch(
+            "usecli.cli.commands.init_command.terminal_menu"
+        ) as mock_terminal_menu:
             mock_prompt.side_effect = lambda *args, **kwargs: kwargs.get("default", "")
-            mock_menu.return_value = "big"
+            mock_terminal_menu.return_value = ["big"]
             mock_app = MagicMock()
             yield InitCommand(mock_app)
 
