@@ -286,7 +286,8 @@ class InitCommand(BaseCommand):
         )
         console.print()
         title_font = self._prompt_title_font(title)
-        title_text = pyfiglet.figlet_format(text=title, font=title_font)
+        raw_title = pyfiglet.figlet_format(text=title, font=title_font)
+        title_text = "\n".join(" " + line for line in raw_title.split("\n"))
         console.print()
         console.print(f"[{COLOR.PRIMARY}]{title_text}")
         description = Prompt.ask(
