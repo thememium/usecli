@@ -14,9 +14,6 @@ CUSTOM_COMMANDS_DIR = COMMANDS_DIR / "custom"
 DEFAULTS_DIR = COMMANDS_DIR / "defaults"
 TEMPLATES_DIR = CLI_ROOT / "templates"
 
-# Project paths (for generated commands in the current working directory)
-PROJECT_COMMANDS_DIR = Path.cwd() / "cli" / "commands"
-
 # Config file names
 PYPROJECT_TOML = "pyproject.toml"
 USECLI_CONFIG_TOML = "usecli.config.toml"

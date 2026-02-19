@@ -9,7 +9,7 @@ from rich.console import Console
 
 from usecli.cli.config.colors import COLOR
 from usecli.cli.core.base_command import BaseCommand
-from usecli.shared.config.globals import PROJECT_COMMANDS_DIR, TEMPLATES_DIR
+from usecli.shared.config.globals import TEMPLATES_DIR
 from usecli.shared.config.manager import get_config
 
 console = Console()
@@ -43,8 +43,9 @@ class MakeCommand(BaseCommand):
         command_name = snakecase(clean_name.replace(":", "_"))
         file_name = f"{snakecase(clean_name.replace(':', '_'))}_command.py"
 
-        PROJECT_COMMANDS_DIR.mkdir(parents=True, exist_ok=True)
-        target_file = PROJECT_COMMANDS_DIR / file_name
+        commands_dir = get_config().get_project_commands_dir()
+        commands_dir.mkdir(parents=True, exist_ok=True)
+        target_file = commands_dir / file_name
 
         if target_file.exists():
             console.print(

@@ -70,13 +70,17 @@ class ConfigManager:
             start_dir: Optional directory to start searching for usecli.config.toml.
                 Defaults to current working directory.
         """
-        if pyproject_path is None:
-            pyproject_path = Path.cwd() / "pyproject.toml"
         if start_dir is None:
             start_dir = Path.cwd()
 
+        if pyproject_path is None:
+            pyproject_path = self._find_pyproject_toml(start_dir) or (
+                start_dir / "pyproject.toml"
+            )
+
         self.pyproject_path: Path = pyproject_path
         self.start_dir: Path = start_dir
+        self.project_root: Path = find_project_root(start_dir) or start_dir.resolve()
         self._config: dict[str, Any] = {}
         self._load_config()
 
@@ -122,6 +126,33 @@ class ConfigManager:
                 return config_path
 
             # Stop at filesystem root
+            parent = current.parent
+            if parent == current:
+                break
+            current = parent
+
+        return None
+
+    @staticmethod
+    def _pyproject_has_usecli(path: Path) -> bool:
+        if not path.exists():
+            return False
+        try:
+            with open(path, "rb") as f:
+                data = tomllib.load(f)
+                return "usecli" in data.get("tool", {})
+        except (tomllib.TOMLDecodeError, OSError):
+            return False
+
+    @classmethod
+    def _find_pyproject_toml(cls, start_dir: Path) -> Path | None:
+        current = start_dir.resolve()
+
+        while True:
+            pyproject_path = current / "pyproject.toml"
+            if cls._pyproject_has_usecli(pyproject_path):
+                return pyproject_path
+
             parent = current.parent
             if parent == current:
                 break
@@ -179,6 +210,16 @@ class ConfigManager:
         """Get the complete merged configuration."""
         return self._config.copy()
 
+    def get_project_root(self) -> Path:
+        return self.project_root
+
+    def get_project_commands_dir(self) -> Path:
+        commands_dir = self.get("commands_dir", "cli/commands")
+        commands_path = Path(commands_dir)
+        if commands_path.is_absolute():
+            return commands_path
+        return (self.project_root / commands_path).resolve()
+
     def is_dev(self) -> bool:
         """Check if running in development environment."""
         return self.get("environment", "prod") == "dev"
@@ -196,12 +237,7 @@ class ConfigManager:
         """Check if pyproject.toml with [tool.usecli] exists."""
         if not self.pyproject_path.exists():
             return False
-        try:
-            with open(self.pyproject_path, "rb") as f:
-                data = tomllib.load(f)
-                return "usecli" in data.get("tool", {})
-        except (tomllib.TOMLDecodeError, OSError):
-            return False
+        return self._pyproject_has_usecli(self.pyproject_path)
 
     @property
     def config_toml_path(self) -> Path | None:
@@ -224,3 +260,25 @@ def reset_config() -> None:
     """Reset the global ConfigManager instance."""
     global _config_manager
     _config_manager = None
+
+
+def find_project_root(start_dir: Path | None = None) -> Path | None:
+    if start_dir is None:
+        start_dir = Path.cwd()
+
+    current = start_dir.resolve()
+
+    while True:
+        if (current / ConfigManager.CONFIG_FILENAME).exists():
+            return current
+
+        pyproject_path = current / "pyproject.toml"
+        if ConfigManager._pyproject_has_usecli(pyproject_path):
+            return current
+
+        parent = current.parent
+        if parent == current:
+            break
+        current = parent
+
+    return None
