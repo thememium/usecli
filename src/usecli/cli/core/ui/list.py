@@ -113,7 +113,7 @@ def list_commands(app: typer.Typer, prefix_filter: str | None = None) -> None:
         """Print a single command with proper formatting."""
         padding = " " * (longest_name_length - len(cmd["name"]) + SPACER_LENGTH)
         console.print(
-            f"  [{COLOR.COMMAND}]{cmd['name']}[/{COLOR.COMMAND}]{padding}{cmd['help']}"
+            f"  [{COLOR.COMMAND} not bold]{cmd['name']}[/{COLOR.COMMAND} not bold]{padding}{cmd['help']}"
         )
 
     for group_name, group_help in groups.items():
