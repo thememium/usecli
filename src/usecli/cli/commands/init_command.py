@@ -282,7 +282,7 @@ class InitCommand(BaseCommand):
         console.print()
         title = Prompt.ask(
             f"[bold {COLOR.SECONDARY}]CLI title[/bold {COLOR.SECONDARY}]",
-            default=title,
+            default=title if title != "Use CLI" else command_name,
         )
         console.print()
         title_font = self._prompt_title_font(title)
