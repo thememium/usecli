@@ -287,6 +287,35 @@ class TestTerminalMenuMenuConfiguration:
         assert display_options == ["1", "2", "3"]
         assert all(isinstance(opt, str) for opt in display_options)
 
+    @patch("usecli.cli.utils.interactive.terminal_menu.TerminalMenu")
+    def test_search_and_preview_configuration(self, mock_menu_class):
+        mock_menu_instance = Mock()
+        mock_menu_instance.show.return_value = 0
+        mock_menu_class.return_value = mock_menu_instance
+
+        def preview_command(value: str) -> str:
+            return f"Preview:\n{value}\n"
+
+        options = ["Option A", "Option B"]
+        status_bar = "Enter = select • Esc = quit"
+
+        terminal_menu(
+            options,
+            search=True,
+            search_key=None,
+            show_search_hint=True,
+            status_bar=status_bar,
+            preview_command=preview_command,
+            preview_size=0.70,
+        )
+
+        call_kwargs = mock_menu_class.call_args.kwargs
+        assert call_kwargs["search_key"] is None
+        assert call_kwargs["show_search_hint"] is True
+        assert call_kwargs["status_bar"] == status_bar
+        assert call_kwargs["preview_command"] is preview_command
+        assert call_kwargs["preview_size"] == 0.70
+
 
 class TestTerminalMenuWithCustomTypes:
     """Test cases with custom object types."""
