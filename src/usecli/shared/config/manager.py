@@ -50,6 +50,9 @@ class ConfigManager:
         "title_font": "big",
         "environment": "prod",
         "command_name": "usecli",
+        "hide_init": False,
+        "hide_inspire": False,
+        "hide_make_command": False,
     }
 
     CONFIG_FILENAME = "usecli.config.toml"

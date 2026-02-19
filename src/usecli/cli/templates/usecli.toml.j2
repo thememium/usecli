@@ -3,3 +3,6 @@ title = "{{ title | default('My CLI') }}"
 title_font = "{{ title_font | default('big') }}"
 description = "{{ description | default('A custom CLI tool') }}"
 commands_dir = "{{ commands_dir | default('cli/commands') }}"
+hide_init = {{ hide_init | default(false) | lower }}
+hide_inspire = {{ hide_inspire | default(false) | lower }}
+hide_make_command = {{ hide_make_command | default(false) | lower }}
