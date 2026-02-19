@@ -1,5 +1,6 @@
 """Comprehensive tests for terminal_menu function."""
 
+import os
 from unittest.mock import Mock, patch
 
 # Import the function to test
@@ -299,15 +300,19 @@ class TestTerminalMenuMenuConfiguration:
         options = ["Option A", "Option B"]
         status_bar = "Enter = select • Esc = quit"
 
-        terminal_menu(
-            options,
-            search=True,
-            search_key=None,
-            show_search_hint=True,
-            status_bar=status_bar,
-            preview_command=preview_command,
-            preview_size=0.70,
-        )
+        with patch(
+            "usecli.cli.utils.interactive.terminal_menu.shutil.get_terminal_size"
+        ) as mock_terminal_size:
+            mock_terminal_size.return_value = os.terminal_size((120, 60))
+            terminal_menu(
+                options,
+                search=True,
+                search_key=None,
+                show_search_hint=True,
+                status_bar=status_bar,
+                preview_command=preview_command,
+                preview_size=0.70,
+            )
 
         call_kwargs = mock_menu_class.call_args.kwargs
         assert call_kwargs["search_key"] is None

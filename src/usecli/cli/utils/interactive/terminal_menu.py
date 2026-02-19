@@ -2,11 +2,34 @@
 
 from __future__ import annotations
 
-from typing import Callable, TypeVar
+import shutil
+from typing import Any, Callable, TypeVar, cast
 
+import simple_term_menu
 from simple_term_menu import TerminalMenu
 
 T = TypeVar("T")
+_PATCHED_SEARCH_LEN = False
+
+
+def _apply_safe_search_len_patch() -> None:
+    global _PATCHED_SEARCH_LEN
+    if _PATCHED_SEARCH_LEN:
+        return
+
+    def _safe_search_len(self, /) -> int:
+        search_text = self._search_text
+        if search_text is None:
+            return 0
+        width = simple_term_menu.wcswidth(search_text)
+        return width if width >= 0 else 0
+
+    search_class = cast(Any, TerminalMenu.Search)
+    setattr(search_class, "__len__", _safe_search_len)
+    _PATCHED_SEARCH_LEN = True
+
+
+_apply_safe_search_len_patch()
 
 
 def terminal_menu(
@@ -20,6 +43,8 @@ def terminal_menu(
     status_bar: str | None = None,
     preview_command: Callable[[str], str] | str | None = None,
     preview_size: float | None = 0.70,
+    clear_screen: bool | None = None,
+    clear_menu_on_exit: bool | None = None,
 ) -> list[T]:
     """Display an interactive terminal menu.
 
@@ -56,11 +81,55 @@ def terminal_menu(
     # Convert options to strings for display
     display_options = [str(opt) for opt in options]
 
-    preview_size_value: float = 0.25
+    preview_command_value = preview_command
+    preview_size_value = 0.25
     if preview_command is not None:
-        preview_size_value = preview_size if preview_size is not None else 0.25
+        terminal_lines = shutil.get_terminal_size((80, 24)).lines
+        title_lines_count = 0
+        if isinstance(title, str):
+            title_lines_count = len(title.split("\n"))
+        elif title is not None:
+            title_lines_count = len(tuple(title))
 
-    menu = TerminalMenu(
+        status_bar_lines_count = 0
+        if isinstance(status_bar, str):
+            status_bar_lines_count = len(status_bar.split("\n"))
+        elif callable(status_bar):
+            status_bar_lines_count = 1
+        elif status_bar is not None:
+            status_bar_lines_count = len(tuple(status_bar))
+
+        search_lines_count = 1 if search else 0
+        min_menu_lines = 5
+        available_preview_lines = max(
+            0,
+            terminal_lines
+            - (
+                title_lines_count
+                + status_bar_lines_count
+                + search_lines_count
+                + min_menu_lines
+            ),
+        )
+
+        if available_preview_lines < 3 or terminal_lines <= 0:
+            preview_command_value = None
+            preview_size_value = 0.25
+        else:
+            max_preview_size = available_preview_lines / terminal_lines
+            preview_size_value = min(
+                preview_size if preview_size is not None else 0.25,
+                max_preview_size,
+            )
+    search_key_value = search_key if search else "/"
+    show_search_hint_value = show_search_hint if search else False
+    clear_screen_value = clear_screen if clear_screen is not None else False
+    clear_menu_on_exit_value = (
+        clear_menu_on_exit if clear_menu_on_exit is not None else True
+    )
+
+    terminal_menu_class = cast(Any, TerminalMenu)
+    menu = terminal_menu_class(
         display_options,
         title=title,
         multi_select=multi_select,
@@ -72,10 +141,12 @@ def terminal_menu(
         multi_select_select_on_accept=False,
         multi_select_empty_ok=True,
         status_bar=status_bar,
-        search_key=search_key if search else "/",
-        show_search_hint=show_search_hint if search else False,
-        preview_command=preview_command,
+        search_key=search_key_value,
+        show_search_hint=show_search_hint_value,
+        preview_command=preview_command_value,
         preview_size=preview_size_value,
+        clear_screen=clear_screen_value,
+        clear_menu_on_exit=clear_menu_on_exit_value,
     )
 
     result = menu.show()
