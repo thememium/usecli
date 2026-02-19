@@ -382,6 +382,9 @@ class TestInitCommandDefaults:
         assert 'description = "A custom CLI tool"' in content
         assert 'commands_dir = "cli/commands"' in content
         assert 'title_font = "big"' in content
+        assert "hide_init = false" in content
+        assert "hide_inspire = false" in content
+        assert "hide_make_command = false" in content
 
 
 class TestInitCommandIntegration:
