@@ -48,11 +48,19 @@ def get_script_command_name(default: str | None = None) -> str | None:
 
 
 def get_project_name() -> str:
-    """Get the project name from package metadata."""
+    """Get the project name from config or package metadata."""
+    # First, try to get the title from the config
+    config = get_config()
+    title = config.get("title")
+    if title and title != "usecli":
+        return title
+
+    # Fall back to command name from pyproject.toml scripts
     command_name = get_script_command_name()
     if command_name:
         return "useCli" if command_name == "usecli" else command_name
 
+    # Last resort: package metadata
     try:
         meta = metadata("usecli")
         name = meta["Name"] if "Name" in meta else "usecli"
