@@ -1,6 +1,23 @@
 # Changelog
 
 
+## v0.1.13
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.12...v0.1.13)
+
+### 🚀 Enhancements
+
+- **config:** Add dynamic project root and commands directory resolution ([efbaee9](https://github.com/thememium/usecli/commit/efbaee9))
+- **config:** Support hierarchical script command lookup and config overrides ([593628e](https://github.com/thememium/usecli/commit/593628e))
+
+### 🏡 Chore
+
+- **uv:** Update version ([61e5b30](https://github.com/thememium/usecli/commit/61e5b30))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.12
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.11...v0.1.12)
