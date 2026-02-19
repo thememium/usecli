@@ -17,7 +17,7 @@ class {{ class_name }}(BaseCommand):
         name: str = Argument(..., help="An example argument"),
         verbose: bool = Option(False, "--verbose", "-v", help="Enable verbose output"),
     ) -> None:
-        console.print(f"[bold green]Executing {{ command_name }}[/bold green]")
+        console.print("[bold green]Executing {{ command_name }}[/bold green]")
         console.print(f"Hello, {name}!")
 
         if verbose:
