@@ -112,15 +112,15 @@ class AboutCommand(BaseCommand):
         else:
             self._print_row("Dependencies", "unable to load")
 
-        console.print()
-        console.print(f"[bold {COLOR.PRIMARY}]Features[/bold {COLOR.PRIMARY}]")
-        console.print(f"[{COLOR.PRIMARY}]─" * 78)
-
-        self._print_row("Prefix Matching", f"[{COLOR.SECONDARY}]ENABLED")
-        self._print_row("Rich UI", f"[{COLOR.SECONDARY}]ENABLED")
-        self._print_row("Command Scaffolding", f"[{COLOR.SECONDARY}]ENABLED")
-        self._print_row("Interactive Menus", f"[{COLOR.SECONDARY}]ENABLED")
-        self._print_row("Fuzzy Finder", f"[{COLOR.SECONDARY}]ENABLED")
+        # console.print()
+        # console.print(f"[bold {COLOR.PRIMARY}]Features[/bold {COLOR.PRIMARY}]")
+        # console.print(f"[{COLOR.PRIMARY}]─" * 78)
+        #
+        # self._print_row("Prefix Matching", f"[{COLOR.SECONDARY}]ENABLED")
+        # self._print_row("Rich UI", f"[{COLOR.SECONDARY}]ENABLED")
+        # self._print_row("Command Scaffolding", f"[{COLOR.SECONDARY}]ENABLED")
+        # self._print_row("Interactive Menus", f"[{COLOR.SECONDARY}]ENABLED")
+        # self._print_row("Fuzzy Finder", f"[{COLOR.SECONDARY}]ENABLED")
         console.print()
 
     def _print_row(self, label: str, value: str) -> None:
