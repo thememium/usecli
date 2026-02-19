@@ -32,9 +32,11 @@ def mock_console():
 @pytest.fixture
 def init_command(mock_console):
     with patch("usecli.cli.commands.init_command.Prompt.ask") as mock_prompt:
-        mock_prompt.side_effect = lambda *args, **kwargs: kwargs.get("default", "")
-        mock_app = MagicMock()
-        yield InitCommand(mock_app)
+        with patch("usecli.cli.commands.init_command.Menu.select") as mock_menu:
+            mock_prompt.side_effect = lambda *args, **kwargs: kwargs.get("default", "")
+            mock_menu.return_value = "big"
+            mock_app = MagicMock()
+            yield InitCommand(mock_app)
 
 
 class TestInitCommandDirectoryCreation:
@@ -377,6 +379,7 @@ class TestInitCommandDefaults:
         assert 'title = "My CLI"' in content
         assert 'description = "A custom CLI tool"' in content
         assert 'commands_dir = "cli/commands"' in content
+        assert 'title_font = "big"' in content
 
 
 class TestInitCommandIntegration:

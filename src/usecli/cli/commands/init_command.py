@@ -20,10 +20,13 @@ if sys.version_info >= (3, 11):
 else:
     import tomli as tomllib
 
+import pyfiglet
+
 from usecli.cli.config.colors import COLOR
 from usecli.cli.core.base_command import BaseCommand
 from usecli.cli.core.exceptions import UsecliBadParameter
 from usecli.cli.core.validators import validate_command_name
+from usecli.menu import Menu
 
 console = Console()
 
@@ -216,6 +219,23 @@ class InitCommand(BaseCommand):
             except UsecliBadParameter as error:
                 error.show()
 
+    def _get_figlet_fonts(self) -> list[str]:
+        """Get a list of available figlet fonts."""
+
+        fonts = pyfiglet.FigletFont.getFonts()
+        return sorted(fonts)
+
+    def _prompt_title_font(self, default_font: str = "big") -> str:
+        fonts = self._get_figlet_fonts()
+        selection = Menu.select(
+            fonts,
+            title=(
+                "Select a figlet font for your CLI title "
+                "(enter to confirm, esc to keep default):"
+            ),
+        )
+        return selection or default_font
+
     def handle(
         self,
         title: str = typer.Option("My CLI", help="Title for your CLI"),
@@ -252,6 +272,8 @@ class InitCommand(BaseCommand):
             f"[bold {COLOR.SECONDARY}]CLI title[/bold {COLOR.SECONDARY}]",
             default=title,
         )
+        console.print()
+        title_font = self._prompt_title_font()
         console.print()
         description = Prompt.ask(
             f"[bold {COLOR.SECONDARY}]CLI description[/bold {COLOR.SECONDARY}]",
@@ -291,6 +313,7 @@ class InitCommand(BaseCommand):
             title=title,
             description=description,
             commands_dir=commands_dir,
+            title_font=title_font,
         )
 
         # Check if config already exists

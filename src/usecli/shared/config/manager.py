@@ -47,6 +47,7 @@ class ConfigManager:
         "title": "usecli",
         "description": "A customizable CLI framework",
         "commands_dir": "cli/commands",
+        "title_font": "big",
         "environment": "prod",
         "command_name": "usecli",
     }

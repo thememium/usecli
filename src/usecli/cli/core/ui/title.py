@@ -14,6 +14,7 @@ else:
 from rich.console import Console
 
 from usecli.cli.config.colors import COLOR
+from usecli.shared.config.manager import get_config
 
 console = Console()
 
@@ -88,7 +89,12 @@ def print_title(title: str | None = None) -> None:
         # Print Title using pyfiglet if available and non title is provided, otherwise print plain text
         import pyfiglet
 
-        title_text = pyfiglet.figlet_format(text=title, font="big")
+        config = get_config()
+        title_font = config.get("title_font", "big") or "big"
+        try:
+            title_text = pyfiglet.figlet_format(text=title, font=title_font)
+        except pyfiglet.FontNotFound:
+            title_text = title
         console.print(f"[{COLOR.PRIMARY}]{title_text}")
     except (ImportError, ModuleNotFoundError):
         if title is None or title.lower() == "usecli":
