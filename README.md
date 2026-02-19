@@ -152,6 +152,18 @@ usecli make:command mycommand
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
+### Hide Default Commands
+
+You can hide the built-in commands individually using config flags in
+`pyproject.toml` (recommended) or `usecli.config.toml`:
+
+```toml
+[tool.usecli]
+hide_init = true
+hide_inspire = true
+hide_make_command = false
+```
+
 ### Prefix Matching
 
 useCli supports prefix matching, allowing you to type partial command names:
