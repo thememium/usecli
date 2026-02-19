@@ -225,7 +225,7 @@ class InitCommand(BaseCommand):
         fonts = pyfiglet.FigletFont.getFonts()
         return sorted(fonts)
 
-    def _prompt_title_font(self, default_font: str = "big") -> str:
+    def _prompt_title_font(self, title: str, default_font: str = "big") -> str:
         fonts = self._get_figlet_fonts()
         console.print(
             f"[bold {COLOR.SECONDARY}]Select a figlet font for your CLI title[/bold {COLOR.SECONDARY}]"
@@ -236,18 +236,21 @@ class InitCommand(BaseCommand):
             search_key="/",
             show_search_hint=False,
             status_bar="Enter = select | Esc = quit",
-            preview_command=lambda value: f"Preview:\n{value}\n",
+            preview_command=lambda value: (
+                f"{pyfiglet.figlet_format(title, font=value)}"
+            ),
             preview_size=0.70,
         )
         selected_font = selection[0] if selection else default_font
+        console.print()
         console.print(
-            f"[bold {COLOR.SECONDARY}]Selected title font:[/bold {COLOR.SECONDARY}] {selected_font}"
+            f"[bold {COLOR.PRIMARY}]Selected title font:[/bold {COLOR.PRIMARY}] {selected_font}"
         )
         return selected_font
 
     def handle(
         self,
-        title: str = typer.Option("My CLI", help="Title for your CLI"),
+        title: str = typer.Option("Use CLI", help="Title for your CLI"),
         description: str = typer.Option(
             "A custom CLI tool", help="Description for your CLI"
         ),
@@ -282,8 +285,10 @@ class InitCommand(BaseCommand):
             default=title,
         )
         console.print()
-        title_font = self._prompt_title_font()
+        title_font = self._prompt_title_font(title)
+        title_text = pyfiglet.figlet_format(text=title, font=title_font)
         console.print()
+        console.print(f"[{COLOR.PRIMARY}]{title_text}")
         description = Prompt.ask(
             f"[bold {COLOR.SECONDARY}]CLI description[/bold {COLOR.SECONDARY}]",
             default=description,
