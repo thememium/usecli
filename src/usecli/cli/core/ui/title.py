@@ -92,7 +92,8 @@ def print_title(title: str | None = None) -> None:
         config = get_config()
         title_font = config.get("title_font", "big") or "big"
         try:
-            title_text = pyfiglet.figlet_format(text=title, font=title_font)
+            raw_title = pyfiglet.figlet_format(text=title, font=title_font)
+            title_text = "\n".join(" " + line for line in raw_title.split("\n"))
         except pyfiglet.FontNotFound:
             title_text = title
         console.print()
