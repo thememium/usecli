@@ -1,6 +1,39 @@
 # Changelog
 
 
+## v0.1.12
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.11...v0.1.12)
+
+### 🚀 Enhancements
+
+- **cli:** Add hidden flag support for default commands ([d8f8803](https://github.com/thememium/usecli/commit/d8f8803))
+- **cli:** Add hide_init, hide_inspire and hide_make_command config options ([1e693a8](https://github.com/thememium/usecli/commit/1e693a8))
+
+### 💅 Refactors
+
+- **about_command:** Comment out Features section in AboutCommand output ([3a4c173](https://github.com/thememium/usecli/commit/3a4c173))
+
+### 📖 Documentation
+
+- **readme:** Add “Hide Default Commands” section ([e1d6cdb](https://github.com/thememium/usecli/commit/e1d6cdb))
+
+### 🏡 Chore
+
+- **uv:** Update version ([e88f232](https://github.com/thememium/usecli/commit/e88f232))
+
+### ✅ Tests
+
+- **cli:** Assert new hide_* defaults in init command output ([399c8d7](https://github.com/thememium/usecli/commit/399c8d7))
+
+### 🎨 Styles
+
+- **init:** Indent figlet title output for better visual alignment ([decda35](https://github.com/thememium/usecli/commit/decda35))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.11
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.10...v0.1.11)
