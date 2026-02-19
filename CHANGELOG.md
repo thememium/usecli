@@ -1,6 +1,30 @@
 # Changelog
 
 
+## v0.1.11
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.10...v0.1.11)
+
+### 🚀 Enhancements
+
+- **ui:** Add blank line before title output for better readability ([6a11d61](https://github.com/thememium/usecli/commit/6a11d61))
+- **cli:** Default title uses command name when placeholder is generic ([57d1ca9](https://github.com/thememium/usecli/commit/57d1ca9))
+- **usecli:** Read project name from config before falling back to metadata ([bd90a3d](https://github.com/thememium/usecli/commit/bd90a3d))
+- **usecli:** Detect interactive flag in any argv position ([1cbcaec](https://github.com/thememium/usecli/commit/1cbcaec))
+
+### 🏡 Chore
+
+- **uv:** Update version ([fcf14a4](https://github.com/thememium/usecli/commit/fcf14a4))
+
+### 🎨 Styles
+
+- **title.py:** Indent each line of the rendered title for improved readability ([0fd9b20](https://github.com/thememium/usecli/commit/0fd9b20))
+- **cli:** Remove unnecessary f‑string from command template ([bd23f2e](https://github.com/thememium/usecli/commit/bd23f2e))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.10
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.9...v0.1.10)
