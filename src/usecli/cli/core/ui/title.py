@@ -19,31 +19,47 @@ from usecli.shared.config.manager import get_config
 console = Console()
 
 
-def _get_script_command_name() -> str | None:
-    pyproject_path = Path.cwd() / "pyproject.toml"
-    if not pyproject_path.exists():
-        return None
+def _get_script_command_name(start_dir: Path | None = None) -> str | None:
+    if start_dir is None:
+        start_dir = Path.cwd()
 
-    try:
-        data = tomllib.loads(pyproject_path.read_text())
-    except (tomllib.TOMLDecodeError, OSError):
-        return None
+    current = start_dir.resolve()
 
-    scripts = data.get("project", {}).get("scripts", {})
-    if not isinstance(scripts, dict):
-        return None
+    while True:
+        pyproject_path = current / "pyproject.toml"
+        if pyproject_path.exists():
+            try:
+                data = tomllib.loads(pyproject_path.read_text())
+            except (tomllib.TOMLDecodeError, OSError):
+                data = {}
 
-    for name, target in scripts.items():
-        if target == "usecli:run_app":
-            return name
+            scripts = data.get("project", {}).get("scripts", {})
+            if isinstance(scripts, dict):
+                for name, target in scripts.items():
+                    if target == "usecli:run_app":
+                        return name
+
+        parent = current.parent
+        if parent == current:
+            break
+        current = parent
 
     return None
 
 
 def get_script_command_name(default: str | None = None) -> str | None:
-    command_name = _get_script_command_name()
+    config = get_config()
+    config_command_name = config.get("command_name")
+    if config.has_key("command_name") and config_command_name:
+        return config_command_name
+
+    command_name = _get_script_command_name(Path.cwd())
     if command_name:
         return command_name
+
+    if config_command_name and config_command_name != "usecli":
+        return config_command_name
+
     return default
 
 

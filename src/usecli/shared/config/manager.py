@@ -82,11 +82,13 @@ class ConfigManager:
         self.start_dir: Path = start_dir
         self.project_root: Path = find_project_root(start_dir) or start_dir.resolve()
         self._config: dict[str, Any] = {}
+        self._overrides: dict[str, Any] = {}
         self._load_config()
 
     def _load_config(self) -> None:
         """Load and merge configurations from all sources."""
         self._config = self.DEFAULT_CONFIG.copy()
+        self._overrides = {}
 
         # Load usecli.config.toml from current or parent directories
         config_toml_path = self._find_config_toml()
@@ -94,6 +96,7 @@ class ConfigManager:
             try:
                 toml_config = self._load_toml(config_toml_path)
                 self._config = _deep_merge(self._config, toml_config)
+                self._overrides = _deep_merge(self._overrides, toml_config)
             except (tomllib.TOMLDecodeError, OSError) as e:
                 raise UsecliConfigError(
                     f"Failed to load {self.CONFIG_FILENAME}: {e}",
@@ -106,6 +109,7 @@ class ConfigManager:
                 pyproject_config = self._load_pyproject_toml(self.pyproject_path)
                 if pyproject_config:
                     self._config = _deep_merge(self._config, pyproject_config)
+                    self._overrides = _deep_merge(self._overrides, pyproject_config)
             except (tomllib.TOMLDecodeError, OSError) as e:
                 raise UsecliConfigError(
                     f"Failed to load pyproject.toml: {e}",
@@ -209,6 +213,15 @@ class ConfigManager:
     def get_all(self) -> dict[str, Any]:
         """Get the complete merged configuration."""
         return self._config.copy()
+
+    def has_key(self, key: str) -> bool:
+        keys = key.split(".")
+        value: Any = self._overrides
+        for k in keys:
+            if not isinstance(value, dict) or k not in value:
+                return False
+            value = value[k]
+        return True
 
     def get_project_root(self) -> Path:
         return self.project_root
