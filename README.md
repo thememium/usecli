@@ -186,7 +186,8 @@ usecli make:command mycommand
 This creates a new command file in the custom commands directory with a complete boilerplate:
 
 ```python
-from usecli.cli.core.base_command import BaseCommand
+from usecli import Argument, BaseCommand, Option, Prompt, console
+
 
 class MycommandCommand(BaseCommand):
     def signature(self) -> str:
@@ -195,9 +196,18 @@ class MycommandCommand(BaseCommand):
     def description(self) -> str:
         return "Description of mycommand"
 
-    def handle(self) -> None:
-        # Command implementation
-        pass
+    def handle(
+        self,
+        name: str = Argument(..., help="Your name"),
+        greeting: str = Option("Hello", "--greeting", "-g", help="Greeting to use"),
+    ) -> None:
+        console.print(f"[bold green]{greeting}, {name}![/bold green]")
+
+        favorite = Prompt.ask(
+            "What's your favorite color?",
+            choices=["red", "green", "blue"],
+        )
+        console.print(f"You chose: {favorite}")
 ```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
