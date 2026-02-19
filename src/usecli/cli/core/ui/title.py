@@ -95,6 +95,7 @@ def print_title(title: str | None = None) -> None:
             title_text = pyfiglet.figlet_format(text=title, font=title_font)
         except pyfiglet.FontNotFound:
             title_text = title
+        console.print()
         console.print(f"[{COLOR.PRIMARY}]{title_text}")
     except (ImportError, ModuleNotFoundError):
         if title is None or title.lower() == "usecli":
