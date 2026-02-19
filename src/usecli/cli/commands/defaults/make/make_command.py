@@ -10,12 +10,17 @@ from rich.console import Console
 from usecli.cli.config.colors import COLOR
 from usecli.cli.core.base_command import BaseCommand
 from usecli.shared.config.globals import PROJECT_COMMANDS_DIR, TEMPLATES_DIR
+from usecli.shared.config.manager import get_config
 
 console = Console()
 
 
 class MakeCommand(BaseCommand):
     """Command for generating new CLI command files."""
+
+    def visible(self) -> bool:
+        config = get_config()
+        return not config.get("hide_make_command", False)
 
     def signature(self) -> str:
         """Return the command signature."""

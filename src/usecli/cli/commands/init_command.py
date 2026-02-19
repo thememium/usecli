@@ -27,11 +27,16 @@ from usecli.cli.core.base_command import BaseCommand
 from usecli.cli.core.exceptions import UsecliBadParameter
 from usecli.cli.core.validators import validate_command_name
 from usecli.cli.utils.interactive.terminal_menu import terminal_menu
+from usecli.shared.config.manager import get_config
 
 console = Console()
 
 
 class InitCommand(BaseCommand):
+    def visible(self) -> bool:
+        config = get_config()
+        return not config.get("hide_init", False)
+
     def signature(self) -> str:
         return "init"
 

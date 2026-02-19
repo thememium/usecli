@@ -10,12 +10,17 @@ from rich.panel import Panel
 
 from usecli.cli.config.colors import COLOR
 from usecli.cli.core.base_command import BaseCommand
+from usecli.shared.config.manager import get_config
 
 console = Console()
 
 
 class InspireCommand(BaseCommand):
     """Command for displaying random inspirational quotes."""
+
+    def visible(self) -> bool:
+        config = get_config()
+        return not config.get("hide_inspire", False)
 
     def signature(self) -> str:
         """Return the command signature."""
