@@ -227,9 +227,11 @@ class InitCommand(BaseCommand):
 
     def _prompt_title_font(self, default_font: str = "big") -> str:
         fonts = self._get_figlet_fonts()
+        console.print(
+            f"[bold {COLOR.SECONDARY}]Select a figlet font for your CLI title[/bold {COLOR.SECONDARY}]"
+        )
         selection = terminal_menu(
             fonts,
-            title="Select a figlet font for your CLI title\n(typing searches)\nUp/Down move  PgUp/PgDn scroll",
             search=True,
             search_key="/",
             show_search_hint=False,
@@ -237,7 +239,11 @@ class InitCommand(BaseCommand):
             preview_command=lambda value: f"Preview:\n{value}\n",
             preview_size=0.70,
         )
-        return selection[0] if selection else default_font
+        selected_font = selection[0] if selection else default_font
+        console.print(
+            f"[bold {COLOR.SECONDARY}]Selected title font:[/bold {COLOR.SECONDARY}] {selected_font}"
+        )
+        return selected_font
 
     def handle(
         self,
