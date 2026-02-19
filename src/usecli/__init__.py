@@ -29,6 +29,18 @@ __all__ = [
 ]
 
 
+def _is_interactive_flag_present() -> bool:
+    """Check if -i/--interactive flag is present in sys.argv.
+
+    This allows the interactive flag to work regardless of position,
+    e.g., both 'usecli -i magic' and 'usecli magic -i' will work.
+
+    Returns:
+        True if -i or --interactive is found in sys.argv, False otherwise.
+    """
+    return "-i" in sys.argv or "--interactive" in sys.argv
+
+
 class PrefixMatchingGroup(TyperGroup):
     """Custom Typer group that supports prefix matching for commands.
 
@@ -153,7 +165,9 @@ def main(
         )
         raise typer.Exit()
 
-    if interactive:
+    interactive_requested = interactive or _is_interactive_flag_present()
+
+    if interactive_requested:
         from usecli.cli.commands.defaults.base.internal.fzf_command import (
             run_interactive,
         )
