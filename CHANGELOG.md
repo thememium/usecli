@@ -1,6 +1,30 @@
 # Changelog
 
 
+## v0.1.9
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.8...v0.1.9)
+
+### 🚀 Enhancements
+
+- **cli:** Add configurable figlet title font ([9f93051](https://github.com/thememium/usecli/commit/9f93051))
+- **terminal_menu:** Add search, status bar, and preview support ([6e700a2](https://github.com/thememium/usecli/commit/6e700a2))
+- **cli:** Add safe search length handling and dynamic preview sizing to terminal_menu ([c67dd17](https://github.com/thememium/usecli/commit/c67dd17))
+- **init_command:** Replace Menu with terminal_menu for richer interactive UI ([7517482](https://github.com/thememium/usecli/commit/7517482))
+- **init_command:** Show font selection prompt and echo chosen font ([c4ae7d9](https://github.com/thememium/usecli/commit/c4ae7d9))
+
+### 📖 Documentation
+
+- **readme:** Add “Create Your Own CLI” guide and document `init` command ([a5a98b5](https://github.com/thememium/usecli/commit/a5a98b5))
+
+### 🏡 Chore
+
+- **uv:** Update version ([f3e666b](https://github.com/thememium/usecli/commit/f3e666b))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.8
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.7...v0.1.8)
