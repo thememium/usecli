@@ -1,6 +1,35 @@
 # Changelog
 
 
+## v0.1.10
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.9...v0.1.10)
+
+### 🚀 Enhancements
+
+- **cli:** Enhance init command title font selection and preview ([5863e35](https://github.com/thememium/usecli/commit/5863e35))
+- **init:** Add search hint to status bar in init command ([4d46e93](https://github.com/thememium/usecli/commit/4d46e93))
+
+### 🩹 Fixes
+
+- **template:** Remove duplicate title_font entry and place it after title ([45956f0](https://github.com/thememium/usecli/commit/45956f0))
+
+### 📖 Documentation
+
+- **readme:** Improve command example with arguments and prompts ([58c7bfa](https://github.com/thememium/usecli/commit/58c7bfa))
+
+### 🏡 Chore
+
+- **uv:** Update version ([fe04671](https://github.com/thememium/usecli/commit/fe04671))
+
+### 🎨 Styles
+
+- **list:** Remove bold styling from command names in UI output ([3c50a5c](https://github.com/thememium/usecli/commit/3c50a5c))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.9
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.8...v0.1.9)
