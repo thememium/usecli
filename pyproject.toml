@@ -1,6 +1,6 @@
 [project]
 name = "usecli"
-version = "0.1.14"
+version = "0.1.15"
 description = "An elegant CLI framework for Python"
 readme = "README.md"
 authors = [{ name = "Edward Boswell", email = "thememium@gmail.com" }]
