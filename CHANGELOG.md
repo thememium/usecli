@@ -1,6 +1,24 @@
 # Changelog
 
 
+## v0.1.15
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.14...v0.1.15)
+
+### 🚀 Enhancements
+
+- **command_service:** Prefer config version over package metadata ([3ba132c](https://github.com/thememium/usecli/commit/3ba132c))
+- **cli:** Make about command use project config for name, version, description ([fb3d764](https://github.com/thememium/usecli/commit/fb3d764))
+- **cli:** Read project dependencies from pyproject.toml via ConfigManager ([5bdec7e](https://github.com/thememium/usecli/commit/5bdec7e))
+
+### 🏡 Chore
+
+- **uv:** Update version ([0666e62](https://github.com/thememium/usecli/commit/0666e62))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.14
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.13...v0.1.14)
