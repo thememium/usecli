@@ -28,7 +28,7 @@ from usecli.cli.core.exceptions import UsecliBadParameter
 from usecli.cli.core.validators import validate_command_name
 from usecli.cli.utils.interactive.terminal_menu import terminal_menu
 from usecli.shared.config.globals import TEMPLATES_DIR
-from usecli.shared.config.manager import get_config
+from usecli.shared.config.manager import ConfigManager, get_config
 
 console = Console()
 
@@ -288,6 +288,8 @@ class InitCommand(BaseCommand):
         cwd = Path.cwd()
         pyproject_path = cwd / "pyproject.toml"
         config_toml_path = cwd / "usecli.config.toml"
+        config_manager = ConfigManager(pyproject_path=pyproject_path, start_dir=cwd)
+        project_root = config_manager.get_project_root()
 
         console.print()
         existing_command_name = self._get_existing_usecli_script_name(pyproject_path)
@@ -315,12 +317,16 @@ class InitCommand(BaseCommand):
             default=commands_dir,
         )
         console.print()
-        commands_path = cwd / commands_dir
+        commands_path = (
+            Path(commands_dir)
+            if Path(commands_dir).is_absolute()
+            else project_root / commands_dir
+        )
         templates_dir = self._derive_templates_dir(commands_dir)
         templates_path = (
             Path(templates_dir)
             if Path(templates_dir).is_absolute()
-            else cwd / templates_dir
+            else project_root / templates_dir
         )
 
         # Create the commands directory

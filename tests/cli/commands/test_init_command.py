@@ -2,15 +2,22 @@
 
 from __future__ import annotations
 
+import importlib
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "src"))
+import usecli
 
-from usecli.cli.commands.init_command import InitCommand
+local_usecli_path = Path(__file__).resolve().parents[3] / "src" / "usecli"
+if str(local_usecli_path) not in list(usecli.__path__):
+    usecli.__path__ = list(usecli.__path__) + [str(local_usecli_path)]
+importlib.invalidate_caches()
+
+from usecli.cli.commands.init_command import InitCommand  # noqa: E402
 
 DEFAULT_TITLE = "My CLI"
 DEFAULT_DESCRIPTION = "A custom CLI tool"
