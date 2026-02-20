@@ -317,12 +317,16 @@ class InitCommand(BaseCommand):
             default=commands_dir,
         )
         console.print()
+        templates_dir = Prompt.ask(
+            f"[bold {COLOR.SECONDARY}]Templates directory[/bold {COLOR.SECONDARY}]",
+            default=self._derive_templates_dir(commands_dir),
+        )
+        console.print()
         commands_path = (
             Path(commands_dir)
             if Path(commands_dir).is_absolute()
             else project_root / commands_dir
         )
-        templates_dir = self._derive_templates_dir(commands_dir)
         templates_path = (
             Path(templates_dir)
             if Path(templates_dir).is_absolute()
