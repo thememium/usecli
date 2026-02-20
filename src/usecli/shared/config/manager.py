@@ -47,6 +47,7 @@ class ConfigManager:
         "title": "usecli",
         "description": "A customizable CLI framework",
         "commands_dir": "cli/commands",
+        "templates_dir": "cli/templates",
         "title_font": "big",
         "environment": "prod",
         "command_name": "usecli",
@@ -232,6 +233,13 @@ class ConfigManager:
         if commands_path.is_absolute():
             return commands_path
         return (self.project_root / commands_path).resolve()
+
+    def get_project_templates_dir(self) -> Path:
+        templates_dir = self.get("templates_dir", "cli/templates")
+        templates_path = Path(templates_dir)
+        if templates_path.is_absolute():
+            return templates_path
+        return (self.project_root / templates_path).resolve()
 
     def is_dev(self) -> bool:
         """Check if running in development environment."""

@@ -27,6 +27,7 @@ from usecli.cli.core.base_command import BaseCommand
 from usecli.cli.core.exceptions import UsecliBadParameter
 from usecli.cli.core.validators import validate_command_name
 from usecli.cli.utils.interactive.terminal_menu import terminal_menu
+from usecli.shared.config.globals import TEMPLATES_DIR
 from usecli.shared.config.manager import get_config
 
 console = Console()
@@ -192,6 +193,15 @@ class InitCommand(BaseCommand):
 
         return created
 
+    def _derive_templates_dir(self, commands_dir: str) -> str:
+        commands_path = Path(commands_dir)
+        parent = commands_path.parent
+        if commands_path.is_absolute():
+            return str(parent / "templates")
+        if parent == Path("."):
+            return "templates"
+        return str(parent / "templates")
+
     def _get_existing_usecli_script_name(self, pyproject_path: Path) -> str | None:
         if not pyproject_path.exists():
             return None
@@ -306,6 +316,12 @@ class InitCommand(BaseCommand):
         )
         console.print()
         commands_path = cwd / commands_dir
+        templates_dir = self._derive_templates_dir(commands_dir)
+        templates_path = (
+            Path(templates_dir)
+            if Path(templates_dir).is_absolute()
+            else cwd / templates_dir
+        )
 
         # Create the commands directory
         if not commands_path.exists():
@@ -316,6 +332,16 @@ class InitCommand(BaseCommand):
         else:
             console.print(
                 f"[{COLOR.WARNING}]Commands directory already exists:[/{COLOR.WARNING}] {commands_path}"
+            )
+
+        if not templates_path.exists():
+            templates_path.mkdir(parents=True, exist_ok=True)
+            console.print(
+                f"[{COLOR.SUCCESS}]Created templates directory:[/{COLOR.SUCCESS}] {templates_path}"
+            )
+        else:
+            console.print(
+                f"[{COLOR.WARNING}]Templates directory already exists:[/{COLOR.WARNING}] {templates_path}"
             )
 
         if self._ensure_package_init_files(commands_path, cwd):
@@ -333,8 +359,20 @@ class InitCommand(BaseCommand):
             title=title,
             description=description,
             commands_dir=commands_dir,
+            templates_dir=templates_dir,
             title_font=title_font,
         )
+
+        make_template_path = templates_path / "command.py.j2"
+        if not make_template_path.exists():
+            shutil.copy(TEMPLATES_DIR / "command.py.j2", make_template_path)
+            console.print(
+                f"[{COLOR.SUCCESS}]Added make command template:[/{COLOR.SUCCESS}] {make_template_path}"
+            )
+        else:
+            console.print(
+                f"[{COLOR.WARNING}]Make command template already exists:[/{COLOR.WARNING}] {make_template_path}"
+            )
 
         # Check if config already exists
         existing_source = self._get_config_source(pyproject_path, config_toml_path)
