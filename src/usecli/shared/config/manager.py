@@ -227,6 +227,25 @@ class ConfigManager:
     def get_project_root(self) -> Path:
         return self.project_root
 
+    def get_project_version(self) -> str | None:
+        pyproject_version = self._load_project_version(self.pyproject_path)
+        if pyproject_version:
+            return pyproject_version
+
+        config_path = self.config_toml_path
+        if not config_path:
+            return None
+
+        try:
+            config_data = self._load_toml(config_path)
+        except (tomllib.TOMLDecodeError, OSError):
+            return None
+
+        version = config_data.get("version")
+        if isinstance(version, str) and version.strip():
+            return version.strip()
+        return None
+
     def get_project_commands_dir(self) -> Path:
         commands_dir = self.get("commands_dir", "cli/commands")
         commands_path = Path(commands_dir)
@@ -264,6 +283,26 @@ class ConfigManager:
     def config_toml_path(self) -> Path | None:
         """Path to the found usecli.config.toml, or None."""
         return self._find_config_toml()
+
+    @staticmethod
+    def _load_project_version(path: Path) -> str | None:
+        if not path.exists():
+            return None
+        try:
+            with open(path, "rb") as f:
+                data = tomllib.load(f)
+        except (tomllib.TOMLDecodeError, OSError):
+            return None
+
+        project_version = data.get("project", {}).get("version")
+        if isinstance(project_version, str) and project_version.strip():
+            return project_version.strip()
+
+        tool_version = data.get("tool", {}).get("usecli", {}).get("version")
+        if isinstance(tool_version, str) and tool_version.strip():
+            return tool_version.strip()
+
+        return None
 
 
 _config_manager: ConfigManager | None = None

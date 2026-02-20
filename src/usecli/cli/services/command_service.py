@@ -45,7 +45,10 @@ class CommandService:
         self._load_from_dir(get_config().get_project_commands_dir())
 
     def _load_version(self) -> None:
-        """Load version from package metadata."""
+        config_version = get_config().get_project_version()
+        if config_version:
+            self.version = config_version
+            return
         try:
             self.version = get_version("usecli")
         except PackageNotFoundError:

@@ -21,6 +21,13 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 from usecli.cli.core.base_command import BaseCommand
 from usecli.cli.services.command_service import CommandService
 
+
+def _mock_config_version(value: str | None) -> MagicMock:
+    mock_config = MagicMock()
+    mock_config.get_project_version.return_value = value
+    return mock_config
+
+
 # =============================================================================
 # Test Command Implementations
 # =============================================================================
@@ -211,9 +218,11 @@ class TestCommandServiceLoadCommands:
 class TestCommandServiceLoadVersion:
     """Tests for CommandService._load_version method."""
 
+    @patch("usecli.cli.services.command_service.get_config")
     @patch("usecli.cli.services.command_service.get_version")
-    def test_load_version_with_valid_version(self, mock_get_version):
+    def test_load_version_with_valid_version(self, mock_get_version, mock_get_config):
         """Test _load_version reads version from package metadata."""
+        mock_get_config.return_value = _mock_config_version(None)
         mock_get_version.return_value = "1.2.3"
 
         app = MagicMock()
@@ -223,11 +232,15 @@ class TestCommandServiceLoadVersion:
         assert service.version == "1.2.3"
         mock_get_version.assert_called_once_with("usecli")
 
+    @patch("usecli.cli.services.command_service.get_config")
     @patch("usecli.cli.services.command_service.get_version")
-    def test_load_version_with_package_not_found(self, mock_get_version):
+    def test_load_version_with_package_not_found(
+        self, mock_get_version, mock_get_config
+    ):
         """Test _load_version uses default when package not found."""
         from importlib.metadata import PackageNotFoundError
 
+        mock_get_config.return_value = _mock_config_version(None)
         mock_get_version.side_effect = PackageNotFoundError("usecli")
 
         app = MagicMock()
@@ -236,9 +249,13 @@ class TestCommandServiceLoadVersion:
 
         assert service.version == "0.0.0"
 
+    @patch("usecli.cli.services.command_service.get_config")
     @patch("usecli.cli.services.command_service.get_version")
-    def test_load_version_propagates_unexpected_exceptions(self, mock_get_version):
+    def test_load_version_propagates_unexpected_exceptions(
+        self, mock_get_version, mock_get_config
+    ):
         """Test _load_version propagates unexpected exceptions."""
+        mock_get_config.return_value = _mock_config_version(None)
         mock_get_version.side_effect = RuntimeError("Some error")
 
         app = MagicMock()
@@ -247,9 +264,11 @@ class TestCommandServiceLoadVersion:
         with pytest.raises(RuntimeError, match="Some error"):
             service._load_version()
 
+    @patch("usecli.cli.services.command_service.get_config")
     @patch("usecli.cli.services.command_service.get_version")
-    def test_load_version_multiple_calls(self, mock_get_version):
+    def test_load_version_multiple_calls(self, mock_get_version, mock_get_config):
         """Test _load_version can be called multiple times."""
+        mock_get_config.return_value = _mock_config_version(None)
         mock_get_version.return_value = "3.0.0"
 
         app = MagicMock()
@@ -643,9 +662,13 @@ class TestCommandServiceIntegration:
         assert service.commands == []
         assert service.version == "0.0.0"
 
+    @patch("usecli.cli.services.command_service.get_config")
     @patch("usecli.cli.services.command_service.get_version")
-    def test_load_commands_integration_with_mocked_version(self, mock_get_version):
+    def test_load_commands_integration_with_mocked_version(
+        self, mock_get_version, mock_get_config
+    ):
         """Test load_commands with mocked package metadata."""
+        mock_get_config.return_value = _mock_config_version(None)
         mock_get_version.return_value = "2.5.0"
 
         app = MagicMock()
@@ -699,9 +722,11 @@ class TestCommandServiceIntegration:
 class TestCommandServiceEdgeCases:
     """Edge case tests for CommandService."""
 
+    @patch("usecli.cli.services.command_service.get_config")
     @patch("usecli.cli.services.command_service.get_version")
-    def test_load_version_with_valid_version(self, mock_get_version):
+    def test_load_version_with_valid_version(self, mock_get_version, mock_get_config):
         """Test _load_version reads version from package metadata."""
+        mock_get_config.return_value = _mock_config_version(None)
         mock_get_version.return_value = "1.2.3"
 
         app = MagicMock()
@@ -766,9 +791,11 @@ class TestCommandServiceEdgeCases:
 class TestCommandServiceVersionBehavior:
     """Tests for version loading behavior in CommandService."""
 
+    @patch("usecli.cli.services.command_service.get_config")
     @patch("usecli.cli.services.command_service.get_version")
-    def test_version_with_prerelease_tags(self, mock_get_version):
+    def test_version_with_prerelease_tags(self, mock_get_version, mock_get_config):
         """Test version with prerelease tags is preserved."""
+        mock_get_config.return_value = _mock_config_version(None)
         mock_get_version.return_value = "1.0.0-beta.1"
 
         app = MagicMock()
@@ -777,9 +804,11 @@ class TestCommandServiceVersionBehavior:
 
         assert service.version == "1.0.0-beta.1"
 
+    @patch("usecli.cli.services.command_service.get_config")
     @patch("usecli.cli.services.command_service.get_version")
-    def test_version_with_development_versions(self, mock_get_version):
+    def test_version_with_development_versions(self, mock_get_version, mock_get_config):
         """Test version with dev tags is preserved."""
+        mock_get_config.return_value = _mock_config_version(None)
         mock_get_version.return_value = "1.0.0.dev0"
 
         app = MagicMock()
@@ -831,9 +860,13 @@ class TestCommandServiceMockingBehavior:
 class TestCommandServiceRealWorldScenarios:
     """Real-world scenario tests for CommandService."""
 
+    @patch("usecli.cli.services.command_service.get_config")
     @patch("usecli.cli.services.command_service.get_version")
-    def test_scenario_version_from_package_metadata(self, mock_get_version):
+    def test_scenario_version_from_package_metadata(
+        self, mock_get_version, mock_get_config
+    ):
         """Test version loading from package metadata."""
+        mock_get_config.return_value = _mock_config_version(None)
         mock_get_version.return_value = "1.5.2"
 
         app = MagicMock()
@@ -970,9 +1003,13 @@ class TestCommandServiceRealWorldScenarios:
         assert service2.version == "0.0.0"
         assert service2.commands == []
 
+    @patch("usecli.cli.services.command_service.get_config")
     @patch("usecli.cli.services.command_service.get_version")
-    def test_scenario_version_zero_point_versions(self, mock_get_version):
+    def test_scenario_version_zero_point_versions(
+        self, mock_get_version, mock_get_config
+    ):
         """Test handling of various version formats."""
+        mock_get_config.return_value = _mock_config_version(None)
         app = MagicMock()
         service = CommandService(app=app)
 
@@ -1007,3 +1044,17 @@ class TestCommandServiceRealWorldScenarios:
             # Verify the call was made with correct parameters
             mock_spec_from_file.assert_called_once_with("example_module", path)
             assert result is None
+
+    @patch("usecli.cli.services.command_service.get_version")
+    @patch("usecli.cli.services.command_service.get_config")
+    def test_load_version_prefers_project_config(
+        self, mock_get_config, mock_get_version
+    ):
+        mock_get_config.return_value = _mock_config_version("9.9.9")
+
+        app = MagicMock()
+        service = CommandService(app=app)
+        service._load_version()
+
+        assert service.version == "9.9.9"
+        mock_get_version.assert_not_called()
