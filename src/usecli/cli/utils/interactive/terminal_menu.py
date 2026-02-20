@@ -10,6 +10,7 @@ from simple_term_menu import TerminalMenu
 
 T = TypeVar("T")
 _PATCHED_SEARCH_LEN = False
+_PATCHED_VIM_PAGE_KEYS = False
 
 
 def _apply_safe_search_len_patch() -> None:
@@ -29,7 +30,35 @@ def _apply_safe_search_len_patch() -> None:
     _PATCHED_SEARCH_LEN = True
 
 
+def _apply_vim_page_keys_patch() -> None:
+    global _PATCHED_VIM_PAGE_KEYS
+    if _PATCHED_VIM_PAGE_KEYS:
+        return
+
+    original_read_next_key = cast(
+        Callable[[TerminalMenu, bool], str], TerminalMenu._read_next_key
+    )
+
+    def _read_next_key_with_vim_page(
+        self: TerminalMenu, ignore_case: bool = True
+    ) -> str:
+        key = original_read_next_key(self, ignore_case)
+        if getattr(self, "_search", False):
+            return key
+        if getattr(self, "_search_key", None) is None:
+            return key
+        if key in ("d", "D"):
+            return "page_down"
+        if key in ("u", "U"):
+            return "page_up"
+        return key
+
+    setattr(TerminalMenu, "_read_next_key", _read_next_key_with_vim_page)
+    _PATCHED_VIM_PAGE_KEYS = True
+
+
 _apply_safe_search_len_patch()
+_apply_vim_page_keys_patch()
 
 
 def terminal_menu(
