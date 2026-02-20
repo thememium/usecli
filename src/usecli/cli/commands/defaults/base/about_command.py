@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import platform
 import sys
-from importlib.metadata import PackageNotFoundError, requires
+from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as get_version
 from pathlib import Path
 
@@ -16,7 +16,7 @@ from rich.console import Console
 from usecli.cli.config.colors import COLOR
 from usecli.cli.core.base_command import BaseCommand
 from usecli.cli.core.ui.title import get_project_name
-from usecli.shared.config.manager import get_config
+from usecli.shared.config.manager import ConfigManager, get_config
 
 console = Console()
 
@@ -28,22 +28,31 @@ def _get_version() -> str:
         return "0.0.0"
 
 
-def _get_dependencies() -> list[str]:
-    """Get dependency names from package metadata."""
-    try:
-        reqs = requires("usecli")
-        if not reqs:
-            return []
-        deps = []
-        for req in reqs:
-            # Parse package name from requirement string
-            # Handles: "package>=1.0", "package[extra]>=1.0", etc.
-            name = req.split("[")[0].split(">")[0].split("<")[0].split("=")[0].strip()
-            if name and not req.startswith("("):
-                deps.append(name)
-        return deps
-    except PackageNotFoundError:
+def _get_dependencies(config: ConfigManager) -> list[str]:
+    """Get dependency names from project pyproject.toml."""
+    pyproject_path = config.pyproject_path
+    if not pyproject_path.exists():
         return []
+
+    try:
+        data = tomllib.loads(pyproject_path.read_text())
+    except (tomllib.TOMLDecodeError, OSError):
+        return []
+
+    deps = data.get("project", {}).get("dependencies", [])
+    if not isinstance(deps, list):
+        return []
+
+    result = []
+    for req in deps:
+        if not isinstance(req, str):
+            continue
+        # Parse package name from requirement string
+        # Handles: "package>=1.0", "package[extra]>=1.0", etc.
+        name = req.split("[")[0].split(">")[0].split("<")[0].split("=")[0].strip()
+        if name and not req.startswith("("):
+            result.append(name)
+    return result
 
 
 def _get_script_commands() -> list[str]:
@@ -113,7 +122,7 @@ class AboutCommand(BaseCommand):
         console.print(f"[bold {COLOR.PRIMARY}]Dependencies[/bold {COLOR.PRIMARY}]")
         console.print(f"[{COLOR.PRIMARY}]─" * 78)
 
-        deps = _get_dependencies()
+        deps = _get_dependencies(config)
         if deps:
             for dep_name in deps:
                 try:
