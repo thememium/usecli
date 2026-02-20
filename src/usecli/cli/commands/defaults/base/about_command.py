@@ -15,6 +15,8 @@ from rich.console import Console
 
 from usecli.cli.config.colors import COLOR
 from usecli.cli.core.base_command import BaseCommand
+from usecli.cli.core.ui.title import get_project_name
+from usecli.shared.config.manager import get_config
 
 console = Console()
 
@@ -69,21 +71,31 @@ class AboutCommand(BaseCommand):
         return "Display detailed information about the application"
 
     def handle(self) -> None:
-        version = _get_version()
+        config = get_config()
+        version = config.get_project_version() or _get_version()
+        app_name = get_project_name()
+        description = config.get("description")
+        if not (
+            config.has_key("description")
+            and isinstance(description, str)
+            and description.strip()
+        ):
+            description = (
+                "An elegant CLI framework for Python with prefix matching, "
+                "rich UI, and command scaffolding."
+            )
+        description = description.strip() if isinstance(description, str) else ""
 
         console.print()
         console.print(f"[bold {COLOR.PRIMARY}]Description[/bold {COLOR.PRIMARY}]")
         console.print(f"[{COLOR.PRIMARY}]─" * 78)
-        console.print(
-            "  An elegant CLI framework for Python with prefix matching, "
-            "rich UI, and command scaffolding."
-        )
+        console.print(f"  {description}")
 
         console.print()
         console.print(f"[bold {COLOR.PRIMARY}]Environment[/bold {COLOR.PRIMARY}]")
         console.print(f"[{COLOR.PRIMARY}]─" * 78)
 
-        self._print_row("Application Name", "useCli")
+        self._print_row("Application Name", app_name)
         self._print_row("Application Version", version)
         self._print_row("Python Version", platform.python_version())
         self._print_row("Platform", f"[{COLOR.FOREGROUND_MUTED}]{platform.platform()}")
