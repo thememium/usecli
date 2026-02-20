@@ -1,6 +1,22 @@
 # Changelog
 
 
+## v0.1.16
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.15...v0.1.16)
+
+### 🚀 Enhancements
+
+- **init:** Infer command name and title from pyproject name ([1a35afd](https://github.com/thememium/usecli/commit/1a35afd))
+
+### 🏡 Chore
+
+- **uv:** Update version ([e86e576](https://github.com/thememium/usecli/commit/e86e576))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.15
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.14...v0.1.15)
