@@ -27,7 +27,7 @@
     <li>
       <a href="#about-the-project">About The Project</a>
       <ul>
-        <li><a href="#key-features">Key Features</a></li>
+        <li><a href="#features">Features</a></li>
         <li><a href="#built-with">Built With</a></li>
       </ul>
     </li>
@@ -43,8 +43,15 @@
       <ul>
         <li><a href="#create-your-own-cli">Create Your Own CLI</a></li>
         <li><a href="#available-commands">Available Commands</a></li>
+        <li><a href="#hide-default-commands">Hide Default Commands</a></li>
         <li><a href="#prefix-matching">Prefix Matching</a></li>
         <li><a href="#interactive-mode">Interactive Mode</a></li>
+        <li><a href="#creating-new-commands">Creating New Commands</a></li>
+        <li><a href="#command-structure">Command Structure</a></li>
+        <li><a href="#nested-commands">Nested Commands</a></li>
+        <li><a href="#grouped-commands">Grouped Commands</a></li>
+        <li><a href="#ui-components">UI Components</a></li>
+        <li><a href="#global-flags">Global Flags</a></li>
       </ul>
     </li>
     <li>
@@ -65,24 +72,29 @@
 
 ## About The Project
 
-useCli is an elegant CLI framework for Python. It provides a beautiful, interactive command-line interface with rich styling, command scaffolding, and intuitive prefix matching for quick command execution.
+useCli is a CLI framework for Python built on Typer and Click. It handles the repetitive parts of CLI development—command routing, help formatting, interactive menus, and error handling—so you can focus on writing command logic.
 
-### Key Features
+<a name="features"></a>
 
-- **Prefix Matching**: Type partial command names and let useCli find the right command for you
-- **Rich UI**: Beautiful terminal output with Rich console integration and semantic color system
-- **Command Scaffolding**: Generate new commands instantly with `make:command`
-- **Modular Architecture**: Separate default commands from custom commands
-- **Interactive Menus**: Built-in terminal menu utilities for enhanced user experience
-- **Error Handling**: Styled error messages with custom exception classes
-- **Type Safety**: Full type hints throughout the codebase
+### Features
+
+- Prefix matching for quick command execution (`he` → `help`)
+- Terminal UI components: styled output, interactive menus, prompts, and confirmations
+- Command scaffolding with `make:command`
+- Nested command groups (e.g., `spec show`, `change list`)
+- Styled error messages with custom exception classes
+- Full type hints throughout
 
 ### Built With
 
-- **Typer**: Modern CLI framework for building command-line interfaces
-- **Click**: Python package for creating beautiful command-line interfaces
-- **Rich**: Library for rich text and beautiful formatting in the terminal
-- **simple-term-menu**: Interactive terminal menus
+- **Typer**: CLI framework built on Click
+- **Click**: Command-line interface creation kit
+- **Rich**: Terminal formatting and styling
+- **fzf-bin**: Fuzzy finder for interactive mode
+- **simple-term-menu**: Terminal menus
+- **Jinja2**: Command template scaffolding
+- **PyFiglet**: ASCII art banners
+- **PyYAML**: Configuration file support
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -127,9 +139,15 @@ Initialize a new CLI in your project:
 usecli init
 ```
 
-This prompts for your CLI title, description, commands directory, and entry point name. It creates the commands package, writes a useCli config (`[tool.usecli]` in `pyproject.toml` or `usecli.config.toml`), and ensures a `[project.scripts]` entry points to `usecli:run_app`.
+You'll be prompted for:
+- CLI title
+- Description
+- Commands directory
+- Entry point name
 
-After init, run your CLI (default command name is `usecli`) and scaffold commands:
+This creates the commands package, writes a useCli config (`[tool.usecli]` in `pyproject.toml` or `usecli.config.toml`), and sets up `[project.scripts]` to point to `usecli:run_app`.
+
+After init, run your CLI (default name is `usecli`):
 
 ```sh
 usecli make:command mycommand
@@ -152,6 +170,8 @@ usecli make:command mycommand
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
+Run any command with `--help` for detailed usage.
+
 ### Hide Default Commands
 
 You can hide the built-in commands individually using config flags in
@@ -166,20 +186,19 @@ hide_make_command = false
 
 ### Prefix Matching
 
-useCli supports prefix matching, allowing you to type partial command names:
+Type partial command names:
 
 ```sh
-# These all work:
 usecli he          # Runs 'help'
-usecli ab          # Runs 'about'  
+usecli ab          # Runs 'about'
 usecli ma:co       # Runs 'make:command'
 ```
 
-If your prefix matches multiple commands, useCli will display a filtered list for you to choose from.
+If multiple commands match, a filtered list is shown.
 
 ### Interactive Mode
 
-Every command supports an `--interactive` (or `-i`) option. This opens the interactive command runner instead of executing the command directly.
+Add `--interactive` (or `-i`) to any command to open the interactive runner:
 
 ```sh
 usecli --interactive
@@ -189,13 +208,13 @@ usecli make:command --interactive
 
 ### Creating New Commands
 
-Generate a new command scaffold:
+Generate a command scaffold:
 
 ```sh
 usecli make:command mycommand
 ```
 
-This creates a new command file in the custom commands directory with a complete boilerplate:
+This creates a command file with:
 
 ```python
 from usecli import Argument, BaseCommand, Option, Prompt, console
@@ -220,6 +239,101 @@ class MycommandCommand(BaseCommand):
             choices=["red", "green", "blue"],
         )
         console.print(f"You chose: {favorite}")
+```
+
+### Command Structure
+
+All commands extend `BaseCommand` and implement three methods:
+
+- `signature()` — Returns the command name (e.g., `mycommand` or `group:subcommand`)
+- `description()` — Returns the help text
+- `handle()` — Contains the command logic
+
+Optionally, override `visible()` to hide commands from the command list:
+
+```python
+def visible(self) -> bool:
+    return False  # Hidden from 'help' output
+```
+
+### Nested Commands
+
+Create command groups with space-separated signatures:
+
+```python
+def signature(self) -> str:
+    return "spec show"  # Creates 'spec' group with 'show' subcommand
+```
+
+These work alongside colon-separated commands like `make:command`.
+
+### Grouped Commands
+
+Commands with colons in their names are automatically grouped in the help output:
+
+```python
+class DatabaseBackupCommand(BaseCommand):
+    def signature(self) -> str:
+        return "db:backup"
+
+class DatabaseRestoreCommand(BaseCommand):
+    def signature(self) -> str:
+        return "db:restore"
+
+class DatabaseMigrateCommand(BaseCommand):
+    def signature(self) -> str:
+        return "db:migrate"
+```
+
+This displays in help as:
+
+```
+db:
+  backup              Backup the database
+  migrate             Run database migrations
+  restore             Restore the database
+```
+
+Colon-separated commands (`group:action`) are grouped by their prefix, while space-separated commands (`group action`) create nested subcommand groups.
+
+### UI Components
+
+Import from `usecli`:
+
+```python
+from usecli import console, Prompt, Confirm, Menu, Argument, Option
+```
+
+**Console**: Styled output via Rich
+```python
+console.print("[green]Success![/green]")
+```
+
+**Prompt**: Interactive prompts
+```python
+name = Prompt.ask("Enter your name")
+value = Prompt.ask("Select one", choices=["a", "b", "c"])
+```
+
+**Confirm**: Yes/no questions
+```python
+if Confirm.ask("Continue?"):
+    pass
+```
+
+**Menu**: Terminal selection menus
+```python
+menu = Menu(["Option 1", "Option 2", "Option 3"])
+selection = menu.show()
+```
+
+### Global Flags
+
+```sh
+usecli --version      # Show version
+usecli -v             # Short form
+usecli --help         # Show help
+usecli -h             # Short form
 ```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
@@ -287,30 +401,24 @@ uv run poe deptry
 
 ### Architecture
 
-This section is for contributors or those extending useCli.
-
 #### Core Components
 
-- **BaseCommand**: Abstract base class that all commands must inherit from
-- **CommandService**: Dynamically discovers and loads commands from directories
-- **PrefixMatchingGroup**: Custom Typer group enabling prefix matching functionality
-- **COLOR**: Semantic color system for consistent UI styling
+- **BaseCommand**: Abstract base class for all commands
+- **CommandService**: Discovers and loads commands from directories
+- **PrefixMatchingGroup**: Typer group with prefix matching support
+- **COLOR**: Semantic color constants (PRIMARY, SECONDARY, SUCCESS, ERROR, WARNING, OPTION)
 
 #### Command Structure
-
-All commands follow a consistent structure:
 
 ```python
 class MyCommand(BaseCommand):
     def signature(self) -> str:
-        """Return the command name (e.g., 'make:command')."""
         return "my:command"
 
     def description(self) -> str:
-        """Return a sh/Users/edwardboswell/ghq/github.com/thememium/usespec/README.mds command does"
+        return "What this command does"
 
     def handle(self, *args, **kwargs) -> None:
-        """Execute the command logic."""
         pass
 ```
 
