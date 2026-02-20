@@ -1,6 +1,26 @@
 # Changelog
 
 
+## v0.1.14
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.13...v0.1.14)
+
+### 🚀 Enhancements
+
+- **cli:** Support project‑specific command templates ([b9e3755](https://github.com/thememium/usecli/commit/b9e3755))
+- **cli:** Resolve init command paths relative to project root ([46b780d](https://github.com/thememium/usecli/commit/46b780d))
+- **init_command:** Prompt user for templates directory ([300c44a](https://github.com/thememium/usecli/commit/300c44a))
+- **terminal_menu:** Add Vim‑style page navigation keys ([698ff6c](https://github.com/thememium/usecli/commit/698ff6c))
+- **cli:** Add J/K navigation keys and update status bar hints ([921c738](https://github.com/thememium/usecli/commit/921c738))
+
+### 🏡 Chore
+
+- **uv:** Update version ([f4a559a](https://github.com/thememium/usecli/commit/f4a559a))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.13
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.12...v0.1.13)
