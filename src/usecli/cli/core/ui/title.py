@@ -105,6 +105,22 @@ def print_title(title: str | None = None) -> None:
 
  █████▓▓▓▓▓▒▒▒▒▒░░░░░░░░░░░░░░▒▒▒▒▒▓▓▓▓▓█████
         """
+    config = get_config()
+
+    title_file = config.get("title_file")
+    if title_file:
+        title_path = Path(title_file)
+        if not title_path.is_absolute():
+            title_path = config.get_project_root() / title_path
+        try:
+            if title_path.exists():
+                title_text = title_path.read_text()
+                console.print()
+                console.print(f"[{COLOR.PRIMARY}]{title_text}")
+                return
+        except OSError:
+            pass
+
     try:
         if title is None or title.lower() == "usecli":
             console.print(f"[{COLOR.PRIMARY}]{default_title_text}")
@@ -113,7 +129,6 @@ def print_title(title: str | None = None) -> None:
         # Print Title using pyfiglet if available and non title is provided, otherwise print plain text
         import pyfiglet
 
-        config = get_config()
         title_font = config.get("title_font", "big") or "big"
         try:
             raw_title = pyfiglet.figlet_format(text=title, font=title_font)
