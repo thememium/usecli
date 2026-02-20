@@ -54,15 +54,7 @@
         <li><a href="#global-flags">Global Flags</a></li>
       </ul>
     </li>
-    <li>
-      <a href="#development">Development</a>
-      <ul>
-        <li><a href="#poe-tasks">Poe Tasks</a></li>
-        <li><a href="#testing">Testing</a></li>
-        <li><a href="#code-quality">Code Quality</a></li>
-        <li><a href="#architecture">Architecture</a></li>
-      </ul>
-    </li>
+    <li><a href="#development">Development</a></li>
     <li><a href="#contributing">Contributing</a></li>
     <li><a href="#license">License</a></li>
   </ol>
@@ -342,107 +334,7 @@ usecli -h             # Short form
 
 ## Development
 
-### Poe Tasks
-
-This project uses `poe` for task management. Available tasks:
-
-| Task | Description |
-|------|-------------|
-| `uv run poe dev` | Run the CLI application |
-| `uv run poe clean` | Run isort and ruff format |
-| `uv run poe clean-full` | Run isort, ruff check/fix, ruff format, deptry, and ty check |
-| `uv run poe sort` | Run isort |
-| `uv run poe lint` | Run ruff linter with auto-fix |
-| `uv run poe format` | Run ruff formatter |
-| `uv run poe test` | Run pytest test suite |
-| `uv run poe deptry` | Check for dependency issues |
-| `uv run poe typecheck` | Run ty type checker |
-
-### Testing
-
-Run the test suite:
-
-```sh
-uv run poe test
-```
-
-Or with verbose output:
-
-```sh
-uv run pytest tests/ -v
-```
-
-### Code Quality
-
-Format and lint code:
-
-```sh
-uv run poe clean-full
-```
-
-Individual tools:
-
-```sh
-# Sort imports
-uv run poe sort
-
-# Lint code
-uv run poe lint
-
-# Format code
-uv run poe format
-
-# Type check
-uv run poe typecheck
-
-# Check dependencies
-uv run poe deptry
-```
-
-### Architecture
-
-#### Core Components
-
-- **BaseCommand**: Abstract base class for all commands
-- **CommandService**: Discovers and loads commands from directories
-- **PrefixMatchingGroup**: Typer group with prefix matching support
-- **COLOR**: Semantic color constants (PRIMARY, SECONDARY, SUCCESS, ERROR, WARNING, OPTION)
-
-#### Command Structure
-
-```python
-class MyCommand(BaseCommand):
-    def signature(self) -> str:
-        return "my:command"
-
-    def description(self) -> str:
-        return "What this command does"
-
-    def handle(self, *args, **kwargs) -> None:
-        pass
-```
-
-#### Directory Layout
-
-**Source Code Structure:**
-
-```
-src/usecli/
-├── __init__.py                    # Main entry point
-├── cli/
-│   ├── commands/                  # Command implementations
-│   │   ├── defaults/             # Built-in commands
-│   │   │   ├── base/             # Core commands (about, help, inspire)
-│   │   │   ├── core/             # Utility commands
-│   │   │   └── make/             # Code generation commands
-│   │   └── custom/               # User-defined commands
-│   ├── config/                   # Color system and configuration
-│   ├── core/                     # BaseCommand, error handling, validators
-│   ├── services/                 # Command loading service
-│   ├── templates/                # Jinja2 templates for scaffolding
-│   └── utils/                    # Interactive utilities
-└── shared/                       # Global configuration
-```
+See the [Development Guide](docs/development.md) for details on setting up the development environment, running tests, and contributing to useCli.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
