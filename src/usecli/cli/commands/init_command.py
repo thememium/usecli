@@ -250,7 +250,7 @@ class InitCommand(BaseCommand):
             search=True,
             search_key="/",
             show_search_hint=False,
-            status_bar="Enter = select | / = search | Esc = quit",
+            status_bar="Enter = select | / = search | J/K = move | D/U = page | Esc = quit",
             preview_command=lambda value: (
                 f"{pyfiglet.figlet_format(title, font=value)}"
             ),

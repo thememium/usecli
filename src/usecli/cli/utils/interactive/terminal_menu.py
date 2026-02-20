@@ -51,6 +51,10 @@ def _apply_vim_page_keys_patch() -> None:
             return "page_down"
         if key in ("u", "U"):
             return "page_up"
+        if key == "J":
+            return "down"
+        if key == "K":
+            return "up"
         return key
 
     setattr(TerminalMenu, "_read_next_key", _read_next_key_with_vim_page)
