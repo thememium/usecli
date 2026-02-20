@@ -201,7 +201,7 @@ class TestInitCommandPyprojectToml:
 
         content = pyproject.read_text()
         assert "[project.scripts]" in content
-        assert 'usecli = "usecli:run_app"' in content
+        assert 'test = "usecli:run_app"' in content
 
     def test_preserves_existing_project_script_entries(
         self, temp_project_dir, init_command
@@ -221,7 +221,7 @@ class TestInitCommandPyprojectToml:
         content = pyproject.read_text()
         assert "[project.scripts]" in content
         assert 'foo = "foo:main"' in content
-        assert 'usecli = "usecli:run_app"' in content
+        assert 'test = "usecli:run_app"' in content
 
     def test_prompts_before_overwriting_project_script_entry(
         self, temp_project_dir, init_command
@@ -246,7 +246,7 @@ class TestInitCommandPyprojectToml:
     ):
         pyproject = temp_project_dir / "pyproject.toml"
         pyproject.write_text(
-            "[project]\nname = 'test'\n\n[project.scripts]\nusecli = \"other:main\"\n"
+            "[project]\nname = 'test'\n\n[project.scripts]\ntest = \"other:main\"\n"
         )
 
         init_command.handle(
@@ -254,7 +254,7 @@ class TestInitCommandPyprojectToml:
         )
 
         content = pyproject.read_text()
-        assert 'usecli = "usecli:run_app"' in content
+        assert 'test = "usecli:run_app"' in content
 
     def test_skips_when_user_declines_overwrite(self, temp_project_dir, init_command):
         pyproject = temp_project_dir / "pyproject.toml"

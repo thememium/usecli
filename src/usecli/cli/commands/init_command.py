@@ -221,6 +221,17 @@ class InitCommand(BaseCommand):
 
         return None
 
+    def _get_project_name_from_pyproject(self, pyproject_path: Path) -> str | None:
+        if not pyproject_path.exists():
+            return None
+
+        try:
+            data = tomllib.loads(pyproject_path.read_text())
+        except (tomllib.TOMLDecodeError, OSError):
+            return None
+
+        return data.get("project", {}).get("name")
+
     def _prompt_command_name(self, command_name: str) -> str:
         prompt_text = f"[bold {COLOR.SECONDARY}]Project script command name[/bold {COLOR.SECONDARY}]"
         first_attempt = True
@@ -295,6 +306,13 @@ class InitCommand(BaseCommand):
         existing_command_name = self._get_existing_usecli_script_name(pyproject_path)
         if existing_command_name and command_name == "usecli":
             command_name = existing_command_name
+
+        project_name = self._get_project_name_from_pyproject(pyproject_path)
+        if project_name and command_name == "usecli":
+            command_name = project_name
+        if project_name and title == "Use CLI":
+            title = project_name
+
         command_name = self._prompt_command_name(command_name)
         console.print()
         title = Prompt.ask(
