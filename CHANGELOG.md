@@ -1,6 +1,41 @@
 # Changelog
 
 
+## v0.1.17
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.16...v0.1.17)
+
+### 🚀 Enhancements
+
+- **cli:** Add support for configurable title_file ([717acc5](https://github.com/thememium/usecli/commit/717acc5))
+- **init_command:** Generate full pyproject.toml and auto‑sync environment ([65b8184](https://github.com/thememium/usecli/commit/65b8184))
+- **init:** Store usecli configuration in pyproject.toml instead of a separate file ([5f37dfa](https://github.com/thememium/usecli/commit/5f37dfa))
+- **init-command:** Extract env sync logic and use folder name for project ([8908772](https://github.com/thememium/usecli/commit/8908772))
+
+### 🩹 Fixes
+
+- **pyproject:** Update console script entry point to usecli:main ([936bd39](https://github.com/thememium/usecli/commit/936bd39))
+
+### 💅 Refactors
+
+- **config:** Drop usecli.config.toml support and rely on pyproject.toml only ([acc3213](https://github.com/thememium/usecli/commit/acc3213))
+- **init:** Check for uv before .venv existence ([e8e96af](https://github.com/thememium/usecli/commit/e8e96af))
+- **cli:** Rename run_app to main and update public API ([d396b45](https://github.com/thememium/usecli/commit/d396b45))
+
+### 📖 Documentation
+
+- **readme:** Rename “Key Features” to “Features”, add new TOC items, and expand sections ([b918ce3](https://github.com/thememium/usecli/commit/b918ce3))
+- Extract Development section to docs/development.md and simplify README ([29fd224](https://github.com/thememium/usecli/commit/29fd224))
+- **readme:** Simplify README, update quick‑start and usage sections ([e088ef2](https://github.com/thememium/usecli/commit/e088ef2))
+
+### 🏡 Chore
+
+- **uv:** Update version ([82694d3](https://github.com/thememium/usecli/commit/82694d3))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.16
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.15...v0.1.16)
