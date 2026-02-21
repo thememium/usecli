@@ -22,6 +22,10 @@ console = Console()
 
 
 class MakeThemeCommand(BaseCommand):
+    def visible(self) -> bool:
+        config = get_config()
+        return not config.get("hide_make_theme", False)
+
     def signature(self) -> str:
         return "make:theme"
 
