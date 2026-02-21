@@ -274,6 +274,50 @@ class InitCommand(BaseCommand):
         )
         return selected_font
 
+    def _create_full_pyproject_toml(
+        self,
+        pyproject_path: Path,
+        command_name: str,
+        title: str,
+        description: str,
+        commands_dir: str,
+        config_content: str,
+    ) -> None:
+        parts = Path(commands_dir).parts
+        root_package = parts[0] if parts else "src"
+
+        pyproject_content = f'''[project]
+name = "{command_name}"
+version = "0.1.0"
+description = "{description}"
+readme = "README.md"
+requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Operating System :: OS Independent",
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+]
+dependencies = [
+    "usecli",
+]
+license = "MIT"
+
+[project.scripts]
+{command_name} = "usecli:run_app"
+
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["{root_package}*"]
+
+{config_content}'''
+
+        pyproject_path.write_text(pyproject_content)
+
     def handle(
         self,
         title: str = typer.Option("Use CLI", help="Title for your CLI"),
@@ -482,15 +526,40 @@ class InitCommand(BaseCommand):
                             f"[{COLOR.WARNING}]uv not found. Run 'uv sync' to enable '{command_name}'[/{COLOR.WARNING}]"
                         )
         else:
-            config_toml_path.write_text(config_content)
-            console.print(
-                f"[{COLOR.SUCCESS}]Created {config_toml_path}[/{COLOR.SUCCESS}]"
+            self._create_full_pyproject_toml(
+                pyproject_path,
+                command_name,
+                title,
+                description,
+                commands_dir,
+                config_content,
             )
             console.print(
-                f"[{COLOR.WARNING}]Note: To create a CLI entry point, add this to your pyproject.toml:[/{COLOR.WARNING}]\n"
-                f"[project.scripts]\n"
-                f'{command_name} = "usecli:run_app"'
+                f"[{COLOR.SUCCESS}]Created {pyproject_path}[/{COLOR.SUCCESS}]"
             )
+            scripts_status = "added"
+
+            venv_path = cwd / ".venv"
+            if venv_path.exists():
+                uv_path = shutil.which("uv")
+                if uv_path:
+                    result = subprocess.run(
+                        [uv_path, "sync"],
+                        capture_output=True,
+                        text=True,
+                    )
+                    if result.returncode == 0:
+                        console.print(
+                            f"[{COLOR.SUCCESS}]Synced environment with '{command_name}' entry point[/{COLOR.SUCCESS}]"
+                        )
+                    else:
+                        console.print(
+                            f"[{COLOR.WARNING}]Failed to sync environment. Run 'uv sync'[/{COLOR.WARNING}]"
+                        )
+                else:
+                    console.print(
+                        f"[{COLOR.WARNING}]uv not found. Run 'uv sync' to enable '{command_name}'[/{COLOR.WARNING}]"
+                    )
 
         # Show summary
         summary_command = (
