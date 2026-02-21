@@ -1,6 +1,6 @@
 [colors]
 # Core semantic colors
-primary = "#1e66f5"
+primary = "#7287fd"
 secondary = "#40a02b"
 accent = "#fe640b"
 
@@ -19,11 +19,11 @@ border = "#bcc0cc"       # Surface
 border_focus = "#7287fd" # Focus Ring
 
 # UI semantics
-command = "#1e66f5"
-option = "#1e66f5"
-link = "#1e66f5"
+command = "#7287fd"
+option = "#7287fd"
+link = "#7287fd"
 prompt = "#40a02b"
 
 panel_primary = "#40a02b"
-panel_secondary = "#1e66f5"
+panel_secondary = "#7287fd"
 panel_accent = "#fe640b"
