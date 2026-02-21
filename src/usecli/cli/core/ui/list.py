@@ -38,7 +38,7 @@ def list_commands(app: typer.Typer, prefix_filter: str | None = None) -> None:
 
     click_group = typer.main.get_command(app)
 
-    all_command_names = [cmd.name for cmd in app.registered_commands if cmd.name]
+    all_command_names = list({cmd.name for cmd in app.registered_commands if cmd.name})
     longest_name_length = (
         max(len(name) for name in all_command_names) if all_command_names else 0
     )
@@ -69,15 +69,20 @@ def list_commands(app: typer.Typer, prefix_filter: str | None = None) -> None:
             )
     console.print()
 
-    commands: list[dict[str, str]] = []
+    commands_by_name: dict[str, str] = {}
     for command in app.registered_commands:
         callback = command.callback
         name = command.name or (
             getattr(callback, "__name__", "unknown") if callback else "unknown"
         )
         help_text = command.help or ""
-        commands.append({"name": name, "help": help_text})
+        if name not in commands_by_name or (not commands_by_name[name] and help_text):
+            commands_by_name[name] = help_text
 
+    commands = [
+        {"name": name, "help": help_text}
+        for name, help_text in commands_by_name.items()
+    ]
     commands.sort(key=lambda x: x["name"])
 
     if prefix_filter:
@@ -150,7 +155,9 @@ def list_group_commands(group_app: typer.Typer, group_name: str) -> None:
         group_app: The Typer sub-app for the command group.
         group_name: The name of the command group.
     """
-    all_command_names = [cmd.name for cmd in group_app.registered_commands if cmd.name]
+    all_command_names = list(
+        {cmd.name for cmd in group_app.registered_commands if cmd.name}
+    )
     longest_name_length = (
         max(len(name) for name in all_command_names) if all_command_names else 0
     )
@@ -183,15 +190,20 @@ def list_group_commands(group_app: typer.Typer, group_name: str) -> None:
             )
     console.print()
 
-    commands: list[dict[str, str]] = []
+    commands_by_name: dict[str, str] = {}
     for command in group_app.registered_commands:
         callback = command.callback
         name = command.name or (
             getattr(callback, "__name__", "unknown") if callback else "unknown"
         )
         help_text = command.help or ""
-        commands.append({"name": name, "help": help_text})
+        if name not in commands_by_name or (not commands_by_name[name] and help_text):
+            commands_by_name[name] = help_text
 
+    commands = [
+        {"name": name, "help": help_text}
+        for name, help_text in commands_by_name.items()
+    ]
     commands.sort(key=lambda x: x["name"])
 
     console.print(f"[bold {COLOR.SECONDARY}]Available commands:")
