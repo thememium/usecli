@@ -80,3 +80,8 @@ exclude = ["**/__pycache__", "**/.venv"]
 
 [tool.usecli]
 theme = "default"
+commands_dir = "src/usecli/cli/commands/custom"
+templates_dir = "src/usecli/cli/templates"
+hide_init = false
+hide_inspire = false
+hide_make_command = false
