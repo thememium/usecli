@@ -1,7 +1,7 @@
 [project]
 name = "usecli"
 version = "0.1.18"
-description = "An elegant CLI framework for Python"
+description = "A powerful Python CLI framework for building beautiful, developer-friendly command-line tools."
 readme = "README.md"
 authors = [{ name = "Edward Boswell", email = "thememium@gmail.com" }]
 requires-python = ">=3.10"
@@ -27,7 +27,10 @@ license-files = ["LICEN[CS]E*"]
 
 [project.urls]
 Homepage = "https://github.com/thememium/usecli"
+Documentation = "https://github.com/thememium/usecli"
+Repository = "https://github.com/thememium/usecli.git"
 Issues = "https://github.com/thememium/usecli/issues"
+Changelog = "https://github.com/thememium/usecli/blob/master/CHANGELOG.md"
 
 [project.scripts]
 usecli = "usecli:main"
