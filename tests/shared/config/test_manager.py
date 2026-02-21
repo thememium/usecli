@@ -72,6 +72,7 @@ class TestConfigManagerDefaults:
         assert manager.get("title") == "usecli"
         assert manager.get("description") == "A customizable CLI framework"
         assert manager.get("commands_dir") == "cli/commands"
+        assert manager.get("themes_dir") == ["cli/themes"]
         assert manager.get("environment") == "prod"
         assert manager.get("command_name") == "usecli"
         assert manager.get("hide_init") is False
@@ -109,6 +110,19 @@ commands_dir = "custom_cmds"
 
         assert manager.get("environment") == "dev"
         assert manager.is_dev() is True
+
+    def test_themes_dir_merges_without_duplicates(self, temp_project_dir):
+        pyproject = temp_project_dir / "pyproject.toml"
+        pyproject.write_text(
+            """
+[tool.usecli]
+themes_dir = ["custom/themes", "cli/themes", "custom/themes"]
+"""
+        )
+
+        manager = ConfigManager()
+
+        assert manager.get("themes_dir") == ["cli/themes", "custom/themes"]
 
     def test_pyproject_exists_property(self, temp_project_dir):
         pyproject = temp_project_dir / "pyproject.toml"

@@ -149,6 +149,55 @@ def _merge_theme_values(
     return result
 
 
+def _normalize_theme_dirs(value: Any, project_root: Path | None) -> list[Path]:
+    if value is None:
+        return []
+    entries: list[str] = []
+    if isinstance(value, str):
+        normalized = value.strip()
+        if normalized:
+            entries.append(normalized)
+    elif isinstance(value, list):
+        for item in value:
+            if not isinstance(item, str):
+                continue
+            normalized = item.strip()
+            if normalized:
+                entries.append(normalized)
+
+    result: list[Path] = []
+    for entry in entries:
+        path = Path(entry)
+        if not path.is_absolute():
+            if project_root is None:
+                continue
+            path = project_root / path
+        result.append(path)
+    return result
+
+
+def _dedupe_paths(paths: list[Path]) -> list[Path]:
+    seen: set[Path] = set()
+    result: list[Path] = []
+    for path in paths:
+        resolved = path.resolve()
+        if resolved in seen:
+            continue
+        seen.add(resolved)
+        result.append(path)
+    return result
+
+
+def _get_theme_dirs(project_root: Path | None, config: dict[str, Any]) -> list[Path]:
+    default_dirs: list[Path] = []
+    if project_root is not None:
+        default_dirs.append(project_root / "cli" / "themes")
+
+    config_dirs = _normalize_theme_dirs(config.get("themes_dir"), project_root)
+    merged = _dedupe_paths(default_dirs + config_dirs)
+    return _dedupe_paths(merged + [THEMES_DIR])
+
+
 def _build_ansi_palette(colors: dict[str, str]) -> dict[str, str]:
     def pick(key: str) -> str:
         value = colors.get(key, DEFAULT_THEME_COLORS[key])
@@ -183,7 +232,9 @@ def _build_ansi_palette(colors: dict[str, str]) -> dict[str, str]:
     return ansi
 
 
-def _resolve_theme_path(theme_name: str, project_root: Path | None) -> Path | None:
+def _resolve_theme_path(
+    theme_name: str, project_root: Path | None, config: dict[str, Any]
+) -> Path | None:
     if not theme_name:
         return None
 
@@ -199,14 +250,10 @@ def _resolve_theme_path(theme_name: str, project_root: Path | None) -> Path | No
             return theme_path
         return None
 
-    if project_root is not None:
-        project_theme = project_root / "cli" / "themes" / f"{normalized}.toml"
-        if project_theme.exists():
-            return project_theme
-
-    package_theme = THEMES_DIR / f"{normalized}.toml"
-    if package_theme.exists():
-        return package_theme
+    for theme_dir in _get_theme_dirs(project_root, config):
+        theme_path = theme_dir / f"{normalized}.toml"
+        if theme_path.exists():
+            return theme_path
 
     return None
 
@@ -233,7 +280,7 @@ def _load_theme() -> tuple[dict[str, str], dict[str, str]]:
     if isinstance(config_theme, str) and config_theme.strip():
         theme_name = config_theme.strip()
 
-    theme_path = _resolve_theme_path(theme_name, project_root)
+    theme_path = _resolve_theme_path(theme_name, project_root, config)
     theme_data = _load_theme_file(theme_path) if theme_path else {}
 
     colors = _merge_theme_values(

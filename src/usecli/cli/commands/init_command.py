@@ -27,7 +27,7 @@ from usecli.cli.core.base_command import BaseCommand
 from usecli.cli.core.exceptions import UsecliBadParameter
 from usecli.cli.core.validators import validate_command_name
 from usecli.cli.utils.interactive.terminal_menu import terminal_menu
-from usecli.shared.config.globals import TEMPLATES_DIR
+from usecli.shared.config.globals import TEMPLATES_DIR, THEMES_DIR
 from usecli.shared.config.manager import ConfigManager, get_config
 
 console = Console()
@@ -187,6 +187,15 @@ class InitCommand(BaseCommand):
         if parent == Path("."):
             return "templates"
         return str(parent / "templates")
+
+    def _derive_themes_dir(self, commands_dir: str) -> str:
+        commands_path = Path(commands_dir)
+        parent = commands_path.parent
+        if commands_path.is_absolute():
+            return str(parent / "themes")
+        if parent == Path("."):
+            return "themes"
+        return str(parent / "themes")
 
     def _get_existing_usecli_script_name(self, pyproject_path: Path) -> str | None:
         if not pyproject_path.exists():
@@ -407,6 +416,11 @@ include = ["{root_package}*"]
             default=self._derive_templates_dir(commands_dir),
         )
         console.print()
+        themes_dir = Prompt.ask(
+            f"[bold {COLOR.SECONDARY}]Themes directory[/bold {COLOR.SECONDARY}]",
+            default=self._derive_themes_dir(commands_dir),
+        )
+        console.print()
         commands_path = (
             Path(commands_dir)
             if Path(commands_dir).is_absolute()
@@ -416,6 +430,11 @@ include = ["{root_package}*"]
             Path(templates_dir)
             if Path(templates_dir).is_absolute()
             else project_root / templates_dir
+        )
+        themes_path = (
+            Path(themes_dir)
+            if Path(themes_dir).is_absolute()
+            else project_root / themes_dir
         )
 
         # Create the commands directory
@@ -439,6 +458,16 @@ include = ["{root_package}*"]
                 f"[{COLOR.WARNING}]Templates directory already exists:[/{COLOR.WARNING}] {templates_path}"
             )
 
+        if not themes_path.exists():
+            themes_path.mkdir(parents=True, exist_ok=True)
+            console.print(
+                f"[{COLOR.SUCCESS}]Created themes directory:[/{COLOR.SUCCESS}] {themes_path}"
+            )
+        else:
+            console.print(
+                f"[{COLOR.WARNING}]Themes directory already exists:[/{COLOR.WARNING}] {themes_path}"
+            )
+
         if self._ensure_package_init_files(commands_path, cwd):
             console.print(
                 f"[{COLOR.SUCCESS}]Added __init__.py files for package discovery[/{COLOR.SUCCESS}]"
@@ -455,6 +484,7 @@ include = ["{root_package}*"]
             description=description,
             commands_dir=commands_dir,
             templates_dir=templates_dir,
+            themes_dir=themes_dir,
             title_font=title_font,
         )
 
@@ -467,6 +497,17 @@ include = ["{root_package}*"]
         else:
             console.print(
                 f"[{COLOR.WARNING}]Make command template already exists:[/{COLOR.WARNING}] {make_template_path}"
+            )
+
+        theme_template_path = themes_path / "default.toml"
+        if not theme_template_path.exists() and (THEMES_DIR / "default.toml").exists():
+            shutil.copy(THEMES_DIR / "default.toml", theme_template_path)
+            console.print(
+                f"[{COLOR.SUCCESS}]Added default theme:[/{COLOR.SUCCESS}] {theme_template_path}"
+            )
+        elif theme_template_path.exists():
+            console.print(
+                f"[{COLOR.WARNING}]Default theme already exists:[/{COLOR.WARNING}] {theme_template_path}"
             )
 
         # Check if config already exists

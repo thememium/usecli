@@ -29,6 +29,33 @@ def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any
     return result
 
 
+def _normalize_themes_dir(value: Any) -> list[str]:
+    if isinstance(value, str):
+        normalized = value.strip()
+        return [normalized] if normalized else []
+    if isinstance(value, list):
+        result: list[str] = []
+        for entry in value:
+            if not isinstance(entry, str):
+                continue
+            normalized = entry.strip()
+            if normalized:
+                result.append(normalized)
+        return result
+    return []
+
+
+def _dedupe_items(items: list[str]) -> list[str]:
+    seen: set[str] = set()
+    result: list[str] = []
+    for item in items:
+        if item in seen:
+            continue
+        seen.add(item)
+        result.append(item)
+    return result
+
+
 class ConfigManager:
     """Manages useCli configuration from project-level files.
 
@@ -47,6 +74,7 @@ class ConfigManager:
         "description": "A customizable CLI framework",
         "commands_dir": "cli/commands",
         "templates_dir": "cli/templates",
+        "themes_dir": ["cli/themes"],
         "title_font": "big",
         "theme": "default",
         "environment": "prod",
@@ -100,6 +128,12 @@ class ConfigManager:
                     f"Failed to load pyproject.toml: {e}",
                     config_file=str(self.pyproject_path),
                 ) from e
+
+        default_themes = _normalize_themes_dir(self.DEFAULT_CONFIG.get("themes_dir"))
+        override_themes = _normalize_themes_dir(self._overrides.get("themes_dir"))
+        merged_themes = _dedupe_items(default_themes + override_themes)
+        if merged_themes:
+            self._config["themes_dir"] = merged_themes
 
     @staticmethod
     def _pyproject_has_usecli(path: Path) -> bool:
@@ -195,6 +229,17 @@ class ConfigManager:
         if templates_path.is_absolute():
             return templates_path
         return (self.project_root / templates_path).resolve()
+
+    def get_project_themes_dirs(self) -> list[Path]:
+        themes_dir = self.get("themes_dir", [])
+        themes_entries = _normalize_themes_dir(themes_dir)
+        result: list[Path] = []
+        for entry in themes_entries:
+            theme_path = Path(entry)
+            if not theme_path.is_absolute():
+                theme_path = self.project_root / theme_path
+            result.append(theme_path.resolve())
+        return result
 
     def is_dev(self) -> bool:
         """Check if running in development environment."""

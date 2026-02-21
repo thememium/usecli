@@ -23,6 +23,7 @@ DEFAULT_TITLE = "My CLI"
 DEFAULT_DESCRIPTION = "A custom CLI tool"
 DEFAULT_COMMANDS_DIR = "cli/commands"
 DEFAULT_TEMPLATES_DIR = "cli/templates"
+DEFAULT_THEMES_DIR = "cli/themes"
 
 
 @pytest.fixture
@@ -53,6 +54,7 @@ class TestInitCommandDirectoryCreation:
     def test_creates_commands_directory(self, temp_project_dir, init_command):
         commands_dir = temp_project_dir / "cli" / "commands"
         templates_dir = temp_project_dir / "cli" / "templates"
+        themes_dir = temp_project_dir / "cli" / "themes"
         cli_dir = temp_project_dir / "cli"
         assert not commands_dir.exists()
 
@@ -64,14 +66,18 @@ class TestInitCommandDirectoryCreation:
         assert commands_dir.is_dir()
         assert templates_dir.exists()
         assert templates_dir.is_dir()
+        assert themes_dir.exists()
+        assert themes_dir.is_dir()
         assert (cli_dir / "__init__.py").exists()
         assert (commands_dir / "__init__.py").exists()
         assert (templates_dir / "command.py.j2").exists()
+        assert (themes_dir / "default.toml").exists()
 
     def test_creates_custom_commands_directory(self, temp_project_dir, init_command):
         custom_dir = "my_custom_commands"
         commands_path = temp_project_dir / custom_dir
         templates_path = temp_project_dir / "templates"
+        themes_path = temp_project_dir / "themes"
 
         init_command.handle(DEFAULT_TITLE, DEFAULT_DESCRIPTION, custom_dir, force=True)
 
@@ -79,14 +85,19 @@ class TestInitCommandDirectoryCreation:
         assert commands_path.is_dir()
         assert templates_path.exists()
         assert templates_path.is_dir()
+        assert themes_path.exists()
+        assert themes_path.is_dir()
         assert (commands_path / "__init__.py").exists()
         assert (templates_path / "command.py.j2").exists()
+        assert (themes_path / "default.toml").exists()
 
     def test_handles_existing_commands_directory(self, temp_project_dir, init_command):
         commands_dir = temp_project_dir / "cli" / "commands"
         commands_dir.mkdir(parents=True)
         templates_dir = temp_project_dir / "cli" / "templates"
         templates_dir.mkdir(parents=True)
+        themes_dir = temp_project_dir / "cli" / "themes"
+        themes_dir.mkdir(parents=True)
 
         init_command.handle(
             DEFAULT_TITLE, DEFAULT_DESCRIPTION, DEFAULT_COMMANDS_DIR, force=True
@@ -95,6 +106,7 @@ class TestInitCommandDirectoryCreation:
         assert commands_dir.exists()
         assert (commands_dir / "__init__.py").exists()
         assert templates_dir.exists()
+        assert themes_dir.exists()
 
 
 class TestInitCommandPyprojectToml:
@@ -373,6 +385,7 @@ class TestInitCommandStandaloneConfig:
         assert 'description = "Test description"' in content
         assert 'commands_dir = "custom_cmds"' in content
         assert 'templates_dir = "templates"' in content
+        assert 'themes_dir = "themes"' in content
 
     def test_prompts_to_overwrite_existing_config_in_pyproject(
         self, temp_project_dir, init_command
@@ -426,6 +439,7 @@ class TestInitCommandOptions:
         content = pyproject_path.read_text()
         assert 'commands_dir = "my_commands"' in content
         assert 'templates_dir = "templates"' in content
+        assert 'themes_dir = "themes"' in content
 
 
 class TestInitCommandDefaults:
@@ -441,6 +455,7 @@ class TestInitCommandDefaults:
         assert 'description = "A custom CLI tool"' in content
         assert 'commands_dir = "cli/commands"' in content
         assert 'templates_dir = "cli/templates"' in content
+        assert 'themes_dir = "cli/themes"' in content
         assert 'title_font = "big"' in content
         assert "hide_init = false" in content
         assert "hide_inspire = false" in content
