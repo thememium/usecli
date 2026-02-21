@@ -44,18 +44,6 @@ DEFAULT_THEME_COLORS: dict[str, str] = {
     "panel_secondary": "#60D7FF",
     "panel_accent": "#F5FE53",
 }
-DEFAULT_THEME_ANSI: dict[str, str] = {
-    "primary": "\033[38;2;96;215;255m",
-    "secondary": "\033[38;2;94;255;135m",
-    "accent": "\033[38;2;216;176;0m",
-    "foreground": "\033[38;2;255;255;255m",
-    "foreground_muted": "\033[38;2;158;158;158m",
-    "reset": "\033[0m",
-    "red": "\033[31m",
-    "green": "\033[32m",
-    "yellow": "\033[33m",
-    "blue": "\033[34m",
-}
 
 
 def _find_project_root(start_dir: Path | None = None) -> Path | None:
@@ -114,22 +102,33 @@ def _normalize_color(value: Any) -> str | None:
     return value
 
 
-def _normalize_ansi(value: Any) -> str | None:
+def _hex_to_rgb(value: str) -> tuple[int, int, int] | None:
     if not isinstance(value, str):
         return None
     value = value.strip()
     if not value:
         return None
-
-    if value.startswith("\033[") or value.startswith("\x1b["):
-        return value if value.endswith("m") else f"{value}m"
-
-    if value.startswith("["):
+    if value.startswith("#"):
         value = value[1:]
-    if value.endswith("m"):
-        value = value[:-1]
+    if len(value) == 3:
+        value = "".join(ch * 2 for ch in value)
+    if len(value) != 6:
+        return None
+    try:
+        r = int(value[0:2], 16)
+        g = int(value[2:4], 16)
+        b = int(value[4:6], 16)
+    except ValueError:
+        return None
+    return r, g, b
 
-    return f"\033[{value}m"
+
+def _ansi_from_hex(value: str) -> str | None:
+    rgb = _hex_to_rgb(value)
+    if rgb is None:
+        return None
+    r, g, b = rgb
+    return f"\033[38;2;{r};{g};{b}m"
 
 
 def _merge_theme_values(
@@ -148,6 +147,40 @@ def _merge_theme_values(
         if normalized:
             result[key] = normalized
     return result
+
+
+def _build_ansi_palette(colors: dict[str, str]) -> dict[str, str]:
+    def pick(key: str) -> str:
+        value = colors.get(key, DEFAULT_THEME_COLORS[key])
+        ansi = _ansi_from_hex(value)
+        if ansi is None:
+            ansi = _ansi_from_hex(DEFAULT_THEME_COLORS[key])
+        return ansi or ""
+
+    ansi: dict[str, str] = {
+        "reset": "\033[0m",
+    }
+
+    primary = pick("primary")
+    secondary = pick("secondary")
+    accent = pick("accent")
+    foreground = pick("foreground")
+    foreground_muted = pick("foreground_muted")
+    error = pick("error")
+    success = pick("success")
+    warning = pick("warning")
+
+    ansi["primary"] = primary
+    ansi["blue"] = primary
+    ansi["secondary"] = secondary
+    ansi["accent"] = accent
+    ansi["foreground"] = foreground
+    ansi["foreground_muted"] = foreground_muted
+    ansi["red"] = error
+    ansi["green"] = success
+    ansi["yellow"] = warning
+
+    return ansi
 
 
 def _resolve_theme_path(theme_name: str, project_root: Path | None) -> Path | None:
@@ -208,11 +241,7 @@ def _load_theme() -> tuple[dict[str, str], dict[str, str]]:
         theme_data.get("colors", {}),
         _normalize_color,
     )
-    ansi = _merge_theme_values(
-        DEFAULT_THEME_ANSI,
-        theme_data.get("ansi", {}),
-        _normalize_ansi,
-    )
+    ansi = _build_ansi_palette(colors)
 
     return colors, ansi
 
