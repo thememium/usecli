@@ -313,37 +313,45 @@ class TestInitCommandPyprojectToml:
 
 
 class TestInitCommandStandaloneConfig:
-    def test_creates_usecli_config_toml_when_no_pyproject(
+    def test_creates_pyproject_toml_when_no_pyproject(
         self, temp_project_dir, init_command
     ):
-        config_path = temp_project_dir / "usecli.config.toml"
-        assert not config_path.exists()
+        pyproject_path = temp_project_dir / "pyproject.toml"
+        assert not pyproject_path.exists()
 
         init_command.handle("My CLI", "A test CLI", DEFAULT_COMMANDS_DIR, force=True)
 
-        assert config_path.exists()
-        content = config_path.read_text()
+        assert pyproject_path.exists()
+        content = pyproject_path.read_text()
+        assert "[project]" in content
+        assert 'name = "usecli"' in content
         assert "[tool.usecli]" in content
         assert 'title = "My CLI"' in content
         assert 'description = "A test CLI"' in content
 
-    def test_standalone_config_has_correct_format(self, temp_project_dir, init_command):
-        config_path = temp_project_dir / "usecli.config.toml"
+    def test_pyproject_toml_has_correct_format(self, temp_project_dir, init_command):
+        pyproject_path = temp_project_dir / "pyproject.toml"
 
         init_command.handle("Test CLI", "Test description", "custom_cmds", force=True)
 
-        content = config_path.read_text()
+        content = pyproject_path.read_text()
+        assert "[project]" in content
+        assert "[build-system]" in content
+        assert "[project.scripts]" in content
+        assert "[tool.setuptools.packages.find]" in content
         assert "[tool.usecli]" in content
         assert 'title = "Test CLI"' in content
         assert 'description = "Test description"' in content
         assert 'commands_dir = "custom_cmds"' in content
         assert 'templates_dir = "templates"' in content
 
-    def test_prompts_to_overwrite_existing_standalone_config(
+    def test_prompts_to_overwrite_existing_config_in_pyproject(
         self, temp_project_dir, init_command
     ):
-        config_path = temp_project_dir / "usecli.config.toml"
-        config_path.write_text('[tool.usecli]\ntitle = "Old"\n')
+        pyproject_path = temp_project_dir / "pyproject.toml"
+        pyproject_path.write_text(
+            '[project]\nname = "test"\n\n[tool.usecli]\ntitle = "Old"\n'
+        )
 
         with patch("rich.prompt.Confirm.ask") as mock_ask:
             mock_ask.return_value = False
@@ -351,54 +359,55 @@ class TestInitCommandStandaloneConfig:
                 DEFAULT_TITLE, DEFAULT_DESCRIPTION, DEFAULT_COMMANDS_DIR, force=False
             )
 
-        content = config_path.read_text()
+        content = pyproject_path.read_text()
         assert 'title = "Old"' in content
 
 
 class TestInitCommandOptions:
     def test_custom_title(self, temp_project_dir, init_command):
-        config_path = temp_project_dir / "usecli.config.toml"
+        pyproject_path = temp_project_dir / "pyproject.toml"
 
         init_command.handle(
             "Custom CLI Title", DEFAULT_DESCRIPTION, DEFAULT_COMMANDS_DIR, force=True
         )
 
-        content = config_path.read_text()
+        content = pyproject_path.read_text()
         assert 'title = "Custom CLI Title"' in content
+        assert 'name = "usecli"' in content
 
     def test_custom_description(self, temp_project_dir, init_command):
-        config_path = temp_project_dir / "usecli.config.toml"
+        pyproject_path = temp_project_dir / "pyproject.toml"
 
         init_command.handle(
             DEFAULT_TITLE, "My custom description", DEFAULT_COMMANDS_DIR, force=True
         )
 
-        content = config_path.read_text()
+        content = pyproject_path.read_text()
         assert 'description = "My custom description"' in content
 
     def test_custom_commands_dir(self, temp_project_dir, init_command):
         custom_dir = temp_project_dir / "my_commands"
-        config_path = temp_project_dir / "usecli.config.toml"
+        pyproject_path = temp_project_dir / "pyproject.toml"
 
         init_command.handle(
             DEFAULT_TITLE, DEFAULT_DESCRIPTION, "my_commands", force=True
         )
 
         assert custom_dir.exists()
-        content = config_path.read_text()
+        content = pyproject_path.read_text()
         assert 'commands_dir = "my_commands"' in content
         assert 'templates_dir = "templates"' in content
 
 
 class TestInitCommandDefaults:
     def test_default_values(self, temp_project_dir, init_command):
-        config_path = temp_project_dir / "usecli.config.toml"
+        pyproject_path = temp_project_dir / "pyproject.toml"
 
         init_command.handle(
             DEFAULT_TITLE, DEFAULT_DESCRIPTION, DEFAULT_COMMANDS_DIR, force=True
         )
 
-        content = config_path.read_text()
+        content = pyproject_path.read_text()
         assert 'title = "My CLI"' in content
         assert 'description = "A custom CLI tool"' in content
         assert 'commands_dir = "cli/commands"' in content
@@ -433,7 +442,7 @@ class TestInitCommandIntegration:
 
     def test_full_init_workflow_without_pyproject(self, temp_project_dir, init_command):
         commands_dir = temp_project_dir / "cli" / "commands"
-        config_toml = temp_project_dir / "usecli.config.toml"
+        pyproject = temp_project_dir / "pyproject.toml"
 
         init_command.handle(
             "Standalone Test CLI",
@@ -443,9 +452,12 @@ class TestInitCommandIntegration:
         )
 
         assert commands_dir.exists()
-        assert config_toml.exists()
-        content = config_toml.read_text()
+        assert pyproject.exists()
+        content = pyproject.read_text()
         assert 'title = "Standalone Test CLI"' in content
+        assert "[project]" in content
+        assert "[project.scripts]" in content
+        assert "[build-system]" in content
 
-        pyproject = temp_project_dir / "pyproject.toml"
-        assert not pyproject.exists()
+        config_toml = temp_project_dir / "usecli.config.toml"
+        assert not config_toml.exists()
