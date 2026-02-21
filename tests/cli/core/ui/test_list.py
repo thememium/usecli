@@ -81,6 +81,40 @@ class TestListCommands:
     @patch("usecli.cli.core.ui.list.print_title")
     @patch("usecli.cli.core.ui.list.console")
     @patch("usecli.cli.core.ui.list.typer.main.get_command")
+    def test_list_commands_dedupes_duplicate_names_prefers_help(
+        self, mock_get_command, mock_console, mock_print_title
+    ):
+        mock_command_without_help = Mock()
+        mock_command_without_help.name = "duplicate"
+        mock_command_without_help.callback = Mock(__name__="duplicate")
+        mock_command_without_help.help = ""
+
+        mock_command_with_help = Mock()
+        mock_command_with_help.name = "duplicate"
+        mock_command_with_help.callback = Mock(__name__="duplicate")
+        mock_command_with_help.help = "Better help"
+
+        app = Mock()
+        app.registered_commands = [
+            mock_command_without_help,
+            mock_command_with_help,
+        ]
+
+        click_group = Mock()
+        click_group.params = []
+        mock_get_command.return_value = click_group
+
+        list_commands(app)
+
+        print_calls = [str(call) for call in mock_console.print.call_args_list]
+        combined_output = "\n".join(print_calls)
+
+        assert combined_output.count("duplicate") == 1
+        assert "Better help" in combined_output
+
+    @patch("usecli.cli.core.ui.list.print_title")
+    @patch("usecli.cli.core.ui.list.console")
+    @patch("usecli.cli.core.ui.list.typer.main.get_command")
     def test_list_commands_with_multiple_commands(
         self, mock_get_command, mock_console, mock_print_title
     ):

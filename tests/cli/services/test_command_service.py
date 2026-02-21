@@ -28,6 +28,12 @@ def _mock_config_version(value: str | None) -> MagicMock:
     return mock_config
 
 
+def _mock_config_project_dir(path: Path) -> MagicMock:
+    mock_config = MagicMock()
+    mock_config.get_project_commands_dir.return_value = path
+    return mock_config
+
+
 # =============================================================================
 # Test Command Implementations
 # =============================================================================
@@ -118,8 +124,12 @@ class TestCommandServiceInit:
 class TestCommandServiceLoadCommands:
     """Tests for CommandService.load_commands method."""
 
-    def test_load_commands_calls_load_version(self):
+    @patch("usecli.cli.services.command_service.get_config")
+    def test_load_commands_calls_load_version(self, mock_get_config, tmp_path):
         """Test load_commands calls _load_version."""
+        mock_get_config.return_value = _mock_config_project_dir(
+            tmp_path / "project_commands"
+        )
         app = MagicMock()
         service = CommandService(app=app)
 
@@ -129,8 +139,14 @@ class TestCommandServiceLoadCommands:
 
                 mock_load_version.assert_called_once()
 
-    def test_load_commands_calls_load_from_dir_commands(self):
+    @patch("usecli.cli.services.command_service.get_config")
+    def test_load_commands_calls_load_from_dir_commands(
+        self, mock_get_config, tmp_path
+    ):
         """Test load_commands calls _load_from_dir for commands directory."""
+        mock_get_config.return_value = _mock_config_project_dir(
+            tmp_path / "project_commands"
+        )
         app = MagicMock()
         service = CommandService(app=app)
 
@@ -144,8 +160,12 @@ class TestCommandServiceLoadCommands:
                 first_call_path = calls[0][0][0]
                 assert "commands" in str(first_call_path)
 
-    def test_load_commands_calls_load_from_dir_project(self):
+    @patch("usecli.cli.services.command_service.get_config")
+    def test_load_commands_calls_load_from_dir_project(self, mock_get_config, tmp_path):
         """Test load_commands calls _load_from_dir for project directory."""
+        mock_get_config.return_value = _mock_config_project_dir(
+            tmp_path / "project_commands"
+        )
         app = MagicMock()
         service = CommandService(app=app)
 
@@ -159,8 +179,12 @@ class TestCommandServiceLoadCommands:
                 second_call_path = calls[1][0][0]
                 assert "commands" in str(second_call_path)
 
-    def test_load_commands_calls_all_load_from_dir(self):
+    @patch("usecli.cli.services.command_service.get_config")
+    def test_load_commands_calls_all_load_from_dir(self, mock_get_config, tmp_path):
         """Test load_commands calls _load_from_dir for commands and project directories."""
+        mock_get_config.return_value = _mock_config_project_dir(
+            tmp_path / "project_commands"
+        )
         app = MagicMock()
         service = CommandService(app=app)
 
@@ -170,8 +194,11 @@ class TestCommandServiceLoadCommands:
 
                 assert mock_load_from_dir.call_count == 2
 
-    def test_load_commands_correct_directory_paths(self):
+    @patch("usecli.cli.services.command_service.get_config")
+    def test_load_commands_correct_directory_paths(self, mock_get_config, tmp_path):
         """Test load_commands uses correct directory paths."""
+        project_commands_dir = tmp_path / "project_commands"
+        mock_get_config.return_value = _mock_config_project_dir(project_commands_dir)
         app = MagicMock()
         service = CommandService(app=app)
 
@@ -184,10 +211,14 @@ class TestCommandServiceLoadCommands:
                 project_path = calls[1][0][0]
 
                 assert str(commands_path).endswith("cli/commands")
-                assert str(project_path).endswith("cli/commands")
+                assert project_path == project_commands_dir
 
-    def test_load_commands_execution_order(self):
+    @patch("usecli.cli.services.command_service.get_config")
+    def test_load_commands_execution_order(self, mock_get_config, tmp_path):
         """Test load_commands executes in correct order."""
+        mock_get_config.return_value = _mock_config_project_dir(
+            tmp_path / "project_commands"
+        )
         app = MagicMock()
         service = CommandService(app=app)
 
@@ -207,7 +238,44 @@ class TestCommandServiceLoadCommands:
 
                 assert call_order[0] == "version"
                 assert call_order[1] == "commands"
-                assert call_order[2] == "commands"
+                assert call_order[2] == "project_commands"
+
+    @patch("usecli.cli.services.command_service.get_config")
+    def test_load_commands_skips_project_dir_when_same_as_package(
+        self, mock_get_config, tmp_path
+    ):
+        package_root = tmp_path / "pkg"
+        package_commands = package_root / "cli/commands"
+        mock_get_config.return_value = _mock_config_project_dir(package_commands)
+
+        app = MagicMock()
+        service = CommandService(app=app)
+
+        with patch("usecli.cli.services.command_service.PACKAGE_ROOT", package_root):
+            with patch.object(service, "_load_version"):
+                with patch.object(service, "_load_from_dir") as mock_load_from_dir:
+                    service.load_commands()
+
+                    assert mock_load_from_dir.call_count == 1
+
+    @patch("usecli.cli.services.command_service.get_config")
+    def test_load_commands_skips_project_dir_when_nested_under_package(
+        self, mock_get_config, tmp_path
+    ):
+        package_root = tmp_path / "pkg"
+        package_commands = package_root / "cli/commands"
+        project_commands = package_commands / "custom"
+        mock_get_config.return_value = _mock_config_project_dir(project_commands)
+
+        app = MagicMock()
+        service = CommandService(app=app)
+
+        with patch("usecli.cli.services.command_service.PACKAGE_ROOT", package_root):
+            with patch.object(service, "_load_version"):
+                with patch.object(service, "_load_from_dir") as mock_load_from_dir:
+                    service.load_commands()
+
+                    assert mock_load_from_dir.call_count == 1
 
 
 # =============================================================================
