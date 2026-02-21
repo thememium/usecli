@@ -16,4 +16,3 @@ TEMPLATES_DIR = CLI_ROOT / "templates"
 
 # Config file names
 PYPROJECT_TOML = "pyproject.toml"
-USECLI_CONFIG_TOML = "usecli.config.toml"

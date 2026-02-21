@@ -59,24 +59,10 @@ class InitCommand(BaseCommand):
 
         pyproject_path.write_text(new_content)
 
-    def _has_existing_config(
-        self, pyproject_path: Path, config_toml_path: Path
-    ) -> bool:
-        """Check if usecli config already exists."""
-        if pyproject_path.exists() and "[tool.usecli]" in pyproject_path.read_text():
-            return True
-        if config_toml_path.exists():
-            return True
-        return False
-
-    def _get_config_source(
-        self, pyproject_path: Path, config_toml_path: Path
-    ) -> str | None:
+    def _get_config_source(self, pyproject_path: Path) -> str | None:
         """Get the source of existing config."""
         if pyproject_path.exists() and "[tool.usecli]" in pyproject_path.read_text():
             return "pyproject.toml"
-        if config_toml_path.exists():
-            return "usecli.config.toml"
         return None
 
     def _ensure_build_system(self, pyproject_path: Path) -> bool:
@@ -341,10 +327,9 @@ include = ["{root_package}*"]
         ),
     ) -> None:
         cwd = Path.cwd()
-        pyproject_path = cwd / "pyproject.toml"
-        config_toml_path = cwd / "usecli.config.toml"
-        config_manager = ConfigManager(pyproject_path=pyproject_path, start_dir=cwd)
+        config_manager = ConfigManager(start_dir=cwd)
         project_root = config_manager.get_project_root()
+        pyproject_path = project_root / "pyproject.toml"
 
         console.print()
         existing_command_name = self._get_existing_usecli_script_name(pyproject_path)
@@ -447,7 +432,7 @@ include = ["{root_package}*"]
             )
 
         # Check if config already exists
-        existing_source = self._get_config_source(pyproject_path, config_toml_path)
+        existing_source = self._get_config_source(pyproject_path)
 
         if existing_source and not force:
             should_overwrite = Confirm.ask(

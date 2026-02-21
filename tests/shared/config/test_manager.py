@@ -1,4 +1,4 @@
-"""Tests for ConfigManager - simplified TOML-only configuration."""
+"""Tests for ConfigManager - pyproject.toml configuration."""
 
 from __future__ import annotations
 
@@ -127,81 +127,6 @@ commands_dir = "custom_cmds"
         assert manager.pyproject_exists is False
 
 
-class TestConfigManagerStandaloneToml:
-    def test_loads_from_usecli_config_toml(self, temp_project_dir):
-        config = temp_project_dir / "usecli.config.toml"
-        config.write_text("""
-[usecli]
-title = "Standalone Config"
-description = "From standalone file"
-commands_dir = "standalone_cmds"
-""")
-
-        manager = ConfigManager()
-
-        assert manager.get("title") == "Standalone Config"
-        assert manager.get("commands_dir") == "standalone_cmds"
-
-    def test_finds_config_in_parent_directory(self, temp_project_dir):
-        # Create config in parent
-        config = temp_project_dir / "usecli.config.toml"
-        config.write_text('[usecli]\ntitle = "Parent Config"')
-
-        # Create subdirectory and cd into it
-        subdir = temp_project_dir / "subdir"
-        subdir.mkdir()
-
-        manager = ConfigManager(start_dir=subdir)
-
-        assert manager.get("title") == "Parent Config"
-
-    def test_config_toml_path_property(self, temp_project_dir):
-        config = temp_project_dir / "usecli.config.toml"
-        config.write_text('[usecli]\ntitle = "Test"')
-
-        manager = ConfigManager()
-
-        assert manager.config_toml_path == config
-
-    def test_config_toml_path_none_when_not_found(self, temp_project_dir):
-        manager = ConfigManager()
-
-        assert manager.config_toml_path is None
-
-
-class TestConfigManagerPriority:
-    def test_pyproject_overrides_usecli_config_toml(self, temp_project_dir):
-        # Create standalone config
-        standalone = temp_project_dir / "usecli.config.toml"
-        standalone.write_text('[usecli]\ntitle = "Standalone"\ncommands_dir = "dir1"')
-
-        # Create pyproject with conflicting values
-        pyproject = temp_project_dir / "pyproject.toml"
-        pyproject.write_text(
-            '[tool.usecli]\ntitle = "PyProject"\ncommands_dir = "dir2"'
-        )
-
-        manager = ConfigManager()
-
-        # pyproject values should win
-        assert manager.get("title") == "PyProject"
-        assert manager.get("commands_dir") == "dir2"
-
-    def test_merged_config_keeps_unique_values(self, temp_project_dir):
-        standalone = temp_project_dir / "usecli.config.toml"
-        standalone.write_text('[usecli]\ncommand_name = "mycli"')
-
-        # pyproject has title
-        pyproject = temp_project_dir / "pyproject.toml"
-        pyproject.write_text('[tool.usecli]\ntitle = "Merged"')
-
-        manager = ConfigManager()
-
-        # Should have both values
-        assert manager.get("title") == "Merged"
-        assert manager.get("command_name") == "mycli"
-
-
 class TestConfigManagerErrors:
     def test_raises_on_invalid_pyproject_toml(self, temp_project_dir):
         pyproject = temp_project_dir / "pyproject.toml"
@@ -211,15 +136,6 @@ class TestConfigManagerErrors:
             ConfigManager()
 
         assert "pyproject.toml" in str(exc_info.value).lower()
-
-    def test_raises_on_invalid_config_toml(self, temp_project_dir):
-        config = temp_project_dir / "usecli.config.toml"
-        config.write_text("[invalid toml")
-
-        with pytest.raises(UsecliConfigError) as exc_info:
-            ConfigManager()
-
-        assert "usecli.config.toml" in str(exc_info.value).lower()
 
 
 class TestConfigManagerGetMethods:

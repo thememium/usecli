@@ -3,7 +3,6 @@
 Handles loading and accessing configuration from project-level files.
 Configuration is loaded from (in priority order):
   1. pyproject.toml [tool.usecli] section (preferred for Python projects)
-  2. usecli.config.toml (searched in current and parent directories)
 """
 
 from __future__ import annotations
@@ -35,8 +34,7 @@ class ConfigManager:
 
     Configuration is loaded from:
     1. pyproject.toml [tool.usecli] in current directory (highest priority)
-    2. usecli.config.toml (searched upward from current directory)
-    3. Default values (lowest priority)
+    2. Default values (lowest priority)
 
     Attributes:
         pyproject_path: Path to pyproject.toml in current directory.
@@ -57,8 +55,6 @@ class ConfigManager:
         "hide_make_command": False,
     }
 
-    CONFIG_FILENAME = "usecli.config.toml"
-
     def __init__(
         self,
         pyproject_path: Path | None = None,
@@ -69,7 +65,7 @@ class ConfigManager:
         Args:
             pyproject_path: Optional path to pyproject.toml. Defaults to
                 ./pyproject.toml.
-            start_dir: Optional directory to start searching for usecli.config.toml.
+            start_dir: Optional directory to start searching for pyproject.toml.
                 Defaults to current working directory.
         """
         if start_dir is None:
@@ -92,20 +88,6 @@ class ConfigManager:
         self._config = self.DEFAULT_CONFIG.copy()
         self._overrides = {}
 
-        # Load usecli.config.toml from current or parent directories
-        config_toml_path = self._find_config_toml()
-        if config_toml_path:
-            try:
-                toml_config = self._load_toml(config_toml_path)
-                self._config = _deep_merge(self._config, toml_config)
-                self._overrides = _deep_merge(self._overrides, toml_config)
-            except (tomllib.TOMLDecodeError, OSError) as e:
-                raise UsecliConfigError(
-                    f"Failed to load {self.CONFIG_FILENAME}: {e}",
-                    config_file=str(config_toml_path),
-                ) from e
-
-        # pyproject.toml takes precedence over usecli.config.toml
         if self.pyproject_path.exists():
             try:
                 pyproject_config = self._load_pyproject_toml(self.pyproject_path)
@@ -117,27 +99,6 @@ class ConfigManager:
                     f"Failed to load pyproject.toml: {e}",
                     config_file=str(self.pyproject_path),
                 ) from e
-
-    def _find_config_toml(self) -> Path | None:
-        """Find usecli.config.toml by searching upward from start_dir.
-
-        Returns:
-            Path to the found config file, or None if not found.
-        """
-        current = self.start_dir.resolve()
-
-        while True:
-            config_path = current / self.CONFIG_FILENAME
-            if config_path.exists():
-                return config_path
-
-            # Stop at filesystem root
-            parent = current.parent
-            if parent == current:
-                break
-            current = parent
-
-        return None
 
     @staticmethod
     def _pyproject_has_usecli(path: Path) -> bool:
@@ -156,7 +117,7 @@ class ConfigManager:
 
         while True:
             pyproject_path = current / "pyproject.toml"
-            if cls._pyproject_has_usecli(pyproject_path):
+            if pyproject_path.exists():
                 return pyproject_path
 
             parent = current.parent
@@ -165,20 +126,6 @@ class ConfigManager:
             current = parent
 
         return None
-
-    @staticmethod
-    def _load_toml(path: Path) -> dict[str, Any]:
-        """Load TOML file and return [usecli] section.
-
-        Args:
-            path: Path to the TOML file.
-
-        Returns:
-            Parsed [usecli] section as a dictionary.
-        """
-        with open(path, "rb") as f:
-            data = tomllib.load(f)
-            return data.get("usecli", {})
 
     @staticmethod
     def _load_pyproject_toml(path: Path) -> dict[str, Any]:
@@ -232,19 +179,6 @@ class ConfigManager:
         pyproject_version = self._load_project_version(self.pyproject_path)
         if pyproject_version:
             return pyproject_version
-
-        config_path = self.config_toml_path
-        if not config_path:
-            return None
-
-        try:
-            config_data = self._load_toml(config_path)
-        except (tomllib.TOMLDecodeError, OSError):
-            return None
-
-        version = config_data.get("version")
-        if isinstance(version, str) and version.strip():
-            return version.strip()
         return None
 
     def get_project_commands_dir(self) -> Path:
@@ -279,11 +213,6 @@ class ConfigManager:
         if not self.pyproject_path.exists():
             return False
         return self._pyproject_has_usecli(self.pyproject_path)
-
-    @property
-    def config_toml_path(self) -> Path | None:
-        """Path to the found usecli.config.toml, or None."""
-        return self._find_config_toml()
 
     @staticmethod
     def _load_project_version(path: Path) -> str | None:
@@ -330,11 +259,12 @@ def find_project_root(start_dir: Path | None = None) -> Path | None:
     current = start_dir.resolve()
 
     while True:
-        if (current / ConfigManager.CONFIG_FILENAME).exists():
+        pyproject_path = current / "pyproject.toml"
+        if pyproject_path.exists():
             return current
 
-        pyproject_path = current / "pyproject.toml"
-        if ConfigManager._pyproject_has_usecli(pyproject_path):
+        git_dir = current / ".git"
+        if git_dir.exists():
             return current
 
         parent = current.parent

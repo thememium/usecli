@@ -437,9 +437,6 @@ class TestInitCommandIntegration:
         assert "[tool.usecli]" in pyproject_content
         assert 'title = "Integration Test CLI"' in pyproject_content
 
-        config_toml = temp_project_dir / "usecli.config.toml"
-        assert not config_toml.exists()
-
     def test_full_init_workflow_without_pyproject(self, temp_project_dir, init_command):
         commands_dir = temp_project_dir / "cli" / "commands"
         pyproject = temp_project_dir / "pyproject.toml"
@@ -458,6 +455,3 @@ class TestInitCommandIntegration:
         assert "[project]" in content
         assert "[project.scripts]" in content
         assert "[build-system]" in content
-
-        config_toml = temp_project_dir / "usecli.config.toml"
-        assert not config_toml.exists()
