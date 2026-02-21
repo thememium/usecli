@@ -337,6 +337,23 @@ class TestInitCommandPyprojectToml:
         assert 'title = "Forced CLI"' in content
         assert "Forced description" in content
 
+    def test_preserves_blank_line_before_project_scripts_on_replace(
+        self, temp_project_dir, init_command
+    ):
+        pyproject = temp_project_dir / "pyproject.toml"
+        pyproject.write_text(
+            "[project]\nname = 'test'\n\n"
+            "[tool.usecli]\ntitle = 'Old'\n\n"
+            '[project.scripts]\nusecli = "usecli:main"\n'
+        )
+
+        init_command.handle(
+            DEFAULT_TITLE, DEFAULT_DESCRIPTION, DEFAULT_COMMANDS_DIR, force=True
+        )
+
+        content = pyproject.read_text()
+        assert "hide_make_theme = false\n\n[project.scripts]" in content
+
     def test_preserves_existing_pyproject_content(self, temp_project_dir, init_command):
         pyproject = temp_project_dir / "pyproject.toml"
         original_content = "[project]\nname = 'my-project'\nversion = '1.0.0'\n"

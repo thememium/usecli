@@ -52,7 +52,7 @@ class InitCommand(BaseCommand):
 
         # Pattern to match [tool.usecli] section until next section or end of file
         pattern = r"\[tool\.usecli\].*?(?=\n\[|\Z)"
-        replacement = config_content.strip()
+        replacement = config_content.rstrip() + "\n"
 
         # Replace the existing section
         new_content = re.sub(pattern, replacement, content, flags=re.DOTALL)
