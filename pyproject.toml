@@ -89,9 +89,3 @@ themes_dir = "src/usecli/cli/themes"
 hide_init = false
 hide_inspire = false
 hide_make_command = false
-
-[[tool.uv.index]]
-name = "testpypi"
-url = "https://test.pypi.org/simple/"
-publish-url = "https://test.pypi.org/legacy/"
-explicit = true
