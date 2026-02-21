@@ -2,7 +2,7 @@
 
 <div align="center">
   <a href="https://github.com/thememium/usecli">
-    <img src="https://raw.githubusercontent.com/thememium/usecli/main/docs/images/usecli-logo-dark-bg.png" alt="useCli" width="360" height="162">
+    <img src="https://raw.githubusercontent.com/thememium/usecli/refs/heads/master/docs/images/usecli-logo-dark-bg.png" alt="useCli" width="360" height="162">
   </a>
 
   <p align="center">
