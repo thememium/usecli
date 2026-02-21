@@ -1,6 +1,52 @@
 # Changelog
 
 
+## v0.1.18
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.17...v0.1.18)
+
+### 🚀 Enhancements
+
+- **colors:** Add dynamic theming support with TOML theme files ([731d1da](https://github.com/thememium/usecli/commit/731d1da))
+- **usecli:** Add Catppuccin theme files (frappe, latte, macchiato, mocha) ([9c592a7](https://github.com/thememium/usecli/commit/9c592a7))
+- **colors:** Generate ANSI palette from hex colors ([fd5767f](https://github.com/thememium/usecli/commit/fd5767f))
+- **themes:** Add semantic color sections and UI semantics to themes ([7c7926e](https://github.com/thememium/usecli/commit/7c7926e))
+- **cli:** Add ayu_dark theme configuration ([82a006e](https://github.com/thememium/usecli/commit/82a006e))
+- **cli:** Add Tokyo Night theme configuration ([a3f9d8f](https://github.com/thememium/usecli/commit/a3f9d8f))
+- **pyproject:** Add custom CLI configuration options ([1ced60d](https://github.com/thememium/usecli/commit/1ced60d))
+- **pyproject:** Add themes_dir configuration for custom CLI themes ([7dd7f48](https://github.com/thememium/usecli/commit/7dd7f48))
+- **cli:** Add themes directory handling to init command and config ([7a77db0](https://github.com/thememium/usecli/commit/7a77db0))
+- **usecli:** Add theme.toml.j2 template with default color scheme ([bcc42d2](https://github.com/thememium/usecli/commit/bcc42d2))
+- **make:theme:** Add CLI command to generate theme configuration files ([3994f66](https://github.com/thememium/usecli/commit/3994f66))
+- **make-theme:** Add hide_make_theme config to control command visibility ([4e5b055](https://github.com/thememium/usecli/commit/4e5b055))
+
+### 🩹 Fixes
+
+- **init_command:** Preserve blank line before project.scripts on replace ([43f9c99](https://github.com/thememium/usecli/commit/43f9c99))
+
+### 💅 Refactors
+
+- **themes:** Drop unused ansi colour mappings from all theme files ([d324466](https://github.com/thememium/usecli/commit/d324466))
+- **cli:** Deduplicate command listings and prevent duplicate command loading ([7d27ff4](https://github.com/thememium/usecli/commit/7d27ff4))
+
+### 🏡 Chore
+
+- **uv:** Update version ([b0990e4](https://github.com/thememium/usecli/commit/b0990e4))
+- **pyproject.toml:** Add usecli configuration with default theme ([1797f98](https://github.com/thememium/usecli/commit/1797f98))
+
+### ✅ Tests
+
+- **cli:** Add comprehensive tests for command listing and loading ([3315c85](https://github.com/thememium/usecli/commit/3315c85))
+
+### 🎨 Styles
+
+- **theme:** Update Catppuccin Frappe color palette ([b948773](https://github.com/thememium/usecli/commit/b948773))
+- **theme:** Update Catppuccin Latte palette ([9ddecdb](https://github.com/thememium/usecli/commit/9ddecdb))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.17
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.16...v0.1.17)
