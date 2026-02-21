@@ -169,7 +169,7 @@ hide_inspire = true
 
 ## Development
 
-See the [Development Guide](docs/development.md) for setup, testing, and architecture details.
+See the [Development Guide](https://github.com/thememium/usecli/blob/master/docs/development.md) for setup, testing, and architecture details.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -177,7 +177,7 @@ See the [Development Guide](docs/development.md) for setup, testing, and archite
 
 ## Contributing
 
-Read the [Contributing Guide](.github/contributing.md).
+Read the [Contributing Guide](https://github.com/thememium/usecli/blob/master/.github/contributing.md).
 
 Quick workflow:
 
