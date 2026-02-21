@@ -207,6 +207,44 @@ class InitCommand(BaseCommand):
 
         return None
 
+    def _sync_environment(self, cwd: Path, command_name: str) -> None:
+        venv_path = cwd / ".venv"
+        if not venv_path.exists():
+            return
+
+        uv_path = shutil.which("uv")
+        if uv_path:
+            result = subprocess.run(
+                [uv_path, "sync"],
+                capture_output=True,
+                text=True,
+                cwd=cwd,
+            )
+            if result.returncode == 0:
+                console.print(
+                    f"[{COLOR.SUCCESS}]Synced environment with '{command_name}' entry point[/{COLOR.SUCCESS}]"
+                )
+            else:
+                console.print(
+                    f"[{COLOR.WARNING}]Failed to sync environment. Run 'uv sync'[/{COLOR.WARNING}]"
+                )
+            return
+
+        result = subprocess.run(
+            [sys.executable, "-m", "pip", "install", "-e", "."],
+            capture_output=True,
+            text=True,
+            cwd=cwd,
+        )
+        if result.returncode == 0:
+            console.print(
+                f"[{COLOR.SUCCESS}]Installed CLI with pip for '{command_name}' entry point[/{COLOR.SUCCESS}]"
+            )
+        else:
+            console.print(
+                f"[{COLOR.WARNING}]Failed to install with pip. Run 'pip install -e .'[/{COLOR.WARNING}]"
+            )
+
     def _get_project_name_from_pyproject(self, pyproject_path: Path) -> str | None:
         if not pyproject_path.exists():
             return None
@@ -271,9 +309,10 @@ class InitCommand(BaseCommand):
     ) -> None:
         parts = Path(commands_dir).parts
         root_package = parts[0] if parts else "src"
+        project_name = pyproject_path.parent.name
 
         pyproject_content = f'''[project]
-name = "{command_name}"
+name = "{project_name}"
 version = "0.1.0"
 description = "{description}"
 readme = "README.md"
@@ -489,27 +528,7 @@ include = ["{root_package}*"]
                 )
 
             if scripts_status in {"added", "updated", "unchanged"}:
-                venv_path = cwd / ".venv"
-                if venv_path.exists():
-                    uv_path = shutil.which("uv")
-                    if uv_path:
-                        result = subprocess.run(
-                            [uv_path, "sync"],
-                            capture_output=True,
-                            text=True,
-                        )
-                        if result.returncode == 0:
-                            console.print(
-                                f"[{COLOR.SUCCESS}]Synced environment with '{command_name}' entry point[/{COLOR.SUCCESS}]"
-                            )
-                        else:
-                            console.print(
-                                f"[{COLOR.WARNING}]Failed to sync environment. Run 'uv sync'[/{COLOR.WARNING}]"
-                            )
-                    else:
-                        console.print(
-                            f"[{COLOR.WARNING}]uv not found. Run 'uv sync' to enable '{command_name}'[/{COLOR.WARNING}]"
-                        )
+                self._sync_environment(project_root, command_name)
         else:
             self._create_full_pyproject_toml(
                 pyproject_path,
@@ -524,27 +543,7 @@ include = ["{root_package}*"]
             )
             scripts_status = "added"
 
-            venv_path = cwd / ".venv"
-            if venv_path.exists():
-                uv_path = shutil.which("uv")
-                if uv_path:
-                    result = subprocess.run(
-                        [uv_path, "sync"],
-                        capture_output=True,
-                        text=True,
-                    )
-                    if result.returncode == 0:
-                        console.print(
-                            f"[{COLOR.SUCCESS}]Synced environment with '{command_name}' entry point[/{COLOR.SUCCESS}]"
-                        )
-                    else:
-                        console.print(
-                            f"[{COLOR.WARNING}]Failed to sync environment. Run 'uv sync'[/{COLOR.WARNING}]"
-                        )
-                else:
-                    console.print(
-                        f"[{COLOR.WARNING}]uv not found. Run 'uv sync' to enable '{command_name}'[/{COLOR.WARNING}]"
-                    )
+            self._sync_environment(project_root, command_name)
 
         # Show summary
         summary_command = (

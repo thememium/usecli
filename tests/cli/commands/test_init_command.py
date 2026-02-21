@@ -134,6 +134,7 @@ class TestInitCommandPyprojectToml:
                     ["/usr/bin/uv", "sync"],
                     capture_output=True,
                     text=True,
+                    cwd=temp_project_dir,
                 )
 
     def test_skips_auto_sync_without_venv(self, temp_project_dir, init_command):
@@ -324,7 +325,7 @@ class TestInitCommandStandaloneConfig:
         assert pyproject_path.exists()
         content = pyproject_path.read_text()
         assert "[project]" in content
-        assert 'name = "usecli"' in content
+        assert f'name = "{temp_project_dir.name}"' in content
         assert "[tool.usecli]" in content
         assert 'title = "My CLI"' in content
         assert 'description = "A test CLI"' in content
@@ -373,7 +374,7 @@ class TestInitCommandOptions:
 
         content = pyproject_path.read_text()
         assert 'title = "Custom CLI Title"' in content
-        assert 'name = "usecli"' in content
+        assert f'name = "{temp_project_dir.name}"' in content
 
     def test_custom_description(self, temp_project_dir, init_command):
         pyproject_path = temp_project_dir / "pyproject.toml"
