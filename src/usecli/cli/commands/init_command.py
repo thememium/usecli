@@ -208,12 +208,11 @@ class InitCommand(BaseCommand):
         return None
 
     def _sync_environment(self, cwd: Path, command_name: str) -> None:
-        venv_path = cwd / ".venv"
-        if not venv_path.exists():
-            return
-
         uv_path = shutil.which("uv")
         if uv_path:
+            venv_path = cwd / ".venv"
+            if not venv_path.exists():
+                return
             result = subprocess.run(
                 [uv_path, "sync"],
                 capture_output=True,

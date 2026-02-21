@@ -143,15 +143,43 @@ class TestInitCommandPyprojectToml:
             "[project]\nname = 'test'\n\n[project.scripts]\nmycli = \"usecli:run_app\"\n"
         )
 
-        with patch("usecli.cli.commands.init_command.subprocess.run") as mock_run:
-            init_command.handle(
-                DEFAULT_TITLE,
-                DEFAULT_DESCRIPTION,
-                DEFAULT_COMMANDS_DIR,
-                force=True,
-            )
+        with patch("usecli.cli.commands.init_command.shutil.which") as mock_which:
+            with patch("usecli.cli.commands.init_command.subprocess.run") as mock_run:
+                mock_which.return_value = "/usr/bin/uv"
 
-            mock_run.assert_not_called()
+                init_command.handle(
+                    DEFAULT_TITLE,
+                    DEFAULT_DESCRIPTION,
+                    DEFAULT_COMMANDS_DIR,
+                    force=True,
+                )
+
+                mock_run.assert_not_called()
+
+    def test_installs_with_pip_when_uv_missing(self, temp_project_dir, init_command):
+        pyproject = temp_project_dir / "pyproject.toml"
+        pyproject.write_text(
+            "[project]\nname = 'test'\n\n[project.scripts]\nmycli = \"usecli:run_app\"\n"
+        )
+
+        with patch("usecli.cli.commands.init_command.shutil.which") as mock_which:
+            with patch("usecli.cli.commands.init_command.subprocess.run") as mock_run:
+                mock_which.return_value = None
+                mock_run.return_value = MagicMock(returncode=0)
+
+                init_command.handle(
+                    DEFAULT_TITLE,
+                    DEFAULT_DESCRIPTION,
+                    DEFAULT_COMMANDS_DIR,
+                    force=True,
+                )
+
+                mock_run.assert_called_once_with(
+                    [sys.executable, "-m", "pip", "install", "-e", "."],
+                    capture_output=True,
+                    text=True,
+                    cwd=temp_project_dir,
+                )
 
     def test_adds_build_system_when_missing(self, temp_project_dir, init_command):
         pyproject = temp_project_dir / "pyproject.toml"
