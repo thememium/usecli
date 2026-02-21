@@ -1,6 +1,26 @@
 # Changelog
 
 
+## v0.1.21
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.20...v0.1.21)
+
+### 📖 Documentation
+
+- Add dark‑background logo image for usecli documentation ([9f58deb](https://github.com/thememium/usecli/commit/9f58deb))
+- **readme:** Replace logo with dark‑background version for better contrast ([42ee144](https://github.com/thememium/usecli/commit/42ee144))
+- **readme:** Replace logo image URL with absolute raw.githubusercontent.com link ([fe7ec0f](https://github.com/thememium/usecli/commit/fe7ec0f))
+- **readme:** Update logo image URL to point to master branch ([7ce1b09](https://github.com/thememium/usecli/commit/7ce1b09))
+
+### 🏡 Chore
+
+- **uv:** Update version ([40667a7](https://github.com/thememium/usecli/commit/40667a7))
+- **gitignore:** Add .DS_Store to ignore list ([9867b38](https://github.com/thememium/usecli/commit/9867b38))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.20
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.19...v0.1.20)
