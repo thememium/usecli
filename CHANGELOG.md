@@ -1,6 +1,19 @@
 # Changelog
 
 
+## v0.1.20
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.19...v0.1.20)
+
+### 🏡 Chore
+
+- **uv:** Update version ([5b2739c](https://github.com/thememium/usecli/commit/5b2739c))
+- **pyproject:** Remove testpypi UV index configuration ([11a035c](https://github.com/thememium/usecli/commit/11a035c))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.19
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.18...v0.1.19)
