@@ -50,14 +50,21 @@ Built on Typer and Click.
 
 ## Quick Start
 
+### Install usecli:
+
 ```sh
-# Install
-uv add "usecli @ git+https://github.com/thememium/usecli.git"
+uv add usecli
+```
 
-# Initialize
+### Initialize
+
+```sh
 usecli init
+```
 
-# Create a command
+### Create a command
+
+```sh
 usecli make:command hello
 ```
 
