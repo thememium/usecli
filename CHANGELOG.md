@@ -1,6 +1,27 @@
 # Changelog
 
 
+## v0.1.19
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.18...v0.1.19)
+
+### 📖 Documentation
+
+- **pyproject:** Update description and add documentation URLs ([4d16fb8](https://github.com/thememium/usecli/commit/4d16fb8))
+
+### 📦 Build
+
+- **pyproject:** Add `uv build --no-sources` script ([0c63bcf](https://github.com/thememium/usecli/commit/0c63bcf))
+
+### 🏡 Chore
+
+- **uv:** Update version ([fe75676](https://github.com/thememium/usecli/commit/fe75676))
+- **pyproject:** Remove Development Status :: 3 - Alpha classifier ([aa726ec](https://github.com/thememium/usecli/commit/aa726ec))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.18
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.17...v0.1.18)
