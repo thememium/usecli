@@ -48,6 +48,7 @@ class ConfigManager:
         "commands_dir": "cli/commands",
         "templates_dir": "cli/templates",
         "title_font": "big",
+        "theme": "default",
         "environment": "prod",
         "command_name": "usecli",
         "hide_init": False,

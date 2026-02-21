@@ -13,6 +13,7 @@ COMMANDS_DIR = CLI_ROOT / "commands"
 CUSTOM_COMMANDS_DIR = COMMANDS_DIR / "custom"
 DEFAULTS_DIR = COMMANDS_DIR / "defaults"
 TEMPLATES_DIR = CLI_ROOT / "templates"
+THEMES_DIR = CLI_ROOT / "themes"
 
 # Config file names
 PYPROJECT_TOML = "pyproject.toml"
