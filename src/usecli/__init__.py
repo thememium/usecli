@@ -21,11 +21,12 @@ __all__ = [
     "BaseCommand",
     "console",
     "Console",
-    "Prompt",
-    "Confirm",
+    "main",
     "Menu",
     "Argument",
     "Option",
+    "Prompt",
+    "Confirm",
 ]
 
 
@@ -135,7 +136,7 @@ service.load_commands()
 
 
 @app.callback()
-def main(
+def run_app(
     ctx: typer.Context,
     version: bool = typer.Option(
         None, "--version", "-v", help="Show the version and exit.", is_eager=True
@@ -183,7 +184,7 @@ def main(
         list_commands(app, prefix_filter=prefix_filter)
 
 
-def run_app() -> None:
+def main() -> None:
     """Run the CLI application with custom error handling."""
     try:
         app()
@@ -202,4 +203,4 @@ def run_app() -> None:
 
 
 if __name__ == "__main__":
-    run_app()
+    main()

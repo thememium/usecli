@@ -114,7 +114,7 @@ class TestInitCommandPyprojectToml:
     def test_auto_syncs_when_venv_exists(self, temp_project_dir, init_command):
         pyproject = temp_project_dir / "pyproject.toml"
         pyproject.write_text(
-            "[project]\nname = 'test'\n\n[project.scripts]\nmycli = \"usecli:run_app\"\n"
+            "[project]\nname = 'test'\n\n[project.scripts]\nmycli = \"usecli:main\"\n"
         )
         (temp_project_dir / ".venv").mkdir()
 
@@ -140,7 +140,7 @@ class TestInitCommandPyprojectToml:
     def test_skips_auto_sync_without_venv(self, temp_project_dir, init_command):
         pyproject = temp_project_dir / "pyproject.toml"
         pyproject.write_text(
-            "[project]\nname = 'test'\n\n[project.scripts]\nmycli = \"usecli:run_app\"\n"
+            "[project]\nname = 'test'\n\n[project.scripts]\nmycli = \"usecli:main\"\n"
         )
 
         with patch("usecli.cli.commands.init_command.shutil.which") as mock_which:
@@ -159,7 +159,7 @@ class TestInitCommandPyprojectToml:
     def test_installs_with_pip_when_uv_missing(self, temp_project_dir, init_command):
         pyproject = temp_project_dir / "pyproject.toml"
         pyproject.write_text(
-            "[project]\nname = 'test'\n\n[project.scripts]\nmycli = \"usecli:run_app\"\n"
+            "[project]\nname = 'test'\n\n[project.scripts]\nmycli = \"usecli:main\"\n"
         )
 
         with patch("usecli.cli.commands.init_command.shutil.which") as mock_which:
@@ -184,7 +184,7 @@ class TestInitCommandPyprojectToml:
     def test_adds_build_system_when_missing(self, temp_project_dir, init_command):
         pyproject = temp_project_dir / "pyproject.toml"
         pyproject.write_text(
-            "[project]\nname = 'test'\n\n[project.scripts]\nmycli = \"usecli:run_app\"\n"
+            "[project]\nname = 'test'\n\n[project.scripts]\nmycli = \"usecli:main\"\n"
         )
 
         init_command.handle(
@@ -202,7 +202,7 @@ class TestInitCommandPyprojectToml:
     def test_adds_setuptools_package_discovery(self, temp_project_dir, init_command):
         pyproject = temp_project_dir / "pyproject.toml"
         pyproject.write_text(
-            "[project]\nname = 'test'\n\n[project.scripts]\nmycli = \"usecli:run_app\"\n"
+            "[project]\nname = 'test'\n\n[project.scripts]\nmycli = \"usecli:main\"\n"
         )
 
         init_command.handle(
@@ -230,7 +230,7 @@ class TestInitCommandPyprojectToml:
 
         content = pyproject.read_text()
         assert "[project.scripts]" in content
-        assert 'test = "usecli:run_app"' in content
+        assert 'test = "usecli:main"' in content
 
     def test_preserves_existing_project_script_entries(
         self, temp_project_dir, init_command
@@ -250,7 +250,7 @@ class TestInitCommandPyprojectToml:
         content = pyproject.read_text()
         assert "[project.scripts]" in content
         assert 'foo = "foo:main"' in content
-        assert 'test = "usecli:run_app"' in content
+        assert 'test = "usecli:main"' in content
 
     def test_prompts_before_overwriting_project_script_entry(
         self, temp_project_dir, init_command
@@ -268,7 +268,7 @@ class TestInitCommandPyprojectToml:
 
         content = pyproject.read_text()
         assert 'usecli = "other:main"' in content
-        assert 'usecli = "usecli:run_app"' not in content
+        assert 'usecli = "usecli:main"' not in content
 
     def test_overwrites_project_script_entry_with_force(
         self, temp_project_dir, init_command
@@ -283,7 +283,7 @@ class TestInitCommandPyprojectToml:
         )
 
         content = pyproject.read_text()
-        assert 'test = "usecli:run_app"' in content
+        assert 'test = "usecli:main"' in content
 
     def test_skips_when_user_declines_overwrite(self, temp_project_dir, init_command):
         pyproject = temp_project_dir / "pyproject.toml"

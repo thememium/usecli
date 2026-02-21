@@ -36,7 +36,7 @@ def _get_script_command_name(start_dir: Path | None = None) -> str | None:
             scripts = data.get("project", {}).get("scripts", {})
             if isinstance(scripts, dict):
                 for name, target in scripts.items():
-                    if target == "usecli:run_app":
+                    if target == "usecli:main":
                         return name
 
         parent = current.parent

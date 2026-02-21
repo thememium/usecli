@@ -120,7 +120,7 @@ class InitCommand(BaseCommand):
             return "missing"
 
         content = pyproject_path.read_text()
-        entry_line = f'{command_name} = "usecli:run_app"'
+        entry_line = f'{command_name} = "usecli:main"'
         section_pattern = r"\[project\.scripts\].*?(?=\n\[|\Z)"
         match = re.search(section_pattern, content, flags=re.DOTALL)
 
@@ -137,7 +137,7 @@ class InitCommand(BaseCommand):
 
         if entry_match:
             target = entry_match.group("target")
-            if target == "usecli:run_app":
+            if target == "usecli:main":
                 return "unchanged"
 
             if not force:
@@ -202,7 +202,7 @@ class InitCommand(BaseCommand):
             return None
 
         for name, target in scripts.items():
-            if target == "usecli:run_app":
+            if target == "usecli:main":
                 return name
 
         return None
@@ -328,7 +328,7 @@ dependencies = [
 license = "MIT"
 
 [project.scripts]
-{command_name} = "usecli:run_app"
+{command_name} = "usecli:main"
 
 [build-system]
 requires = ["setuptools>=68", "wheel"]
@@ -557,7 +557,7 @@ include = ["{root_package}*"]
                 f"Create new commands with: [bold {COLOR.COMMAND}]{summary_command} make:command <name>[/bold {COLOR.COMMAND}]"
             )
         else:
-            command_summary = "Create new commands after adding a [project.scripts] entry for usecli:run_app."
+            command_summary = "Create new commands after adding a [project.scripts] entry for usecli:main."
         console.print(
             Panel.fit(
                 f"[bold {COLOR.PRIMARY}]usecli initialized![/bold {COLOR.PRIMARY}]\n\n"

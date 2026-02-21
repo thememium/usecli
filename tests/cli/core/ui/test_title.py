@@ -196,7 +196,7 @@ class TestPrintTitle:
         monkeypatch.chdir(tmp_path)
         pyproject = tmp_path / "pyproject.toml"
         pyproject.write_text(
-            "[project]\nname = 'test'\n\n[project.scripts]\nmycli = \"usecli:run_app\"\n"
+            "[project]\nname = 'test'\n\n[project.scripts]\nmycli = \"usecli:main\"\n"
         )
 
         result = get_project_name()

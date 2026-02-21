@@ -9,7 +9,7 @@ from click.exceptions import Exit
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
-from usecli import app, main
+from usecli import app, run_app
 from usecli.cli.core.base_command import CustomHelpCommand, NestedCommandRegistry
 
 
@@ -73,7 +73,7 @@ def test_main_interactive_calls_run_interactive():
         "usecli.cli.commands.defaults.base.internal.fzf_command.run_interactive"
     ) as mock_run:
         with pytest.raises(typer.Exit):
-            main(ctx=ctx, version=False, help=False, interactive=True)
+            run_app(ctx=ctx, version=False, help=False, interactive=True)
 
     mock_run.assert_called_once_with(app, cmd_parts=["about"])
 
