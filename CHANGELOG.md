@@ -1,6 +1,22 @@
 # Changelog
 
 
+## v0.1.23
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.22...v0.1.23)
+
+### 🏡 Chore
+
+- **uv:** Update version ([5393123](https://github.com/thememium/usecli/commit/5393123))
+
+### 🤖 CI
+
+- **publish:** Trigger on release published and verify version matches tag ([bf22c13](https://github.com/thememium/usecli/commit/bf22c13))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.22
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.21...v0.1.22)
