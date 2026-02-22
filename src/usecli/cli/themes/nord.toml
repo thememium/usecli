@@ -1,0 +1,25 @@
+[colors]
+primary = "#88c0d0"
+secondary = "#a3be8c"
+accent = "#ebcb8b"
+
+success = "#a3be8c"
+error = "#bf616a"
+warning = "#ebcb8b"
+info = "#81a1c1"
+
+foreground = "#eceff4"
+foreground_muted = "#d8dee9"
+
+background = "#2e3440"
+border = "#3b4252"
+border_focus = "#a3be8c"
+
+command = "#88c0d0"
+option = "#88c0d0"
+link = "#88c0d0"
+prompt = "#a3be8c"
+
+panel_primary = "#a3be8c"
+panel_secondary = "#88c0d0"
+panel_accent = "#ebcb8b"
