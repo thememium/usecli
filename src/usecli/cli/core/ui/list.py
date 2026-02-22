@@ -20,7 +20,7 @@ if TYPE_CHECKING:
 
 console = Console()
 
-SPACER_LENGTH = 18
+SPACER_LENGTH = 6
 
 
 class CommandEntry(TypedDict):
@@ -50,39 +50,10 @@ def list_commands(app: typer.Typer, prefix_filter: str | None = None) -> None:
 
     click_group = typer.main.get_command(app)
 
-    all_command_names = list({cmd.name for cmd in app.registered_commands if cmd.name})
     alias_registry = _get_alias_registry(app)
     alias_to_primary = _build_alias_to_primary(alias_registry)
 
-    longest_name_length = (
-        max(len(name) for name in all_command_names) if all_command_names else 0
-    )
-
     command_name = get_script_command_name(default="usecli")
-
-    console.print(f"[bold {COLOR.SECONDARY}]Usage:[/bold {COLOR.SECONDARY}]")
-    console.print(f"  [{COLOR.PRIMARY}]{command_name} [OPTIONS] [ARGUMENTS]")
-    console.print()
-
-    console.print(f"[bold {COLOR.SECONDARY}]Options:")
-
-    help_flags = "--help, -h"
-    help_padding = " " * (longest_name_length - len(help_flags) + SPACER_LENGTH)
-    console.print(
-        f"  [{COLOR.OPTION}]{help_flags}[/{COLOR.OPTION}]{help_padding}Show this message and exit."
-    )
-
-    if click_group.params:
-        for param in click_group.params:
-            flags = ", ".join(param.opts)
-            if "--help" in flags:
-                continue
-            description = getattr(param, "help", "") or ""
-            padding = " " * (longest_name_length - len(flags) + SPACER_LENGTH)
-            console.print(
-                f"  [{COLOR.OPTION}]{flags}[/{COLOR.OPTION}]{padding}{description}"
-            )
-    console.print()
 
     commands_by_name: dict[str, CommandMeta] = {}
     for command in app.registered_commands:
@@ -126,9 +97,6 @@ def list_commands(app: typer.Typer, prefix_filter: str | None = None) -> None:
             return
         commands = filtered
 
-    if not prefix_filter:
-        console.print(f"[bold {COLOR.SECONDARY}]Available commands:")
-
     groups: dict[str, str] = {}
     if isinstance(click_group, click.Group):
         for cmd_name, cmd_obj in click_group.commands.items():
@@ -138,19 +106,55 @@ def list_commands(app: typer.Typer, prefix_filter: str | None = None) -> None:
                     or f"Commands for {cmd_name}"
                 )
 
+    option_flags = []
+    if click_group.params:
+        for param in click_group.params:
+            flags = ", ".join(param.opts)
+            if "--help" in flags:
+                continue
+            option_flags.append(flags)
+
+    help_flags = "--help, -h"
+    all_option_flags = [help_flags] + option_flags
+    all_display_names = [cmd["display_name"] for cmd in commands] + list(groups.keys())
+    all_labels = all_display_names + all_option_flags
+    longest_label_length = max((len(label) for label in all_labels), default=0)
+
+    console.print(f"[bold {COLOR.SECONDARY}]Usage:[/bold {COLOR.SECONDARY}]")
+    console.print(f"  [{COLOR.PRIMARY}]{command_name} [OPTIONS] [ARGUMENTS]")
+    console.print()
+
+    console.print(f"[bold {COLOR.SECONDARY}]Options:")
+
+    help_padding = " " * (longest_label_length - len(help_flags) + SPACER_LENGTH)
+    console.print(
+        f"  [{COLOR.OPTION}]{help_flags}[/{COLOR.OPTION}]{help_padding}Show this message and exit."
+    )
+
+    if click_group.params:
+        for param in click_group.params:
+            flags = ", ".join(param.opts)
+            if "--help" in flags:
+                continue
+            description = getattr(param, "help", "") or ""
+            padding = " " * (longest_label_length - len(flags) + SPACER_LENGTH)
+            console.print(
+                f"  [{COLOR.OPTION}]{flags}[/{COLOR.OPTION}]{padding}{description}"
+            )
+    console.print()
+
+    if not prefix_filter:
+        console.print(f"[bold {COLOR.SECONDARY}]Available commands:")
+
     top_level: list[CommandEntry] = [
         c for c in commands if ":" not in c["name"] and c["name"] not in groups
     ]
     with_colon: list[CommandEntry] = [c for c in commands if ":" in c["name"]]
 
-    all_names = [cmd["display_name"] for cmd in commands] + list(groups.keys())
-    if all_names:
-        longest_name_length = max(len(name) for name in all_names)
-
     def print_command(cmd: CommandEntry) -> None:
         """Print a single command with proper formatting."""
         display_name = cmd["display_name"]
-        padding = " " * (longest_name_length - len(display_name) + SPACER_LENGTH)
+        padding = " " * (longest_label_length - len(display_name) + SPACER_LENGTH)
         console.print(
             f"  [{COLOR.COMMAND} not bold]{display_name}[/{COLOR.COMMAND} not bold]{padding}{cmd['help']}"
         )
@@ -196,14 +200,8 @@ def list_group_commands(group_app: typer.Typer, group_name: str) -> None:
         group_app: The Typer sub-app for the command group.
         group_name: The name of the command group.
     """
-    all_command_names = list(
-        {cmd.name for cmd in group_app.registered_commands if cmd.name}
-    )
     alias_registry = _get_alias_registry(group_app)
     alias_to_primary = _build_alias_to_primary(alias_registry)
-    longest_name_length = (
-        max(len(name) for name in all_command_names) if all_command_names else 0
-    )
 
     command_name = get_script_command_name(default="usecli")
 
@@ -212,27 +210,6 @@ def list_group_commands(group_app: typer.Typer, group_name: str) -> None:
         f"  [{COLOR.PRIMARY}]{command_name} {group_name} [COMMAND] [OPTIONS][/]"
     )
     console.print()
-
-    console.print(f"[bold {COLOR.SECONDARY}]Options:")
-    help_flags = "--help, -h"
-    help_padding = " " * (longest_name_length - len(help_flags) + SPACER_LENGTH)
-    console.print(
-        f"  [{COLOR.OPTION}]{help_flags}[/{COLOR.OPTION}]{help_padding}Show this message and exit."
-    )
-
-    click_group = typer.main.get_command(group_app)
-    if click_group.params:
-        for param in click_group.params:
-            flags = ", ".join(param.opts)
-            if "--help" in flags:
-                continue
-            description = getattr(param, "help", "") or ""
-            padding = " " * (longest_name_length - len(flags) + SPACER_LENGTH)
-            console.print(
-                f"  [{COLOR.OPTION}]{flags}[/{COLOR.OPTION}]{padding}{description}"
-            )
-    console.print()
-
     commands_by_name: dict[str, CommandMeta] = {}
     for command in group_app.registered_commands:
         callback = command.callback
@@ -262,14 +239,44 @@ def list_group_commands(group_app: typer.Typer, group_name: str) -> None:
         commands.append(command_entry)
     commands.sort(key=lambda x: x["name"])
 
-    if commands:
-        longest_name_length = max(len(cmd["display_name"]) for cmd in commands)
+    click_group = typer.main.get_command(group_app)
+    option_flags = []
+    if click_group.params:
+        for param in click_group.params:
+            flags = ", ".join(param.opts)
+            if "--help" in flags:
+                continue
+            option_flags.append(flags)
+
+    help_flags = "--help, -h"
+    all_option_flags = [help_flags] + option_flags
+    all_display_names = [cmd["display_name"] for cmd in commands]
+    all_labels = all_display_names + all_option_flags
+    longest_label_length = max((len(label) for label in all_labels), default=0)
+
+    console.print(f"[bold {COLOR.SECONDARY}]Options:")
+    help_padding = " " * (longest_label_length - len(help_flags) + SPACER_LENGTH)
+    console.print(
+        f"  [{COLOR.OPTION}]{help_flags}[/{COLOR.OPTION}]{help_padding}Show this message and exit."
+    )
+
+    if click_group.params:
+        for param in click_group.params:
+            flags = ", ".join(param.opts)
+            if "--help" in flags:
+                continue
+            description = getattr(param, "help", "") or ""
+            padding = " " * (longest_label_length - len(flags) + SPACER_LENGTH)
+            console.print(
+                f"  [{COLOR.OPTION}]{flags}[/{COLOR.OPTION}]{padding}{description}"
+            )
+    console.print()
 
     console.print(f"[bold {COLOR.SECONDARY}]Available commands:")
 
     for cmd in commands:
         display_name = cmd["display_name"]
-        padding = " " * (longest_name_length - len(display_name) + SPACER_LENGTH)
+        padding = " " * (longest_label_length - len(display_name) + SPACER_LENGTH)
         console.print(
             f"  [{COLOR.COMMAND}]{display_name}[/{COLOR.COMMAND}]{padding}{cmd['help']}"
         )

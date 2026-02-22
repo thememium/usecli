@@ -8,6 +8,7 @@ Tests cover:
 - Parameter display
 """
 
+import re
 from unittest.mock import Mock, patch
 
 from usecli.cli.config.colors import COLOR
@@ -77,6 +78,53 @@ class TestListCommands:
         # Verify commands were printed
         print_calls = [str(call) for call in mock_console.print.call_args_list]
         assert any("run" in str(c) for c in print_calls)
+
+    @patch("usecli.cli.core.ui.list.print_title")
+    @patch("usecli.cli.core.ui.list.console")
+    @patch("usecli.cli.core.ui.list.typer.main.get_command")
+    def test_list_commands_option_and_command_spacing_match(
+        self, mock_get_command, mock_console, mock_print_title
+    ):
+        mock_command = Mock()
+        mock_command.name = "run"
+        mock_command.callback = Mock(__name__="run")
+        mock_command.help = "Run the tool"
+
+        app = Mock()
+        app.registered_commands = [mock_command]
+
+        version_param = Mock()
+        version_param.opts = ["--version", "-v"]
+        version_param.help = "Show the version and exit."
+
+        click_group = Mock()
+        click_group.params = [version_param]
+        mock_get_command.return_value = click_group
+
+        list_commands(app)
+
+        print_calls = [str(call) for call in mock_console.print.call_args_list]
+        combined_output = "\n".join(print_calls)
+
+        option_line = next(
+            line
+            for line in combined_output.split("\n")
+            if "Show this message and exit" in line
+        )
+        command_line = next(
+            line for line in combined_output.split("\n") if "Run the tool" in line
+        )
+
+        def strip_markup(line: str) -> str:
+            return re.sub(r"\[[^\]]+\]", "", line)
+
+        option_plain = strip_markup(option_line)
+        command_plain = strip_markup(command_line)
+
+        option_description_index = option_plain.index("Show this message and exit")
+        command_description_index = command_plain.index("Run the tool")
+
+        assert option_description_index == command_description_index
 
     @patch("usecli.cli.core.ui.list.print_title")
     @patch("usecli.cli.core.ui.list.console")
