@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.29
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.28...v0.1.29)
+
+### 🚀 Enhancements
+
+- **cli:** Make Typer help text configurable via project config ([62bf895](https://github.com/thememium/usecli/commit/62bf895))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.28
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.27...v0.1.28)
