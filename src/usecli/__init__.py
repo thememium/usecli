@@ -91,6 +91,20 @@ def _get_cli_help_text() -> str:
     return f"{display_name} - {display_description}"
 
 
+def _get_group_alias_registry(app: typer.Typer) -> dict[str, list[str]]:
+    registry = getattr(app, "_usecli_group_aliases", {})
+    return registry if isinstance(registry, dict) else {}
+
+
+def _build_alias_to_primary(alias_registry: dict[str, list[str]]) -> dict[str, str]:
+    alias_to_primary: dict[str, str] = {}
+    for primary, aliases in alias_registry.items():
+        alias_to_primary[primary] = primary
+        for alias in aliases:
+            alias_to_primary[alias] = primary
+    return alias_to_primary
+
+
 class PrefixMatchingGroup(TyperGroup):
     """Custom Typer group that supports prefix matching for commands.
 
@@ -111,12 +125,33 @@ class PrefixMatchingGroup(TyperGroup):
         if rv is not None:
             return rv
 
+        group_alias_registry = _get_group_alias_registry(app)
+        group_alias_to_primary = _build_alias_to_primary(group_alias_registry)
+
+        if (
+            cmd_name in group_alias_to_primary
+            and group_alias_to_primary[cmd_name] != cmd_name
+        ):
+            return TyperGroup.get_command(self, ctx, group_alias_to_primary[cmd_name])
+
         matches = [x for x in self.list_commands(ctx) if x.startswith(cmd_name)]
+        group_aliases = [
+            alias for aliases in group_alias_registry.values() for alias in aliases
+        ]
+        matches.extend([alias for alias in group_aliases if alias.startswith(cmd_name)])
+        matches = list(dict.fromkeys(matches))
 
         if not matches:
             return None
 
         if cmd_name in matches:
+            if (
+                cmd_name in group_alias_to_primary
+                and group_alias_to_primary[cmd_name] != cmd_name
+            ):
+                return TyperGroup.get_command(
+                    self, ctx, group_alias_to_primary[cmd_name]
+                )
             return TyperGroup.get_command(self, ctx, cmd_name)
 
         return FilteredListCommand(cmd_name)
