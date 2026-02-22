@@ -16,10 +16,10 @@ def _assert_resource(relative_path: str) -> None:
 
 
 def _assert_basic_imports() -> None:
-    from usecli import (  # noqa: PLC0415
+    from usecli import (
         Argument,
         BaseCommand,
-        Confirm,
+        Confirm,  # noqa: PLC0415
         Console,
         Menu,
         Option,
