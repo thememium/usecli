@@ -1,6 +1,19 @@
 # Changelog
 
 
+## v0.1.25
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.24...v0.1.25)
+
+### 🏡 Chore
+
+- **release.sh:** Add uv lock step, include uv.lock in commit, push tag separately, make release idempotent ([9d75a29](https://github.com/thememium/usecli/commit/9d75a29))
+- **release:** Add uv sync step after version bump ([48ad3a2](https://github.com/thememium/usecli/commit/48ad3a2))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.24
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.23...v0.1.24)
