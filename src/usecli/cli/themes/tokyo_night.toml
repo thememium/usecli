@@ -11,12 +11,12 @@ info = "#7dcfff"    # Teal / Blue
 
 # Text
 foreground = "#c0caf5"       # Text
-foreground_muted = "#414868" # Subtext
+foreground_muted = "#a9b1d6" # Subtext
 
 # Surfaces
 background = "#1a1b26"   # Base
-border = "#15161e"       # Surface
-border_focus = "#bb9af7" # Focus Ring
+border = "#292e42"       # Surface
+border_focus = "#9ece6a" # Focus Ring
 
 # UI semantics
 command = "#7aa2f7"
