@@ -142,8 +142,8 @@ class InitCommand(BaseCommand):
 
             if not force:
                 should_overwrite = Confirm.ask(
-                    f"[{COLOR.WARNING}]Existing [project.scripts] entry for '{command_name}' detected.[/{COLOR.WARNING}]\n"
-                    "Do you want to overwrite it?",
+                    f"[{COLOR.WARNING}]Existing [project.scripts] entry for '{command_name}' points to '{target}'.[/{COLOR.WARNING}]\n"
+                    "Overwrite it with 'usecli:main'?",
                     default=False,
                 )
                 if not should_overwrite:
@@ -267,6 +267,7 @@ class InitCommand(BaseCommand):
     def _prompt_command_name(self, command_name: str) -> str:
         prompt_text = (
             f"[bold {COLOR.SECONDARY}]CLI command name[/bold {COLOR.SECONDARY}]"
+            " (entry point users run, e.g. mycli)"
         )
         first_attempt = True
         while True:
@@ -528,12 +529,14 @@ include = ["{root_package}*"]
         command_name = self._prompt_command_name(command_name)
         console.print()
         title = Prompt.ask(
-            f"[bold {COLOR.SECONDARY}]CLI title[/bold {COLOR.SECONDARY}]",
+            f"[bold {COLOR.SECONDARY}]CLI title[/bold {COLOR.SECONDARY}]"
+            " (displayed in help and banner)",
             default=title if title != "Use CLI" else command_name,
         )
         console.print()
         description = Prompt.ask(
-            f"[bold {COLOR.SECONDARY}]CLI description[/bold {COLOR.SECONDARY}]",
+            f"[bold {COLOR.SECONDARY}]CLI description[/bold {COLOR.SECONDARY}]"
+            " (short summary shown in help)",
             default=description,
         )
         console.print()
@@ -544,17 +547,20 @@ include = ["{root_package}*"]
         )
         console.print()
         commands_dir = Prompt.ask(
-            f"[bold {COLOR.SECONDARY}]Commands directory[/bold {COLOR.SECONDARY}]",
+            f"[bold {COLOR.SECONDARY}]Commands directory[/bold {COLOR.SECONDARY}]"
+            " (where command modules live)",
             default=commands_dir,
         )
         console.print()
         templates_dir = Prompt.ask(
-            f"[bold {COLOR.SECONDARY}]Templates directory[/bold {COLOR.SECONDARY}]",
+            f"[bold {COLOR.SECONDARY}]Templates directory[/bold {COLOR.SECONDARY}]"
+            " (scaffolding templates for make:command)",
             default=self._derive_templates_dir(commands_dir),
         )
         console.print()
         themes_dir = Prompt.ask(
-            f"[bold {COLOR.SECONDARY}]Themes directory[/bold {COLOR.SECONDARY}]",
+            f"[bold {COLOR.SECONDARY}]Themes directory[/bold {COLOR.SECONDARY}]"
+            " (theme TOML files for styling)",
             default=self._derive_themes_dir(commands_dir),
         )
         console.print()
@@ -595,7 +601,7 @@ include = ["{root_package}*"]
         if existing_source and not force:
             should_overwrite = Confirm.ask(
                 f"[{COLOR.WARNING}]usecli config already exists in {existing_source}.[/{COLOR.WARNING}]\n"
-                f"Do you want to overwrite it?",
+                "Overwrite it with the new settings from this init run?",
                 default=False,
             )
             if not should_overwrite:
