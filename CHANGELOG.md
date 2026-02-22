@@ -1,6 +1,24 @@
 # Changelog
 
 
+## v0.1.32
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.31...v0.1.32)
+
+### 🚀 Enhancements
+
+- **cli:** Add group alias resolution to fzf command ([afd2f18](https://github.com/thememium/usecli/commit/afd2f18))
+- **cli:** Add group alias support for nested commands and UI ([c526026](https://github.com/thememium/usecli/commit/c526026))
+- **cli:** Add group alias support to PrefixMatchingGroup ([2455c85](https://github.com/thememium/usecli/commit/2455c85))
+
+### ✅ Tests
+
+- **cli:** Add tests for nested command aliases and group alias listing ([cd13bd8](https://github.com/thememium/usecli/commit/cd13bd8))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.31
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.30...v0.1.31)
