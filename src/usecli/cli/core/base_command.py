@@ -344,7 +344,7 @@ class BaseCommand(ABC):
             registry = NestedCommandRegistry()
             group_app = registry.get_or_create_group(self.app, group_name)
 
-            normalized_aliases = self._normalize_aliases(
+            normalized_aliases, group_aliases = self._normalize_nested_aliases(
                 primary_name=command_name,
                 aliases=aliases,
                 group_name=group_name,
@@ -354,6 +354,11 @@ class BaseCommand(ABC):
                 name=command_name,
                 description=self.description(),
                 aliases=normalized_aliases,
+            )
+            self._register_group_aliases(
+                app=self.app,
+                group_name=group_name,
+                aliases=group_aliases,
             )
         else:
             # Single-level command (e.g., "help", "init", "config:set", "make:command")
@@ -409,6 +414,31 @@ class BaseCommand(ABC):
             setattr(app, "_usecli_aliases", registry)
         return registry
 
+    def _get_group_alias_registry(self, app: typer.Typer) -> dict[str, list[str]]:
+        if not hasattr(app, "_usecli_group_aliases"):
+            setattr(app, "_usecli_group_aliases", {})
+        registry = getattr(app, "_usecli_group_aliases")
+        if not isinstance(registry, dict):
+            registry = {}
+            setattr(app, "_usecli_group_aliases", registry)
+        return registry
+
+    def _register_group_aliases(
+        self,
+        app: typer.Typer,
+        group_name: str,
+        aliases: list[str],
+    ) -> None:
+        if not aliases:
+            return
+
+        registry = self._get_group_alias_registry(app)
+        registry.setdefault(group_name, [])
+        for alias in aliases:
+            if alias == group_name or alias in registry[group_name]:
+                continue
+            registry[group_name].append(alias)
+
     def _normalize_aliases(
         self,
         primary_name: str,
@@ -436,6 +466,51 @@ class BaseCommand(ABC):
                 continue
             normalized.append(alias_name)
         return normalized
+
+    def _normalize_nested_aliases(
+        self,
+        primary_name: str,
+        aliases: list[str],
+        group_name: str,
+    ) -> tuple[list[str], list[str]]:
+        normalized: list[str] = []
+        group_aliases: list[str] = []
+
+        for alias in aliases:
+            alias_parts = alias.split()
+            if len(alias_parts) == 1:
+                alias_name = alias_parts[0]
+                if not self._is_valid_subcommand_name(alias_name):
+                    continue
+                if alias_name == primary_name or alias_name in normalized:
+                    continue
+                normalized.append(alias_name)
+                continue
+
+            if len(alias_parts) != 2:
+                continue
+
+            group_alias, alias_name = alias_parts
+
+            if not self._is_valid_subcommand_name(group_alias):
+                continue
+            if not self._is_valid_subcommand_name(alias_name):
+                continue
+
+            if group_alias == group_name:
+                if alias_name == primary_name or alias_name in normalized:
+                    continue
+                normalized.append(alias_name)
+                continue
+
+            if group_alias not in group_aliases:
+                group_aliases.append(group_alias)
+
+            if alias_name == primary_name or alias_name in normalized:
+                continue
+            normalized.append(alias_name)
+
+        return normalized, group_aliases
 
     def _is_valid_subcommand_name(self, name: str) -> bool:
         """Check if a string is a valid subcommand name (not an argument placeholder).

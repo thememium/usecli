@@ -52,6 +52,8 @@ def list_commands(app: typer.Typer, prefix_filter: str | None = None) -> None:
 
     alias_registry = _get_alias_registry(app)
     alias_to_primary = _build_alias_to_primary(alias_registry)
+    group_alias_registry = _get_group_alias_registry(app)
+    group_alias_to_primary = _build_alias_to_primary(group_alias_registry)
 
     command_name = get_script_command_name(default="usecli")
 
@@ -84,23 +86,15 @@ def list_commands(app: typer.Typer, prefix_filter: str | None = None) -> None:
         commands.append(command_entry)
     commands.sort(key=lambda x: x["name"])
 
-    if prefix_filter:
-        filtered = [
-            c
-            for c in commands
-            if c["name"].startswith(prefix_filter)
-            or any(alias.startswith(prefix_filter) for alias in c["aliases"])
-        ]
-        if not filtered:
-            console.print(f"  [dim]No commands found for '{prefix_filter}'[/dim]")
-            console.print()
-            return
-        commands = filtered
-
     groups: dict[str, str] = {}
     if isinstance(click_group, click.Group):
         for cmd_name, cmd_obj in click_group.commands.items():
             if isinstance(cmd_obj, click.Group):
+                if (
+                    cmd_name in group_alias_to_primary
+                    and group_alias_to_primary[cmd_name] != cmd_name
+                ):
+                    continue
                 groups[cmd_name] = (
                     getattr(cmd_obj, "help", f"Commands for {cmd_name}")
                     or f"Commands for {cmd_name}"
@@ -117,7 +111,41 @@ def list_commands(app: typer.Typer, prefix_filter: str | None = None) -> None:
 
     help_flags = "--help, -h"
     all_option_flags = [help_flags] + option_flags
-    all_display_names = [cmd["display_name"] for cmd in commands] + list(groups.keys())
+    group_entries: list[CommandEntry] = []
+    for group_name, group_help in groups.items():
+        aliases = group_alias_registry.get(group_name, list[str]())
+        group_entries.append(
+            {
+                "name": group_name,
+                "display_name": _format_display_name(group_name, aliases),
+                "help": group_help,
+                "aliases": aliases,
+            }
+        )
+
+    if prefix_filter:
+        filtered = [
+            c
+            for c in commands
+            if c["name"].startswith(prefix_filter)
+            or any(alias.startswith(prefix_filter) for alias in c["aliases"])
+        ]
+        filtered_groups = [
+            g
+            for g in group_entries
+            if g["name"].startswith(prefix_filter)
+            or any(alias.startswith(prefix_filter) for alias in g["aliases"])
+        ]
+        if not filtered and not filtered_groups:
+            console.print(f"  [dim]No commands found for '{prefix_filter}'[/dim]")
+            console.print()
+            return
+        commands = filtered
+        group_entries = filtered_groups
+
+    all_display_names = [cmd["display_name"] for cmd in commands] + [
+        entry["display_name"] for entry in group_entries
+    ]
     all_labels = all_display_names + all_option_flags
     longest_label_length = max((len(label) for label in all_labels), default=0)
 
@@ -147,8 +175,9 @@ def list_commands(app: typer.Typer, prefix_filter: str | None = None) -> None:
     if not prefix_filter:
         console.print(f"[bold {COLOR.SECONDARY}]Available commands:")
 
+    group_names = set(groups.keys())
     top_level: list[CommandEntry] = [
-        c for c in commands if ":" not in c["name"] and c["name"] not in groups
+        c for c in commands if ":" not in c["name"] and c["name"] not in group_names
     ]
     with_colon: list[CommandEntry] = [c for c in commands if ":" in c["name"]]
 
@@ -160,15 +189,7 @@ def list_commands(app: typer.Typer, prefix_filter: str | None = None) -> None:
             f"  [{COLOR.COMMAND} not bold]{display_name}[/{COLOR.COMMAND} not bold]{padding}{cmd['help']}"
         )
 
-    for group_name, group_help in groups.items():
-        top_level.append(
-            {
-                "name": group_name,
-                "display_name": group_name,
-                "help": group_help,
-                "aliases": [],
-            }
-        )
+    top_level.extend(group_entries)
 
     top_level.sort(key=lambda x: x["name"])
 
@@ -288,6 +309,11 @@ def list_group_commands(group_app: typer.Typer, group_name: str) -> None:
 
 def _get_alias_registry(app: typer.Typer) -> dict[str, list[str]]:
     registry = getattr(app, "_usecli_aliases", {})
+    return registry if isinstance(registry, dict) else {}
+
+
+def _get_group_alias_registry(app: typer.Typer) -> dict[str, list[str]]:
+    registry = getattr(app, "_usecli_group_aliases", {})
     return registry if isinstance(registry, dict) else {}
 
 
