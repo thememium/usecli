@@ -8,10 +8,12 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     npx changelogen@latest --bump
     VERSION=$(node -p "require('./package.json').version")
     uv version "$VERSION"
-    git add CHANGELOG.md package.json pyproject.toml
+    uv lock
+    git add CHANGELOG.md package.json pyproject.toml uv.lock
     git commit -m "chore(uv): update version"
     git tag "v$VERSION"
-    git push --follow-tags
+    git push
+    git push origin "v$VERSION"
     NOTES_FILE=$(mktemp)
     VERSION="$VERSION" uv run python - <<'PY' > "$NOTES_FILE"
 import os
@@ -39,7 +41,12 @@ for idx in range(start + 1, len(lines)):
 section = lines[start:end]
 print("\n".join(section).rstrip())
 PY
-    gh release create "v$VERSION" --notes-file "$NOTES_FILE"
+    TARGET_SHA=$(git rev-parse "v$VERSION")
+    if gh release view "v$VERSION" >/dev/null 2>&1; then
+        gh release edit "v$VERSION" --notes-file "$NOTES_FILE"
+    else
+        gh release create "v$VERSION" --target "$TARGET_SHA" --notes-file "$NOTES_FILE"
+    fi
 else
     echo "Release cancelled."
 fi
