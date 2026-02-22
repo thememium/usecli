@@ -45,7 +45,13 @@ def init_command(mock_console):
             "usecli.cli.commands.init_command.terminal_menu"
         ) as mock_terminal_menu:
             mock_prompt.side_effect = lambda *args, **kwargs: kwargs.get("default", "")
-            mock_terminal_menu.return_value = ["big"]
+
+            def _menu_side_effect(options, *args, **kwargs):
+                if isinstance(options, list) and "big" in options:
+                    return ["big"]
+                return ["default"]
+
+            mock_terminal_menu.side_effect = _menu_side_effect
             mock_app = MagicMock()
             yield InitCommand(mock_app)
 

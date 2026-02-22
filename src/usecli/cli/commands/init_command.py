@@ -283,6 +283,133 @@ class InitCommand(BaseCommand):
         fonts = pyfiglet.FigletFont.getFonts()
         return sorted(fonts)
 
+    def _hex_to_rgb(self, value: str) -> tuple[int, int, int] | None:
+        if not isinstance(value, str):
+            return None
+        value = value.strip()
+        if not value:
+            return None
+        if value.startswith("#"):
+            value = value[1:]
+        if len(value) == 3:
+            value = "".join(ch * 2 for ch in value)
+        if len(value) != 6:
+            return None
+        try:
+            r = int(value[0:2], 16)
+            g = int(value[2:4], 16)
+            b = int(value[4:6], 16)
+        except ValueError:
+            return None
+        return r, g, b
+
+    def _ansi_from_hex(self, value: str, *, background: bool = False) -> str | None:
+        rgb = self._hex_to_rgb(value)
+        if rgb is None:
+            return None
+        r, g, b = rgb
+        prefix = "48" if background else "38"
+        return f"\033[{prefix};2;{r};{g};{b}m"
+
+    def _load_theme_colors(self, theme_path: Path) -> dict[str, str]:
+        try:
+            data = tomllib.loads(theme_path.read_text())
+        except (tomllib.TOMLDecodeError, OSError):
+            return {}
+        colors = data.get("colors", {})
+        if not isinstance(colors, dict):
+            return {}
+        return {key: value for key, value in colors.items() if isinstance(value, str)}
+
+    def _format_theme_color_line(
+        self, label: str, value: str, *, background: bool = False
+    ) -> str:
+        ansi = self._ansi_from_hex(value, background=background) if value else None
+        reset = "\033[0m" if ansi else ""
+        if ansi:
+            if background:
+                swatch = f"{ansi}##{reset}"
+            else:
+                swatch = f"{ansi}##{reset}"
+        else:
+            swatch = "##"
+        display_value = value if value else "--"
+        return f"{label:<16} {swatch} {display_value}"
+
+    def _render_theme_preview(self, theme_path: Path | None) -> str:
+        if theme_path is None:
+            return "Theme preview unavailable."
+        colors = self._load_theme_colors(theme_path)
+        lines = [f"Theme: {theme_path.stem}", ""]
+        palette = [
+            ("primary", "Primary", False),
+            ("secondary", "Secondary", False),
+            ("accent", "Accent", False),
+            ("success", "Success", False),
+            ("warning", "Warning", False),
+            ("error", "Error", False),
+            ("info", "Info", False),
+            ("foreground", "Foreground", False),
+            ("foreground_muted", "Muted", False),
+            ("background", "Background", True),
+            ("border", "Border", False),
+            ("panel_primary", "Panel Primary", False),
+            ("panel_secondary", "Panel Secondary", False),
+            ("panel_accent", "Panel Accent", False),
+            ("command", "Command", False),
+            ("option", "Option", False),
+            ("link", "Link", False),
+            ("prompt", "Prompt", False),
+        ]
+        for key, label, background in palette:
+            lines.append(
+                self._format_theme_color_line(
+                    label, colors.get(key, ""), background=background
+                )
+            )
+        return "\n".join(lines)
+
+    def _get_theme_files(self, themes_path: Path) -> list[Path]:
+        theme_dirs = [themes_path, THEMES_DIR]
+        theme_map: dict[str, Path] = {}
+        for theme_dir in theme_dirs:
+            if not theme_dir.exists():
+                continue
+            for path in theme_dir.glob("*.toml"):
+                if not path.is_file():
+                    continue
+                name = path.stem
+                if name not in theme_map:
+                    theme_map[name] = path
+        return [theme_map[name] for name in sorted(theme_map.keys(), key=str.lower)]
+
+    def _prompt_theme(self, themes_path: Path, default_theme: str = "default") -> str:
+        theme_files = self._get_theme_files(themes_path)
+        if not theme_files:
+            return default_theme
+        theme_names = [path.stem for path in theme_files]
+        theme_map = {path.stem: path for path in theme_files}
+        console.print(
+            f"[bold {COLOR.SECONDARY}]Select a theme for your CLI[/bold {COLOR.SECONDARY}]"
+        )
+        selection = terminal_menu(
+            theme_names,
+            search=True,
+            search_key="/",
+            show_search_hint=False,
+            status_bar="Enter = select | / = search | J/K = move | D/U = page | Esc = quit",
+            preview_command=lambda value: self._render_theme_preview(
+                theme_map.get(value)
+            ),
+            preview_size=0.70,
+        )
+        selected_theme = selection[0] if selection else default_theme
+        console.print()
+        console.print(
+            f"[bold {COLOR.PRIMARY}]Selected theme:[/bold {COLOR.PRIMARY}] {selected_theme}"
+        )
+        return selected_theme
+
     def _prompt_title_font(self, title: str, default_font: str = "big") -> str:
         fonts = self._get_figlet_fonts()
         console.print(
@@ -473,21 +600,6 @@ include = ["{root_package}*"]
                 f"[{COLOR.SUCCESS}]Added __init__.py files for package discovery[/{COLOR.SUCCESS}]"
             )
 
-        # Load the template
-        template_path = Path(__file__).parent.parent / "templates" / "usecli.toml.j2"
-        template_content = template_path.read_text()
-        template = Template(template_content)
-
-        # Render the config
-        config_content = template.render(
-            title=title,
-            description=description,
-            commands_dir=commands_dir,
-            templates_dir=templates_dir,
-            themes_dir=themes_dir,
-            title_font=title_font,
-        )
-
         make_template_path = templates_path / "command.py.j2"
         if not make_template_path.exists():
             shutil.copy(TEMPLATES_DIR / "command.py.j2", make_template_path)
@@ -509,6 +621,25 @@ include = ["{root_package}*"]
             console.print(
                 f"[{COLOR.WARNING}]Default theme already exists:[/{COLOR.WARNING}] {theme_template_path}"
             )
+
+        console.print()
+        theme = self._prompt_theme(themes_path)
+
+        # Load the template
+        template_path = Path(__file__).parent.parent / "templates" / "usecli.toml.j2"
+        template_content = template_path.read_text()
+        template = Template(template_content)
+
+        # Render the config
+        config_content = template.render(
+            title=title,
+            description=description,
+            commands_dir=commands_dir,
+            templates_dir=templates_dir,
+            themes_dir=themes_dir,
+            title_font=title_font,
+            theme=theme,
+        )
 
         # Check if config already exists
         existing_source = self._get_config_source(pyproject_path)
