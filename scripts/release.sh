@@ -8,6 +8,7 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     npx changelogen@latest --bump
     VERSION=$(node -p "require('./package.json').version")
     uv version "$VERSION"
+    uv sync
     uv lock
     git add CHANGELOG.md package.json pyproject.toml uv.lock
     git commit -m "chore(uv): update version"
