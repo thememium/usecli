@@ -1,6 +1,22 @@
 # Changelog
 
 
+## v0.1.27
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.26...v0.1.27)
+
+### 🚀 Enhancements
+
+- **usecli:** Expose colors module and use theme constants in CLI templates ([427df74](https://github.com/thememium/usecli/commit/427df74))
+
+### 🎨 Styles
+
+- **command.py.j2:** Split long console.print statements across lines for readability ([afd38bf](https://github.com/thememium/usecli/commit/afd38bf))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.26
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.25...v0.1.26)
