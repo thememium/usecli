@@ -1,6 +1,35 @@
 # Changelog
 
 
+## v0.1.22
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.21...v0.1.22)
+
+### 📖 Documentation
+
+- **readme:** Clarify installation and usage instructions ([3ba6b63](https://github.com/thememium/usecli/commit/3ba6b63))
+- **readme:** Update guide links to absolute URLs ([f204ad8](https://github.com/thememium/usecli/commit/f204ad8))
+
+### 🏡 Chore
+
+- **uv:** Update version ([3057b46](https://github.com/thememium/usecli/commit/3057b46))
+
+### ✅ Tests
+
+- **tests:** Add smoke test suite for basic package validation ([d339975](https://github.com/thememium/usecli/commit/d339975))
+
+### 🎨 Styles
+
+- **tests:** Relocate PLC0415 noqa comment to Confirm import line ([f9532d1](https://github.com/thememium/usecli/commit/f9532d1))
+
+### 🤖 CI
+
+- **publish:** Add GitHub Actions workflow to publish package on version tags ([23ce721](https://github.com/thememium/usecli/commit/23ce721))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.21
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.20...v0.1.21)
