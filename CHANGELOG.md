@@ -1,6 +1,31 @@
 # Changelog
 
 
+## v0.1.24
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.23...v0.1.24)
+
+### 🚀 Enhancements
+
+- **scripts/release.sh:** Generate GitHub release notes from CHANGELOG ([78aad58](https://github.com/thememium/usecli/commit/78aad58))
+
+### 🏡 Chore
+
+- **uv:** Update version ([77993f9](https://github.com/thememium/usecli/commit/77993f9))
+- **release:** Bump version, tag and create GitHub release ([4860d57](https://github.com/thememium/usecli/commit/4860d57))
+
+### 🎨 Styles
+
+- **tests:** Reorder Confirm import to top‑level import block ([f867ed5](https://github.com/thememium/usecli/commit/f867ed5))
+
+### 🤖 CI
+
+- **publish.yml:** Add Python 3.10 installation step ([83ad623](https://github.com/thememium/usecli/commit/83ad623))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.23
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.22...v0.1.23)
