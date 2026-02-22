@@ -12,6 +12,7 @@ from rich.console import Console
 from typer.core import TyperCommand
 
 from usecli.cli.config.colors import COLOR
+from usecli.cli.core.ui.title import get_script_command_name
 
 if TYPE_CHECKING:
     from click.core import Context as ClickContext
@@ -223,7 +224,8 @@ class CustomHelpCommand(TyperCommand):
         ]
 
         arg_usage = " ".join(rf"\[{name.upper()}]" for name in argument_names)
-        usage = f"  [bold {COLOR.WARNING}]usecli {self.name}[/bold {COLOR.WARNING}] [bold {COLOR.PRIMARY}][OPTIONS]{f' {arg_usage}' if arg_usage else ''}[/bold {COLOR.PRIMARY}]"
+        command_name = get_script_command_name(default="usecli") or "usecli"
+        usage = f"  [bold {COLOR.WARNING}]{command_name} {self.name}[/bold {COLOR.WARNING}] [bold {COLOR.PRIMARY}][OPTIONS]{f' {arg_usage}' if arg_usage else ''}[/bold {COLOR.PRIMARY}]"
 
         console.print()
         console.print(f"[bold {COLOR.SECONDARY}]Usage:[/bold {COLOR.SECONDARY}]")

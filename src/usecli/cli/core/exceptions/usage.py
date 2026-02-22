@@ -5,12 +5,27 @@ from __future__ import annotations
 import sys
 from typing import IO
 
+from click.core import Context as ClickContext
 from click.exceptions import BadParameter, UsageError
 from rich.console import Console
 
 from usecli.cli.config.colors import COLOR
+from usecli.cli.core.ui.title import get_script_command_name
 
 console = Console(stderr=True)
+
+
+def _get_help_text_with_command_name(ctx: ClickContext) -> str:
+    command_name = get_script_command_name(default=getattr(ctx, "info_name", None))
+    if not command_name:
+        return ctx.get_help()
+
+    original_info_name = getattr(ctx, "info_name", None)
+    try:
+        ctx.info_name = command_name
+        return ctx.get_help()
+    finally:
+        ctx.info_name = original_info_name
 
 
 class UsecliUsageError(UsageError):
@@ -35,7 +50,7 @@ class UsecliUsageError(UsageError):
 
         if self.ctx:
             console.print()
-            help_text = self.ctx.get_help()
+            help_text = _get_help_text_with_command_name(self.ctx)
             console.print(help_text)
 
 
@@ -64,5 +79,5 @@ class UsecliBadParameter(BadParameter):
         console.print(f"{error_prefix} {error_msg}")
 
         if self.ctx:
-            help_text = self.ctx.get_help()
+            help_text = _get_help_text_with_command_name(self.ctx)
             console.print(help_text)
