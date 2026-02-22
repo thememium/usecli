@@ -89,7 +89,7 @@ class NestedCommandRegistry:
                 False,
                 "--interactive",
                 "-i",
-                help="Run in interactive mode",
+                help="Run in interactive mode.",
             ),
         ) -> None:
             """Callback for the command group."""
@@ -182,7 +182,7 @@ class CustomHelpCommand(TyperCommand):
                 Option(
                     ["--interactive", "-i"],
                     is_flag=True,
-                    help="Run in interactive mode",
+                    help="Run in interactive mode.",
                 )
             )
 

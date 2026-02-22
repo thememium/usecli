@@ -192,7 +192,7 @@ def run_app(
     ),
     help: bool = typer.Option(None, "--help", "-h", is_eager=True),
     interactive: bool = typer.Option(
-        False, "--interactive", "-i", help="Run in interactive mode", is_eager=True
+        False, "--interactive", "-i", help="Run in interactive mode.", is_eager=True
     ),
 ) -> None:
     """Main callback for the CLI application.
