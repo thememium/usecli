@@ -11,6 +11,8 @@ Tests cover:
 import re
 from unittest.mock import Mock, patch
 
+import click
+
 from usecli.cli.config.colors import COLOR
 from usecli.cli.core.ui.list import list_commands, list_group_commands
 
@@ -254,6 +256,54 @@ class TestListCommands:
 
         assert "show, s" in combined_output
         assert f"[{COLOR.COMMAND}]s[/{COLOR.COMMAND}]" not in combined_output
+
+    @patch("usecli.cli.core.ui.list.print_title")
+    @patch("usecli.cli.core.ui.list.console")
+    @patch("usecli.cli.core.ui.list.typer.main.get_command")
+    def test_list_commands_displays_group_aliases(
+        self, mock_get_command, mock_console, mock_print_title
+    ):
+        app = Mock()
+        app.registered_commands = []
+        app._usecli_group_aliases = {"spec": ["sp"]}
+
+        click_group = click.Group("root")
+        click_group.params = []
+        group = click.Group("spec")
+        group.help = "Commands for spec"
+        click_group.commands = {"spec": group}
+        mock_get_command.return_value = click_group
+
+        list_commands(app)
+
+        print_calls = [str(call) for call in mock_console.print.call_args_list]
+        combined_output = "\n".join(print_calls)
+
+        assert "spec, sp" in combined_output
+
+    @patch("usecli.cli.core.ui.list.print_title")
+    @patch("usecli.cli.core.ui.list.console")
+    @patch("usecli.cli.core.ui.list.typer.main.get_command")
+    def test_list_commands_prefix_filter_matches_group_alias(
+        self, mock_get_command, mock_console, mock_print_title
+    ):
+        app = Mock()
+        app.registered_commands = []
+        app._usecli_group_aliases = {"spec": ["sp"]}
+
+        click_group = click.Group("root")
+        click_group.params = []
+        group = click.Group("spec")
+        group.help = "Commands for spec"
+        click_group.commands = {"spec": group}
+        mock_get_command.return_value = click_group
+
+        list_commands(app, prefix_filter="sp")
+
+        print_calls = [str(call) for call in mock_console.print.call_args_list]
+        combined_output = "\n".join(print_calls)
+
+        assert "spec, sp" in combined_output
 
     @patch("usecli.cli.core.ui.list.print_title")
     @patch("usecli.cli.core.ui.list.console")

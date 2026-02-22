@@ -828,6 +828,37 @@ class TestNestedCommandRegistration:
         command_names = [cmd.name for cmd in group_app.registered_commands]
         assert "list" in command_names
 
+    def test_nested_command_registers_group_and_subcommand_aliases(self):
+        from usecli.cli.core.base_command import NestedCommandRegistry
+
+        registry = NestedCommandRegistry()
+        registry._groups = {}
+        registry._group_commands = {}
+
+        app = typer.Typer()
+
+        class NestedAliasCommand(BaseCommand):
+            def handle(self, *args, **kwargs):
+                pass
+
+            def signature(self) -> str:
+                return "spec show"
+
+            def description(self) -> str:
+                return "Show spec"
+
+            def aliases(self) -> list[str]:
+                return ["spec s", "sp show", "sp s"]
+
+        NestedAliasCommand(app=app)
+
+        group_app = registry._groups["spec"]
+        alias_registry = getattr(group_app, "_usecli_aliases")
+        assert alias_registry["show"] == ["s"]
+
+        group_alias_registry = getattr(app, "_usecli_group_aliases")
+        assert group_alias_registry["spec"] == ["sp"]
+
     def test_single_level_command_not_affected(self):
         """Test that single-level commands still work correctly."""
         mock_app = MagicMock()
