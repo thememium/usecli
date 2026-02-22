@@ -48,10 +48,16 @@ useCli A powerful Python CLI framework for building beautiful, developer-friendl
 
 ## Quick Start
 
-### Install usecli:
+### Install usecli with uv (recommended)
 
 ```sh
 uv add usecli
+```
+
+### Install with pip (alternative)
+
+```sh
+pip install usecli
 ```
 
 ### Initialize
