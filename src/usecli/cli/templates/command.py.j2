@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from usecli import Argument, BaseCommand, Confirm, Menu, Option, Prompt, console
+from usecli import Argument, BaseCommand, Confirm, Menu, Option, Prompt, console, theme
 
 
 class {{ class_name }}(BaseCommand):
@@ -17,7 +17,9 @@ class {{ class_name }}(BaseCommand):
         name: str = Argument(..., help="An example argument"),
         verbose: bool = Option(False, "--verbose", "-v", help="Enable verbose output"),
     ) -> None:
-        console.print("[bold green]Executing {{ command_name }}[/bold green]")
+        console.print(
+            f"[bold {theme.SUCCESS}]Executing {{ command_name }}[/bold {theme.SUCCESS}]"
+        )
         console.print(f"Hello, {name}!")
 
         if verbose:
@@ -28,14 +30,14 @@ class {{ class_name }}(BaseCommand):
             "What's your favorite color?",
             choices=["red", "green", "blue", "yellow"],
         )
-        console.print(f"You chose: [bold]{favorite_color}[/bold]")
+        console.print(f"You chose: [bold {theme.ACCENT}]{favorite_color}[/bold {theme.ACCENT}]")
 
         # Example: Confirmation prompt (only when verbose)
         if verbose:
             if not Confirm.ask("Do you want to continue?"):
-                console.print("[yellow]Cancelled by user[/yellow]")
+                console.print(f"[{theme.WARNING}]Cancelled by user[/{theme.WARNING}]")
                 return
-            console.print("[green]Proceeding...[/green]")
+            console.print(f"[{theme.SUCCESS}]Proceeding...[/{theme.SUCCESS}]")
 
         # Example: Single-select menu
         single_choice = Menu.select(
@@ -55,4 +57,4 @@ class {{ class_name }}(BaseCommand):
             for choice in multi_choices:
                 console.print(f"  - {choice}")
 
-        console.print("[bold blue]Command completed![/bold blue]")
+        console.print(f"[bold {theme.PRIMARY}]Command completed![/bold {theme.PRIMARY}]")

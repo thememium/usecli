@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import sys
+from importlib import import_module
 
 import click
 import typer
 from click.exceptions import BadParameter, ClickException, UsageError
 from typer.core import TyperGroup
 
+from usecli.cli.config.colors import COLOR
 from usecli.cli.core.base_command import BaseCommand
 from usecli.cli.core.exceptions import UsecliBadParameter, UsecliUsageError
 from usecli.cli.core.ui.list import list_commands
@@ -16,6 +18,12 @@ from usecli.cli.services.command_service import CommandService
 from usecli.menu import Menu
 from usecli.params import Argument, Option
 from usecli.ui import Confirm, Console, Prompt, console
+
+colors = import_module("usecli.cli.config.colors")
+theme = COLOR
+
+sys.modules.setdefault(__name__ + ".colors", colors)
+sys.modules.setdefault("colors", colors)
 
 __all__ = [
     "BaseCommand",
@@ -27,6 +35,8 @@ __all__ = [
     "Option",
     "Prompt",
     "Confirm",
+    "colors",
+    "theme",
 ]
 
 
