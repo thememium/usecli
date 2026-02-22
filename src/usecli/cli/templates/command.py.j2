@@ -30,7 +30,9 @@ class {{ class_name }}(BaseCommand):
             "What's your favorite color?",
             choices=["red", "green", "blue", "yellow"],
         )
-        console.print(f"You chose: [bold {theme.ACCENT}]{favorite_color}[/bold {theme.ACCENT}]")
+        console.print(
+            f"You chose: [bold {theme.ACCENT}]{favorite_color}[/bold {theme.ACCENT}]"
+        )
 
         # Example: Confirmation prompt (only when verbose)
         if verbose:
@@ -57,4 +59,6 @@ class {{ class_name }}(BaseCommand):
             for choice in multi_choices:
                 console.print(f"  - {choice}")
 
-        console.print(f"[bold {theme.PRIMARY}]Command completed![/bold {theme.PRIMARY}]")
+        console.print(
+            f"[bold {theme.PRIMARY}]Command completed![/bold {theme.PRIMARY}]"
+        )
