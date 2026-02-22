@@ -381,7 +381,13 @@ class InitCommand(BaseCommand):
                 name = path.stem
                 if name not in theme_map:
                     theme_map[name] = path
-        return [theme_map[name] for name in sorted(theme_map.keys(), key=str.lower)]
+        return [
+            theme_map[name]
+            for name in sorted(
+                theme_map.keys(),
+                key=lambda name: (name.lower() != "default", name.lower()),
+            )
+        ]
 
     def _prompt_theme(self, themes_path: Path, default_theme: str = "default") -> str:
         theme_files = self._get_theme_files(themes_path)
@@ -564,6 +570,9 @@ include = ["{root_package}*"]
             else project_root / themes_dir
         )
 
+        console.print()
+        theme = self._prompt_theme(themes_path)
+
         # Create the commands directory
         if not commands_path.exists():
             commands_path.mkdir(parents=True, exist_ok=True)
@@ -621,9 +630,6 @@ include = ["{root_package}*"]
             console.print(
                 f"[{COLOR.WARNING}]Default theme already exists:[/{COLOR.WARNING}] {theme_template_path}"
             )
-
-        console.print()
-        theme = self._prompt_theme(themes_path)
 
         # Load the template
         template_path = Path(__file__).parent.parent / "templates" / "usecli.toml.j2"
