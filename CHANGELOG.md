@@ -1,6 +1,27 @@
 # Changelog
 
 
+## v0.1.26
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.25...v0.1.26)
+
+### 🚀 Enhancements
+
+- **cli:** Parse dependency specifiers and show them in `about` output ([578d591](https://github.com/thememium/usecli/commit/578d591))
+- **cli:** Add optional packaging.requirements parser for dependency parsing ([66bd7e8](https://github.com/thememium/usecli/commit/66bd7e8))
+
+### 💅 Refactors
+
+- **about_command:** Remove unused packaging parser and related imports ([4ac0259](https://github.com/thememium/usecli/commit/4ac0259))
+
+### 📖 Documentation
+
+- **readme:** Improve project description for better clarity ([ffee54b](https://github.com/thememium/usecli/commit/ffee54b))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.25
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.24...v0.1.25)
