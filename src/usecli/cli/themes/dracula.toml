@@ -1,20 +1,24 @@
 [colors]
+# Core semantic colors
 primary = "#bd93f9"
 secondary = "#50fa7b"
 accent = "#ffb86c"
 
-success = "#50fa7b"
-error = "#ff5555"
-warning = "#f1fa8c"
-info = "#8be9fd"
+success = "#50fa7b" # Green
+error = "#ff5555"   # Red
+warning = "#f1fa8c" # Yellow
+info = "#8be9fd"    # Teal / Blue
 
-foreground = "#f8f8f2"
-foreground_muted = "#6272a4"
+# Text
+foreground = "#f8f8f2"       # Text
+foreground_muted = "#6272a4" # Subtext
 
-background = "#282a36"
-border = "#44475a"
-border_focus = "#50fa7b"
+# Surfaces
+background = "#282a36"   # Base
+border = "#44475a"       # Surface
+border_focus = "#50fa7b" # Focus Ring
 
+# UI semantics
 command = "#bd93f9"
 option = "#bd93f9"
 link = "#bd93f9"
