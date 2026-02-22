@@ -137,7 +137,7 @@ def list_commands(app: typer.Typer, prefix_filter: str | None = None) -> None:
             flags = ", ".join(param.opts)
             if "--help" in flags:
                 continue
-            description = getattr(param, "help", "") or ""
+            description = _get_option_description(param)
             padding = " " * (longest_label_length - len(flags) + SPACER_LENGTH)
             console.print(
                 f"  [{COLOR.OPTION}]{flags}[/{COLOR.OPTION}]{padding}{description}"
@@ -267,7 +267,7 @@ def list_group_commands(group_app: typer.Typer, group_name: str) -> None:
             flags = ", ".join(param.opts)
             if "--help" in flags:
                 continue
-            description = getattr(param, "help", "") or ""
+            description = _get_option_description(param)
             padding = " " * (longest_label_length - len(flags) + SPACER_LENGTH)
             console.print(
                 f"  [{COLOR.OPTION}]{flags}[/{COLOR.OPTION}]{padding}{description}"
@@ -289,6 +289,12 @@ def list_group_commands(group_app: typer.Typer, group_name: str) -> None:
 def _get_alias_registry(app: typer.Typer) -> dict[str, list[str]]:
     registry = getattr(app, "_usecli_aliases", {})
     return registry if isinstance(registry, dict) else {}
+
+
+def _get_option_description(param: click.Parameter) -> str:
+    if "--show-completion" in param.opts:
+        return "Show completion for the current shell."
+    return getattr(param, "help", "") or ""
 
 
 def _order_completion_params(
