@@ -18,6 +18,7 @@ from click.exceptions import Exit
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 from usecli.cli.config.colors import COLOR
+from usecli.cli.core import base_command
 from usecli.cli.core.base_command import BaseCommand, CustomHelpCommand
 
 # =============================================================================
@@ -376,7 +377,7 @@ class ConcreteCommand(BaseCommand):
 
     def handle(self, *args, **kwargs):
         """Implement abstract handle method."""
-        return "handled"
+        return None
 
     def signature(self) -> str:
         """Implement abstract signature method."""
@@ -392,7 +393,7 @@ class AnotherConcreteCommand(BaseCommand):
 
     def handle(self, *args, **kwargs):
         """Implement abstract handle method."""
-        return "another"
+        return None
 
     def signature(self) -> str:
         """Implement abstract signature method."""
@@ -408,8 +409,9 @@ class TestBaseCommandAbstractMethods:
 
     def test_base_command_cannot_be_instantiated(self):
         """Test BaseCommand is abstract and cannot be instantiated directly."""
+        abstract_cls = getattr(base_command, "BaseCommand")
         with pytest.raises(TypeError):
-            BaseCommand(app=MagicMock())
+            abstract_cls(app=MagicMock())
 
     def test_handle_is_abstract(self):
         """Test handle method is abstract."""
@@ -574,6 +576,32 @@ class TestBaseCommandRegister:
         call_kwargs = mock_app.command.call_args.kwargs
         assert call_kwargs["name"] == "complex-cmd"
 
+    def test_register_creates_aliases(self):
+        class AliasedCommand(BaseCommand):
+            def handle(self, *args, **kwargs):
+                pass
+
+            def signature(self) -> str:
+                return "alias-cmd"
+
+            def description(self) -> str:
+                return "Alias command"
+
+            def aliases(self) -> list[str]:
+                return ["ac"]
+
+        mock_app = MagicMock()
+        mock_app.command = MagicMock(return_value=lambda f: f)
+
+        AliasedCommand(app=mock_app)
+
+        command_names = [
+            call.kwargs["name"] for call in mock_app.command.call_args_list
+        ]
+        assert "alias-cmd" in command_names
+        assert "ac" in command_names
+        assert getattr(mock_app, "_usecli_aliases") == {"alias-cmd": ["ac"]}
+
 
 class TestBaseCommandIntegration:
     """Integration tests for BaseCommand with real Typer app."""
@@ -606,7 +634,7 @@ class TestBaseCommandIntegration:
 
         # Verify handle is callable and returns expected value
         result = cmd.handle()
-        assert result == "handled"
+        assert result is None
 
     def test_help_option_names_match_help_formatting(self):
         """Test help option names used in CustomHelpCommand match expectations."""

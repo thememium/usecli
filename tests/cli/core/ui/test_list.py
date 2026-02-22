@@ -11,7 +11,7 @@ Tests cover:
 from unittest.mock import Mock, patch
 
 from usecli.cli.config.colors import COLOR
-from usecli.cli.core.ui.list import list_commands
+from usecli.cli.core.ui.list import list_commands, list_group_commands
 
 # =============================================================================
 # list_commands() Tests
@@ -111,6 +111,101 @@ class TestListCommands:
 
         assert combined_output.count("duplicate") == 1
         assert "Better help" in combined_output
+
+    @patch("usecli.cli.core.ui.list.print_title")
+    @patch("usecli.cli.core.ui.list.console")
+    @patch("usecli.cli.core.ui.list.typer.main.get_command")
+    def test_list_commands_displays_aliases(
+        self, mock_get_command, mock_console, mock_print_title
+    ):
+        mock_command = Mock()
+        mock_command.name = "run"
+        mock_command.callback = Mock(__name__="run")
+        mock_command.help = "Run the tool"
+
+        alias_command = Mock()
+        alias_command.name = "r"
+        alias_command.callback = Mock(__name__="run")
+        alias_command.help = "Run the tool"
+
+        app = Mock()
+        app.registered_commands = [mock_command, alias_command]
+        app._usecli_aliases = {"run": ["r"]}
+
+        click_group = Mock()
+        click_group.params = []
+        mock_get_command.return_value = click_group
+
+        list_commands(app)
+
+        print_calls = [str(call) for call in mock_console.print.call_args_list]
+        combined_output = "\n".join(print_calls)
+
+        assert "run, r" in combined_output
+        assert (
+            f"[{COLOR.COMMAND} not bold]r[/{COLOR.COMMAND} not bold]"
+            not in combined_output
+        )
+
+    @patch("usecli.cli.core.ui.list.print_title")
+    @patch("usecli.cli.core.ui.list.console")
+    @patch("usecli.cli.core.ui.list.typer.main.get_command")
+    def test_list_commands_prefix_filter_matches_alias(
+        self, mock_get_command, mock_console, mock_print_title
+    ):
+        mock_command = Mock()
+        mock_command.name = "run"
+        mock_command.callback = Mock(__name__="run")
+        mock_command.help = "Run the tool"
+
+        alias_command = Mock()
+        alias_command.name = "r"
+        alias_command.callback = Mock(__name__="run")
+        alias_command.help = "Run the tool"
+
+        app = Mock()
+        app.registered_commands = [mock_command, alias_command]
+        app._usecli_aliases = {"run": ["r"]}
+
+        click_group = Mock()
+        click_group.params = []
+        mock_get_command.return_value = click_group
+
+        list_commands(app, prefix_filter="r")
+
+        print_calls = [str(call) for call in mock_console.print.call_args_list]
+        combined_output = "\n".join(print_calls)
+
+        assert "run, r" in combined_output
+
+    @patch("usecli.cli.core.ui.list.console")
+    @patch("usecli.cli.core.ui.list.typer.main.get_command")
+    def test_list_group_commands_displays_aliases(self, mock_get_command, mock_console):
+        mock_command = Mock()
+        mock_command.name = "show"
+        mock_command.callback = Mock(__name__="show")
+        mock_command.help = "Show item"
+
+        alias_command = Mock()
+        alias_command.name = "s"
+        alias_command.callback = Mock(__name__="show")
+        alias_command.help = "Show item"
+
+        group_app = Mock()
+        group_app.registered_commands = [mock_command, alias_command]
+        group_app._usecli_aliases = {"show": ["s"]}
+
+        click_group = Mock()
+        click_group.params = []
+        mock_get_command.return_value = click_group
+
+        list_group_commands(group_app, group_name="spec")
+
+        print_calls = [str(call) for call in mock_console.print.call_args_list]
+        combined_output = "\n".join(print_calls)
+
+        assert "show, s" in combined_output
+        assert f"[{COLOR.COMMAND}]s[/{COLOR.COMMAND}]" not in combined_output
 
     @patch("usecli.cli.core.ui.list.print_title")
     @patch("usecli.cli.core.ui.list.console")
