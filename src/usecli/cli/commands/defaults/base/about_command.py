@@ -6,6 +6,7 @@ import sys
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as get_version
 from pathlib import Path
+from typing import Callable
 
 if sys.version_info >= (3, 11):
     import tomllib
@@ -21,6 +22,29 @@ from usecli.shared.config.manager import ConfigManager, get_config
 
 console = Console()
 
+RequirementParser = Callable[[str], tuple[str, str | None]]
+
+
+def _try_packaging_parser() -> RequirementParser | None:
+    try:
+        from packaging.requirements import Requirement
+    except Exception:
+        return None
+
+    def _parse(req: str) -> tuple[str, str | None]:
+        parsed = Requirement(req)
+        spec = None
+        if parsed.url:
+            spec = f"@ {parsed.url}"
+        elif parsed.specifier:
+            spec = str(parsed.specifier)
+        return parsed.name, spec
+
+    return _parse
+
+
+_PACKAGING_PARSER = _try_packaging_parser()
+
 
 def _get_version() -> str:
     try:
@@ -33,6 +57,12 @@ def _parse_dependency_requirement(req: str) -> tuple[str, str | None]:
     req_core = req.split(";", 1)[0].strip()
     if not req_core:
         return "", None
+
+    if _PACKAGING_PARSER is not None:
+        try:
+            return _PACKAGING_PARSER(req_core)
+        except Exception:
+            pass
 
     match = re.match(r"^([A-Za-z0-9_.-]+)", req_core)
     if not match:
