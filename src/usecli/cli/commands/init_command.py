@@ -265,7 +265,9 @@ class InitCommand(BaseCommand):
         return data.get("project", {}).get("name")
 
     def _prompt_command_name(self, command_name: str) -> str:
-        prompt_text = f"[bold {COLOR.SECONDARY}]Project script command name[/bold {COLOR.SECONDARY}]"
+        prompt_text = (
+            f"[bold {COLOR.SECONDARY}]CLI command name[/bold {COLOR.SECONDARY}]"
+        )
         first_attempt = True
         while True:
             if not first_attempt:
@@ -458,12 +460,6 @@ version = "0.1.0"
 description = "{description}"
 readme = "README.md"
 requires-python = ">=3.10"
-classifiers = [
-    "Programming Language :: Python :: 3",
-    "Operating System :: OS Independent",
-    "Development Status :: 3 - Alpha",
-    "Intended Audience :: Developers",
-]
 dependencies = [
     "usecli",
 ]
@@ -522,6 +518,8 @@ include = ["{root_package}*"]
         if project_name and title == "Use CLI":
             title = project_name
 
+        console.print()
+        console.print(f"[bold {COLOR.PRIMARY}]CLI identity[/bold {COLOR.PRIMARY}]")
         command_name = self._prompt_command_name(command_name)
         console.print()
         title = Prompt.ask(
@@ -529,16 +527,12 @@ include = ["{root_package}*"]
             default=title if title != "Use CLI" else command_name,
         )
         console.print()
-        title_font = self._prompt_title_font(title)
-        raw_title = pyfiglet.figlet_format(text=title, font=title_font)
-        title_text = "\n".join(" " + line for line in raw_title.split("\n"))
-        console.print()
-        console.print(f"[{COLOR.PRIMARY}]{title_text}")
         description = Prompt.ask(
             f"[bold {COLOR.SECONDARY}]CLI description[/bold {COLOR.SECONDARY}]",
             default=description,
         )
         console.print()
+        console.print(f"[bold {COLOR.PRIMARY}]Project structure[/bold {COLOR.PRIMARY}]")
         commands_dir = Prompt.ask(
             f"[bold {COLOR.SECONDARY}]Commands directory[/bold {COLOR.SECONDARY}]",
             default=commands_dir,
@@ -570,8 +564,30 @@ include = ["{root_package}*"]
             else project_root / themes_dir
         )
 
+        console.print(f"[bold {COLOR.PRIMARY}]Branding[/bold {COLOR.PRIMARY}]")
         console.print()
         theme = self._prompt_theme(themes_path)
+        console.print()
+        title_font = self._prompt_title_font(title)
+        raw_title = pyfiglet.figlet_format(text=title, font=title_font)
+        title_text = "\n".join(" " + line for line in raw_title.split("\n"))
+        console.print()
+        console.print(f"[{COLOR.PRIMARY}]{title_text}")
+
+        # Check if config already exists
+        existing_source = self._get_config_source(pyproject_path)
+
+        if existing_source and not force:
+            should_overwrite = Confirm.ask(
+                f"[{COLOR.WARNING}]usecli config already exists in {existing_source}.[/{COLOR.WARNING}]\n"
+                f"Do you want to overwrite it?",
+                default=False,
+            )
+            if not should_overwrite:
+                console.print(
+                    f"[{COLOR.WARNING}]Skipping config update.[/{COLOR.WARNING}]"
+                )
+                return
 
         # Create the commands directory
         if not commands_path.exists():
@@ -646,21 +662,6 @@ include = ["{root_package}*"]
             title_font=title_font,
             theme=theme,
         )
-
-        # Check if config already exists
-        existing_source = self._get_config_source(pyproject_path)
-
-        if existing_source and not force:
-            should_overwrite = Confirm.ask(
-                f"[{COLOR.WARNING}]usecli config already exists in {existing_source}.[/{COLOR.WARNING}]\n"
-                f"Do you want to overwrite it?",
-                default=False,
-            )
-            if not should_overwrite:
-                console.print(
-                    f"[{COLOR.WARNING}]Skipping config update.[/{COLOR.WARNING}]"
-                )
-                return
 
         scripts_status: str | None = None
 
