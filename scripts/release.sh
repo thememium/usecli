@@ -12,7 +12,34 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     git commit -m "chore(uv): update version"
     git tag "v$VERSION"
     git push --follow-tags
-    gh release create "v$VERSION" --generate-notes
+    NOTES_FILE=$(mktemp)
+    VERSION="$VERSION" uv run python - <<'PY' > "$NOTES_FILE"
+import os
+from pathlib import Path
+
+version = os.environ["VERSION"]
+heading = f"## v{version}"
+lines = Path("CHANGELOG.md").read_text().splitlines()
+
+start = None
+for idx, line in enumerate(lines):
+    if line.strip() == heading:
+        start = idx
+        break
+
+if start is None:
+    raise SystemExit(f"Missing changelog entry for {heading}")
+
+end = None
+for idx in range(start + 1, len(lines)):
+    if lines[idx].startswith("## "):
+        end = idx
+        break
+
+section = lines[start:end]
+print("\n".join(section).rstrip())
+PY
+    gh release create "v$VERSION" --notes-file "$NOTES_FILE"
 else
     echo "Release cancelled."
 fi
