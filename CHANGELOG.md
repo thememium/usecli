@@ -1,6 +1,33 @@
 # Changelog
 
 
+## v0.1.31
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.30...v0.1.31)
+
+### 🚀 Enhancements
+
+- **cli:** Add command alias support and UI enhancements ([2c33dce](https://github.com/thememium/usecli/commit/2c33dce))
+- **cli:** Add aliases method to command template ([a66e671](https://github.com/thememium/usecli/commit/a66e671))
+- **ui/list:** Centralize option description handling and add custom text for --show-completion ([0bcaaeb](https://github.com/thememium/usecli/commit/0bcaaeb))
+
+### 💅 Refactors
+
+- **cli:** Unify spacing logic for list command output ([fbf457d](https://github.com/thememium/usecli/commit/fbf457d))
+- **list.py:** Order completion flags consistently for better UI ([b3acf00](https://github.com/thememium/usecli/commit/b3acf00))
+
+### 📖 Documentation
+
+- **usecli:** Add trailing period to interactive mode help messages ([f3ec46f](https://github.com/thememium/usecli/commit/f3ec46f))
+
+### ✅ Tests
+
+- **cli:** Add comprehensive tests for command aliases and improve BaseCommand references ([887b2d9](https://github.com/thememium/usecli/commit/887b2d9))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.30
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.29...v0.1.30)
