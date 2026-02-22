@@ -12,6 +12,9 @@ class {{ class_name }}(BaseCommand):
     def description(self) -> str:
         return "Description for {{ command_name }} command"
 
+    def aliases(self) -> list[str]:
+        return [{{ command_name[:3] }}]
+
     def handle(
         self,
         name: str = Argument(..., help="An example argument"),
