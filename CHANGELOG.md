@@ -1,6 +1,22 @@
 # Changelog
 
 
+## v0.1.30
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.29...v0.1.30)
+
+### 🚀 Enhancements
+
+- **cli:** Use dynamic script command name in usage and error messages ([b532635](https://github.com/thememium/usecli/commit/b532635))
+
+### 📖 Documentation
+
+- **readme:** Update install instructions to recommend uv and add pip alternative ([318ccc0](https://github.com/thememium/usecli/commit/318ccc0))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.29
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.28...v0.1.29)
