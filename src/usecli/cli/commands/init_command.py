@@ -519,7 +519,12 @@ include = ["{root_package}*"]
             title = project_name
 
         console.print()
-        console.print(f"[bold {COLOR.PRIMARY}]CLI identity[/bold {COLOR.PRIMARY}]")
+        console.rule(
+            title=f"[bold {COLOR.PRIMARY}]── CLI identity[/bold {COLOR.PRIMARY}]",
+            align="left",
+            style=COLOR.PRIMARY,
+        )
+        console.print()
         command_name = self._prompt_command_name(command_name)
         console.print()
         title = Prompt.ask(
@@ -532,7 +537,12 @@ include = ["{root_package}*"]
             default=description,
         )
         console.print()
-        console.print(f"[bold {COLOR.PRIMARY}]Project structure[/bold {COLOR.PRIMARY}]")
+        console.rule(
+            title=f"[bold {COLOR.PRIMARY}]── Project structure[/bold {COLOR.PRIMARY}]",
+            align="left",
+            style=COLOR.PRIMARY,
+        )
+        console.print()
         commands_dir = Prompt.ask(
             f"[bold {COLOR.SECONDARY}]Commands directory[/bold {COLOR.SECONDARY}]",
             default=commands_dir,
@@ -564,7 +574,12 @@ include = ["{root_package}*"]
             else project_root / themes_dir
         )
 
-        console.print(f"[bold {COLOR.PRIMARY}]Branding[/bold {COLOR.PRIMARY}]")
+        console.rule(
+            title=f"[bold {COLOR.PRIMARY}]── Branding[/bold {COLOR.PRIMARY}]",
+            align="left",
+            style=COLOR.PRIMARY,
+        )
+        console.print()
         console.print()
         theme = self._prompt_theme(themes_path)
         console.print()
