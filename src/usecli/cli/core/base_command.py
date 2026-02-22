@@ -314,6 +314,9 @@ class BaseCommand(ABC):
         """
         pass
 
+    def aliases(self) -> list[str]:
+        return []
+
     def visible(self) -> bool:
         return True
 
@@ -323,6 +326,7 @@ class BaseCommand(ABC):
 
         signature = self.signature()
         signature_parts = signature.split()
+        aliases = self.aliases()
 
         # Check if this is a space-separated nested command signature (e.g., "spec show")
         # vs a command with argument placeholders (e.g., "test-cmd <name>")
@@ -340,21 +344,98 @@ class BaseCommand(ABC):
             registry = NestedCommandRegistry()
             group_app = registry.get_or_create_group(self.app, group_name)
 
-            cmd_decorator = group_app.command(
-                name=command_name,
-                help=self.description(),
-                cls=CustomHelpCommand,
+            normalized_aliases = self._normalize_aliases(
+                primary_name=command_name,
+                aliases=aliases,
+                group_name=group_name,
             )
-            cmd_decorator(self.handle)
+            self._register_with_aliases(
+                app=group_app,
+                name=command_name,
+                description=self.description(),
+                aliases=normalized_aliases,
+            )
         else:
             # Single-level command (e.g., "help", "init", "config:set", "make:command")
             name = signature_parts[0]
-            cmd_decorator = self.app.command(
+            normalized_aliases = self._normalize_aliases(
+                primary_name=name,
+                aliases=aliases,
+                group_name=None,
+            )
+            self._register_with_aliases(
+                app=self.app,
                 name=name,
-                help=self.description(),
+                description=self.description(),
+                aliases=normalized_aliases,
+            )
+
+    def _register_with_aliases(
+        self,
+        app: typer.Typer,
+        name: str,
+        description: str,
+        aliases: list[str],
+    ) -> None:
+        cmd_decorator = app.command(
+            name=name,
+            help=description,
+            cls=CustomHelpCommand,
+        )
+        cmd_decorator(self.handle)
+
+        if not aliases:
+            return
+
+        alias_registry = self._get_alias_registry(app)
+        alias_registry.setdefault(name, [])
+        for alias in aliases:
+            if alias == name or alias in alias_registry[name]:
+                continue
+            alias_registry[name].append(alias)
+            alias_decorator = app.command(
+                name=alias,
+                help=description,
                 cls=CustomHelpCommand,
             )
-            cmd_decorator(self.handle)
+            alias_decorator(self.handle)
+
+    def _get_alias_registry(self, app: typer.Typer) -> dict[str, list[str]]:
+        if not hasattr(app, "_usecli_aliases"):
+            setattr(app, "_usecli_aliases", {})
+        registry = getattr(app, "_usecli_aliases")
+        if not isinstance(registry, dict):
+            registry = {}
+            setattr(app, "_usecli_aliases", registry)
+        return registry
+
+    def _normalize_aliases(
+        self,
+        primary_name: str,
+        aliases: list[str],
+        group_name: str | None,
+    ) -> list[str]:
+        normalized: list[str] = []
+        for alias in aliases:
+            alias_parts = alias.split()
+            if group_name:
+                if len(alias_parts) == 2 and alias_parts[0] == group_name:
+                    alias_name = alias_parts[1]
+                elif len(alias_parts) == 1:
+                    alias_name = alias_parts[0]
+                else:
+                    continue
+                if not self._is_valid_subcommand_name(alias_name):
+                    continue
+            else:
+                if len(alias_parts) != 1:
+                    continue
+                alias_name = alias_parts[0]
+
+            if alias_name == primary_name or alias_name in normalized:
+                continue
+            normalized.append(alias_name)
+        return normalized
 
     def _is_valid_subcommand_name(self, name: str) -> bool:
         """Check if a string is a valid subcommand name (not an argument placeholder).
