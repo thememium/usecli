@@ -155,11 +155,27 @@ def _run_fzf_menu(
         )
 
 
-def _get_group_subcommands(group_name: str) -> list[dict[str, Any]]:
+def _resolve_group_alias(app: typer.Typer, group_name: str) -> str:
+    registry = getattr(app, "_usecli_group_aliases", {})
+    if not isinstance(registry, dict):
+        return group_name
+    for primary, aliases in registry.items():
+        if group_name == primary:
+            return primary
+        if group_name in aliases:
+            return primary
+    return group_name
+
+
+def _get_group_subcommands(
+    app: typer.Typer,
+    group_name: str,
+) -> list[dict[str, Any]]:
     from usecli.cli.core.base_command import NestedCommandRegistry
 
     registry = NestedCommandRegistry()
-    group_app = registry._groups.get(group_name)
+    resolved_group = _resolve_group_alias(app, group_name)
+    group_app = registry._groups.get(resolved_group)
 
     if not group_app:
         return []
@@ -261,11 +277,18 @@ def run_interactive(
             (c for c in ordered_commands if c["name"] == cmd_name), None
         )
         if not selected_cmd:
+            resolved_group = _resolve_group_alias(app, cmd_name)
+            if resolved_group != cmd_name:
+                cmd_name = resolved_group
+                selected_cmd = next(
+                    (c for c in ordered_commands if c["name"] == cmd_name), None
+                )
+        if not selected_cmd:
             ErrorHandler.display_error(f"Unknown command '{cmd_name}'")
             raise typer.Exit(code=1)
 
     if selected_cmd and selected_cmd.get("is_group"):
-        subcommands = _get_group_subcommands(cmd_name)
+        subcommands = _get_group_subcommands(app, cmd_name)
         if not subcommands:
             ErrorHandler.display_error(f"No subcommands found for '{cmd_name}'")
             raise typer.Exit(code=1)
