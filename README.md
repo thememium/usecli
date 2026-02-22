@@ -34,15 +34,13 @@
 
 ## About
 
-useCli is a CLI framework for Python. It gives you:
+useCli A powerful Python CLI framework for building beautiful, developer-friendly command-line tools. It gives you:
 
 - **Prefix matching** — Type `he` instead of `help`
 - **Interactive mode** — Fuzzy finder for commands
 - **Auto-generated help** — Clean, styled output
 - **Command scaffolding** — `make:command` generates boilerplate
 - **UI components** — Prompts, menus, styled console output
-
-Built on Typer and Click.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
