@@ -17,6 +17,7 @@ from usecli.cli.core.ui.list import list_commands
 from usecli.cli.services.command_service import CommandService
 from usecli.menu import Menu
 from usecli.params import Argument, Option
+from usecli.shared.config.manager import get_config
 from usecli.ui import Confirm, Console, Prompt, console
 
 colors = import_module("usecli.cli.config.colors")
@@ -50,6 +51,44 @@ def _is_interactive_flag_present() -> bool:
         True if -i or --interactive is found in sys.argv, False otherwise.
     """
     return "-i" in sys.argv or "--interactive" in sys.argv
+
+
+def _get_cli_help_text() -> str:
+    fallback = "Usecli CLI - An elegant CLI framework for Python"
+    fallback_description = "An elegant CLI framework for Python"
+    config = get_config()
+
+    description = config.get("description")
+    has_description = (
+        config.has_key("description")
+        and isinstance(description, str)
+        and description.strip()
+    )
+
+    title = config.get("title")
+    has_title = config.has_key("title") and isinstance(title, str) and title.strip()
+
+    command_name = config.get("command_name")
+    has_command_name = (
+        config.has_key("command_name")
+        and isinstance(command_name, str)
+        and command_name.strip()
+    )
+
+    if not has_description and not has_title and not has_command_name:
+        return fallback
+
+    display_name = (
+        title.strip()
+        if has_title
+        else command_name.strip()
+        if has_command_name
+        else "Usecli CLI"
+    )
+    display_description = (
+        description.strip() if has_description else fallback_description
+    )
+    return f"{display_name} - {display_description}"
 
 
 class PrefixMatchingGroup(TyperGroup):
@@ -134,7 +173,7 @@ class FilteredListCommand(click.Command):
 
 
 app = typer.Typer(
-    help="Usecli CLI - An elegant CLI framework for Python",
+    help=_get_cli_help_text(),
     invoke_without_command=True,
     no_args_is_help=False,
     cls=PrefixMatchingGroup,
