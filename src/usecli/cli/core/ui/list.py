@@ -107,8 +107,9 @@ def list_commands(app: typer.Typer, prefix_filter: str | None = None) -> None:
                 )
 
     option_flags = []
-    if click_group.params:
-        for param in click_group.params:
+    display_params = _order_completion_params(click_group.params or [])
+    if display_params:
+        for param in display_params:
             flags = ", ".join(param.opts)
             if "--help" in flags:
                 continue
@@ -131,8 +132,8 @@ def list_commands(app: typer.Typer, prefix_filter: str | None = None) -> None:
         f"  [{COLOR.OPTION}]{help_flags}[/{COLOR.OPTION}]{help_padding}Show this message and exit."
     )
 
-    if click_group.params:
-        for param in click_group.params:
+    if display_params:
+        for param in display_params:
             flags = ", ".join(param.opts)
             if "--help" in flags:
                 continue
@@ -241,8 +242,9 @@ def list_group_commands(group_app: typer.Typer, group_name: str) -> None:
 
     click_group = typer.main.get_command(group_app)
     option_flags = []
-    if click_group.params:
-        for param in click_group.params:
+    display_params = _order_completion_params(click_group.params or [])
+    if display_params:
+        for param in display_params:
             flags = ", ".join(param.opts)
             if "--help" in flags:
                 continue
@@ -260,8 +262,8 @@ def list_group_commands(group_app: typer.Typer, group_name: str) -> None:
         f"  [{COLOR.OPTION}]{help_flags}[/{COLOR.OPTION}]{help_padding}Show this message and exit."
     )
 
-    if click_group.params:
-        for param in click_group.params:
+    if display_params:
+        for param in display_params:
             flags = ", ".join(param.opts)
             if "--help" in flags:
                 continue
@@ -287,6 +289,30 @@ def list_group_commands(group_app: typer.Typer, group_name: str) -> None:
 def _get_alias_registry(app: typer.Typer) -> dict[str, list[str]]:
     registry = getattr(app, "_usecli_aliases", {})
     return registry if isinstance(registry, dict) else {}
+
+
+def _order_completion_params(
+    params: list[click.Parameter],
+) -> list[click.Parameter]:
+    ordered = list(params)
+    install_index = None
+    show_index = None
+    for index, param in enumerate(ordered):
+        opts = set(param.opts)
+        if "--install-completion" in opts:
+            install_index = index
+        if "--show-completion" in opts:
+            show_index = index
+    if install_index is None or show_index is None:
+        return ordered
+    if install_index < show_index:
+        show_param = ordered.pop(show_index)
+        ordered.insert(install_index, show_param)
+        return ordered
+    if show_index < install_index:
+        install_param = ordered.pop(install_index)
+        ordered.insert(show_index, install_param)
+    return ordered
 
 
 def _build_alias_to_primary(alias_registry: dict[str, list[str]]) -> dict[str, str]:
