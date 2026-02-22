@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import platform
+import re
 import sys
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as get_version
@@ -28,8 +29,33 @@ def _get_version() -> str:
         return "0.0.0"
 
 
-def _get_dependencies(config: ConfigManager) -> list[str]:
-    """Get dependency names from project pyproject.toml."""
+def _parse_dependency_requirement(req: str) -> tuple[str, str | None]:
+    req_core = req.split(";", 1)[0].strip()
+    if not req_core:
+        return "", None
+
+    match = re.match(r"^([A-Za-z0-9_.-]+)", req_core)
+    if not match:
+        return "", None
+    name = match.group(1)
+
+    remainder = req_core[match.end() :].strip()
+    if remainder.startswith("["):
+        closing = remainder.find("]")
+        if closing != -1:
+            remainder = remainder[closing + 1 :].strip()
+
+    if not remainder:
+        return name, None
+
+    if remainder.startswith("@"):
+        spec = remainder[1:].strip()
+        return name, spec or None
+
+    return name, remainder
+
+
+def _get_dependencies(config: ConfigManager) -> list[tuple[str, str | None]]:
     pyproject_path = config.pyproject_path
     if not pyproject_path.exists():
         return []
@@ -43,15 +69,13 @@ def _get_dependencies(config: ConfigManager) -> list[str]:
     if not isinstance(deps, list):
         return []
 
-    result = []
+    result: list[tuple[str, str | None]] = []
     for req in deps:
         if not isinstance(req, str):
             continue
-        # Parse package name from requirement string
-        # Handles: "package>=1.0", "package[extra]>=1.0", etc.
-        name = req.split("[")[0].split(">")[0].split("<")[0].split("=")[0].strip()
+        name, spec = _parse_dependency_requirement(req)
         if name and not req.startswith("("):
-            result.append(name)
+            result.append((name, spec))
     return result
 
 
@@ -124,12 +148,18 @@ class AboutCommand(BaseCommand):
 
         deps = _get_dependencies(config)
         if deps:
-            for dep_name in deps:
+            for dep_name, spec in deps:
+                if dep_name == "usecli" and spec:
+                    self._print_row(dep_name, spec)
+                    continue
                 try:
                     installed_version = get_version(dep_name)
                     self._print_row(dep_name, installed_version)
                 except Exception:
-                    self._print_row(dep_name, "not installed")
+                    if spec:
+                        self._print_row(dep_name, spec)
+                    else:
+                        self._print_row(dep_name, "not installed")
         else:
             self._print_row("Dependencies", "unable to load")
 
