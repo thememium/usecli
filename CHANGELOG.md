@@ -1,6 +1,36 @@
 # Changelog
 
 
+## v0.1.28
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.27...v0.1.28)
+
+### 🚀 Enhancements
+
+- **cli:** Add Nord theme configuration ([dc21539](https://github.com/thememium/usecli/commit/dc21539))
+- **cli:** Add gruvbox_dark theme configuration ([848a2a0](https://github.com/thememium/usecli/commit/848a2a0))
+- **theme:** Add Dracula theme configuration ([75073ce](https://github.com/thememium/usecli/commit/75073ce))
+- **init_command:** Add interactive theme selection with preview and config rendering ([722083d](https://github.com/thememium/usecli/commit/722083d))
+- **init:** Enhance init command prompts and streamline pyproject template ([ff20721](https://github.com/thememium/usecli/commit/ff20721))
+- **cli:** Replace section headers with console.rule for clearer UI ([27d1548](https://github.com/thememium/usecli/commit/27d1548))
+- **cli:** Add explanatory hints to init prompts ([035b268](https://github.com/thememium/usecli/commit/035b268))
+
+### 💅 Refactors
+
+- **init:** Prioritize default theme and dedupe prompt ([430813e](https://github.com/thememium/usecli/commit/430813e))
+
+### 📖 Documentation
+
+- **themes:** Add semantic sections and inline comments to theme files ([34ada09](https://github.com/thememium/usecli/commit/34ada09))
+
+### 🎨 Styles
+
+- **themes:** Update color palette for several CLI themes ([075597d](https://github.com/thememium/usecli/commit/075597d))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.27
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.26...v0.1.27)
