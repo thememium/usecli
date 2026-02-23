@@ -58,6 +58,8 @@ def _dedupe_items(items: list[str]) -> list[str]:
 class ConfigManager:
     """Manages useCli configuration from project-level files."""
 
+    _SKIP_DIRS = {".venv", "venv"}
+
     DEFAULT_CONFIG: dict[str, Any] = {
         "title": "usecli",
         "title_file": None,
@@ -188,7 +190,11 @@ class ConfigManager:
         if not root_dir.exists() or not root_dir.is_dir():
             return None
 
-        candidates = [path for path in root_dir.rglob(USECLI_CONFIG_TOML)]
+        candidates = [
+            path
+            for path in root_dir.rglob(USECLI_CONFIG_TOML)
+            if not any(part in ConfigManager._SKIP_DIRS for part in path.parts)
+        ]
         if not candidates:
             return None
 
