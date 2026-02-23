@@ -1,6 +1,19 @@
 # Changelog
 
 
+## v0.1.36
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.35...v0.1.36)
+
+### 🚀 Enhancements
+
+- **config:** Detect usecli config in package and prefer it over project config ([a3cdf4a](https://github.com/thememium/usecli/commit/a3cdf4a))
+- **colors:** Add package config discovery and venv exclusion ([d6eec7b](https://github.com/thememium/usecli/commit/d6eec7b))
+
+### ❤️ Contributors
+
+- Edward Boswell <thememium@gmail.com>
+
 ## v0.1.35
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.34...v0.1.35)
