@@ -88,18 +88,10 @@ class InitCommand(BaseCommand):
 
     def _write_usecli_config(
         self,
-        project_root: Path,
+        config_path: Path,
         config_content: str,
         force: bool,
-        commands_path: Path,
     ) -> str:
-        config_root = project_root
-        if commands_path.parent != project_root:
-            config_root = commands_path.parent
-        config_path = config_root / USECLI_CONFIG_TOML
-        discovered_config = ConfigManager(start_dir=config_root).usecli_config_path
-        if discovered_config.exists():
-            config_path = discovered_config
         existed = config_path.exists()
         if existed and not force:
             should_overwrite = Confirm.ask(
@@ -112,6 +104,14 @@ class InitCommand(BaseCommand):
 
         config_path.write_text(config_content.rstrip() + "\n")
         return "updated" if existed else "created"
+
+    def _resolve_config_path(self, value: str, project_root: Path) -> Path:
+        path = Path(value).expanduser()
+        if not path.is_absolute():
+            path = project_root / path
+        if path.exists() and path.is_dir():
+            return (path / USECLI_CONFIG_TOML).resolve()
+        return path.resolve()
 
     def _ensure_project_scripts(
         self, pyproject_path: Path, command_name: str, force: bool
@@ -716,8 +716,36 @@ include = ["{root_package}*"]
 
             self._sync_environment(project_root, command_name)
 
+        config_root = project_root
+        if commands_path.parent != project_root:
+            config_root = commands_path.parent
+        existing_config = ConfigManager(start_dir=config_root).usecli_config_path
+        default_config_path = (
+            existing_config
+            if existing_config.exists()
+            else config_root / USECLI_CONFIG_TOML
+        )
+        config_location = Prompt.ask(
+            f"[bold {COLOR.SECONDARY}]Config file location[/bold {COLOR.SECONDARY}]"
+            " (path or directory)",
+            default=str(default_config_path),
+        )
+        config_path = self._resolve_config_path(config_location, project_root)
+        if (
+            existing_config.exists()
+            and config_path.resolve() != existing_config.resolve()
+            and not force
+        ):
+            replace_existing = Confirm.ask(
+                f"[{COLOR.WARNING}]Existing {USECLI_CONFIG_TOML} found at {existing_config}.[/{COLOR.WARNING}]\n"
+                "Replace it instead of writing to the new location?",
+                default=False,
+            )
+            if replace_existing:
+                config_path = existing_config
+
         usecli_config_status = self._write_usecli_config(
-            project_root, config_content, force, commands_path
+            config_path, config_content, force
         )
         if usecli_config_status == "created":
             console.print(
