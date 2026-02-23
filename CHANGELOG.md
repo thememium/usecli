@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.33
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.32...v0.1.33)
+
+### 🚀 Enhancements
+
+- **config:** Add usecli.toml fallback support ([a9eaafd](https://github.com/thememium/usecli/commit/a9eaafd))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.32
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.31...v0.1.32)
