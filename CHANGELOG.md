@@ -1,6 +1,36 @@
 # Changelog
 
 
+## v0.1.34
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.33...v0.1.34)
+
+### 🚀 Enhancements
+
+- **usecli:** Add Jinja2 template for usecli.config.toml ([5230c68](https://github.com/thememium/usecli/commit/5230c68))
+- **config:** Support usecli.config.toml and enhance config discovery ([d8c2ab1](https://github.com/thememium/usecli/commit/d8c2ab1))
+- **usecli:** Add default configuration file for CLI ([d68e14a](https://github.com/thememium/usecli/commit/d68e14a))
+- **cli:** Store usecli configuration in its own TOML file ([8076c73](https://github.com/thememium/usecli/commit/8076c73))
+- **config:** Rename config file to usecli.config.toml and add nested support ([27398ee](https://github.com/thememium/usecli/commit/27398ee))
+
+### 🩹 Fixes
+
+- **tests:** Update resource path to renamed template file ([7cc3bfc](https://github.com/thememium/usecli/commit/7cc3bfc))
+
+### 💅 Refactors
+
+- **init:** Rename config file to usecli.config.toml and simplify init flow ([5c5824f](https://github.com/thememium/usecli/commit/5c5824f))
+- **globals.py:** Rename configuration constant to match filename ([4a444bb](https://github.com/thememium/usecli/commit/4a444bb))
+- **config:** Rename usecli.toml to usecli.config.toml and update discovery logic ([ce9e319](https://github.com/thememium/usecli/commit/ce9e319))
+
+### 🏡 Chore
+
+- Move usecli config out of pyproject and update README ([1429e30](https://github.com/thememium/usecli/commit/1429e30))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.33
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.32...v0.1.33)
