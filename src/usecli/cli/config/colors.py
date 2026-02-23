@@ -22,7 +22,7 @@ else:
 
 
 PYPROJECT_TOML = "pyproject.toml"
-USECLI_TOML = "usecli.toml"
+USECLI_CONFIG_TOML = "usecli.config.toml"
 DEFAULT_THEME_NAME = "default"
 THEMES_DIR = Path(__file__).resolve().parent.parent / "themes"
 DEFAULT_THEME_COLORS: dict[str, str] = {
@@ -48,55 +48,97 @@ DEFAULT_THEME_COLORS: dict[str, str] = {
 }
 
 
+def _find_usecli_config_path(root_dir: Path, start_dir: Path) -> Path | None:
+    if not root_dir.exists() or not root_dir.is_dir():
+        return None
+
+    candidates = [path for path in root_dir.rglob(USECLI_CONFIG_TOML)]
+    if not candidates:
+        return None
+
+    start_dir = start_dir.resolve()
+    preferred: list[Path] = []
+    for path in candidates:
+        try:
+            path.relative_to(start_dir)
+            preferred.append(path)
+        except ValueError:
+            continue
+
+    selection = preferred or candidates
+
+    def _depth_key(path: Path) -> tuple[int, str]:
+        try:
+            relative = path.relative_to(start_dir)
+            return (len(relative.parts), str(path))
+        except ValueError:
+            relative = path.relative_to(root_dir)
+            return (len(relative.parts), str(path))
+
+    selection.sort(key=_depth_key)
+    return selection[0]
+
+
 def _find_project_root(start_dir: Path | None = None) -> Path | None:
     if start_dir is None:
         start_dir = Path.cwd()
 
     current = start_dir.resolve()
+    git_root: Path | None = None
 
     while True:
         pyproject_path = current / PYPROJECT_TOML
         if pyproject_path.exists():
             return current
 
-        usecli_path = current / USECLI_TOML
+        usecli_path = current / USECLI_CONFIG_TOML
         if usecli_path.exists():
             return current
 
         git_dir = current / ".git"
         if git_dir.exists():
-            return current
+            git_root = current
+            break
 
         parent = current.parent
         if parent == current:
             break
         current = parent
 
-    return None
+    search_root = git_root or start_dir.resolve()
+    config_match = _find_usecli_config_path(search_root, start_dir)
+    if config_match:
+        return config_match.parent
+
+    return git_root
 
 
 def _load_usecli_config(project_root: Path | None) -> dict[str, Any]:
     if project_root is None:
         return {}
 
-    pyproject_path = project_root / PYPROJECT_TOML
-    if not pyproject_path.exists():
+    config_path = project_root / USECLI_CONFIG_TOML
+    if not config_path.exists():
+        config_path = _find_usecli_config_path(project_root, project_root)
+    if not config_path or not config_path.exists():
         return {}
 
     try:
-        data = tomllib.loads(pyproject_path.read_text())
+        data = tomllib.loads(config_path.read_text())
     except (tomllib.TOMLDecodeError, OSError):
         return {}
 
     tool = data.get("tool", {})
-    if not isinstance(tool, dict):
-        return {}
+    if isinstance(tool, dict) and "usecli" in tool:
+        usecli_config = tool.get("usecli")
+        if isinstance(usecli_config, dict):
+            return usecli_config
 
-    usecli_config = tool.get("usecli", {})
-    if not isinstance(usecli_config, dict):
-        return {}
+    usecli_section = data.get("usecli", {})
+    if isinstance(usecli_section, dict):
+        return usecli_section
 
-    return usecli_config
+    return {}
 
 
 def _normalize_color(value: Any) -> str | None:
