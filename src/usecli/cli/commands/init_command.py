@@ -27,7 +27,7 @@ from usecli.cli.core.base_command import BaseCommand
 from usecli.cli.core.exceptions import UsecliBadParameter
 from usecli.cli.core.validators import validate_command_name
 from usecli.cli.utils.interactive.terminal_menu import terminal_menu
-from usecli.shared.config.globals import TEMPLATES_DIR, THEMES_DIR
+from usecli.shared.config.globals import TEMPLATES_DIR, THEMES_DIR, USECLI_TOML
 from usecli.shared.config.manager import ConfigManager, get_config
 
 console = Console()
@@ -112,6 +112,23 @@ class InitCommand(BaseCommand):
 
         pyproject_path.write_text(content)
         return True
+
+    def _write_usecli_toml(
+        self, project_root: Path, config_content: str, force: bool
+    ) -> str:
+        config_path = project_root / USECLI_TOML
+        existed = config_path.exists()
+        if existed and not force:
+            should_overwrite = Confirm.ask(
+                f"[{COLOR.WARNING}]usecli.toml already exists at {config_path}.[/{COLOR.WARNING}]\n"
+                "Overwrite it with the new settings from this init run?",
+                default=False,
+            )
+            if not should_overwrite:
+                return "skipped"
+
+        config_path.write_text(config_content.rstrip() + "\n")
+        return "updated" if existed else "created"
 
     def _ensure_project_scripts(
         self, pyproject_path: Path, command_name: str, force: bool
@@ -685,6 +702,7 @@ include = ["{root_package}*"]
         )
 
         scripts_status: str | None = None
+        usecli_toml_status: str | None = None
 
         # Check if pyproject.toml exists
         if pyproject_path.exists():
@@ -743,6 +761,22 @@ include = ["{root_package}*"]
             scripts_status = "added"
 
             self._sync_environment(project_root, command_name)
+
+        usecli_toml_status = self._write_usecli_toml(
+            project_root, config_content, force
+        )
+        if usecli_toml_status == "created":
+            console.print(
+                f"[{COLOR.SUCCESS}]Created {USECLI_TOML} for runtime config fallback[/{COLOR.SUCCESS}]"
+            )
+        elif usecli_toml_status == "updated":
+            console.print(
+                f"[{COLOR.SUCCESS}]Updated {USECLI_TOML} for runtime config fallback[/{COLOR.SUCCESS}]"
+            )
+        elif usecli_toml_status == "skipped":
+            console.print(
+                f"[{COLOR.WARNING}]Skipped updating {USECLI_TOML}.[/{COLOR.WARNING}]"
+            )
 
         # Show summary
         summary_command = (

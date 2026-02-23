@@ -102,6 +102,33 @@ commands_dir = "custom_cmds"
         assert manager.get("description") == "Custom CLI"
         assert manager.get("commands_dir") == "custom_cmds"
 
+    def test_loads_from_usecli_toml_when_pyproject_missing(self, temp_project_dir):
+        config_file = temp_project_dir / "usecli.toml"
+        config_file.write_text(
+            """
+[tool.usecli]
+title = "My CLI"
+description = "Config file"
+commands_dir = "pkg/commands"
+"""
+        )
+
+        manager = ConfigManager()
+
+        assert manager.get("title") == "My CLI"
+        assert manager.get("description") == "Config file"
+        assert manager.get("commands_dir") == "pkg/commands"
+
+    def test_pyproject_takes_precedence_over_usecli_toml(self, temp_project_dir):
+        pyproject = temp_project_dir / "pyproject.toml"
+        pyproject.write_text('[tool.usecli]\ntitle = "From Pyproject"')
+        config_file = temp_project_dir / "usecli.toml"
+        config_file.write_text('[tool.usecli]\ntitle = "From usecli.toml"')
+
+        manager = ConfigManager()
+
+        assert manager.get("title") == "From Pyproject"
+
     def test_pyproject_takes_precedence_over_defaults(self, temp_project_dir):
         pyproject = temp_project_dir / "pyproject.toml"
         pyproject.write_text('[tool.usecli]\nenvironment = "dev"')
@@ -127,6 +154,14 @@ themes_dir = ["custom/themes", "cli/themes", "custom/themes"]
     def test_pyproject_exists_property(self, temp_project_dir):
         pyproject = temp_project_dir / "pyproject.toml"
         pyproject.write_text('[tool.usecli]\ntitle = "Test"')
+
+        manager = ConfigManager()
+
+        assert manager.pyproject_exists is True
+
+    def test_pyproject_exists_with_usecli_toml(self, temp_project_dir):
+        config_file = temp_project_dir / "usecli.toml"
+        config_file.write_text('[tool.usecli]\ntitle = "Test"')
 
         manager = ConfigManager()
 

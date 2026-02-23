@@ -17,3 +17,4 @@ THEMES_DIR = CLI_ROOT / "themes"
 
 # Config file names
 PYPROJECT_TOML = "pyproject.toml"
+USECLI_TOML = "usecli.toml"

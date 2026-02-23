@@ -21,6 +21,8 @@ else:
     import tomli as tomllib
 
 
+PYPROJECT_TOML = "pyproject.toml"
+USECLI_TOML = "usecli.toml"
 DEFAULT_THEME_NAME = "default"
 THEMES_DIR = Path(__file__).resolve().parent.parent / "themes"
 DEFAULT_THEME_COLORS: dict[str, str] = {
@@ -53,8 +55,12 @@ def _find_project_root(start_dir: Path | None = None) -> Path | None:
     current = start_dir.resolve()
 
     while True:
-        pyproject_path = current / "pyproject.toml"
+        pyproject_path = current / PYPROJECT_TOML
         if pyproject_path.exists():
+            return current
+
+        usecli_path = current / USECLI_TOML
+        if usecli_path.exists():
             return current
 
         git_dir = current / ".git"
@@ -73,7 +79,7 @@ def _load_usecli_config(project_root: Path | None) -> dict[str, Any]:
     if project_root is None:
         return {}
 
-    pyproject_path = project_root / "pyproject.toml"
+    pyproject_path = project_root / PYPROJECT_TOML
     if not pyproject_path.exists():
         return {}
 

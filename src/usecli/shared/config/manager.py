@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from usecli.cli.core.exceptions.config import UsecliConfigError
+from usecli.shared.config.globals import PYPROJECT_TOML, USECLI_TOML
 
 if sys.version_info >= (3, 11):
     import tomllib
@@ -87,6 +88,7 @@ class ConfigManager:
     def __init__(
         self,
         pyproject_path: Path | None = None,
+        usecli_toml_path: Path | None = None,
         start_dir: Path | None = None,
     ) -> None:
         """Initialize the configuration manager.
@@ -102,12 +104,21 @@ class ConfigManager:
 
         if pyproject_path is None:
             pyproject_path = self._find_pyproject_toml(start_dir) or (
-                start_dir / "pyproject.toml"
+                start_dir / PYPROJECT_TOML
+            )
+
+        if usecli_toml_path is None:
+            usecli_toml_path = self._find_usecli_toml(start_dir) or (
+                start_dir / USECLI_TOML
             )
 
         self.pyproject_path: Path = pyproject_path
+        self.usecli_toml_path: Path = usecli_toml_path
         self.start_dir: Path = start_dir
-        self.project_root: Path = find_project_root(start_dir) or start_dir.resolve()
+        detected_root = find_project_root(start_dir)
+        if detected_root is None and self.usecli_toml_path.exists():
+            detected_root = self.usecli_toml_path.parent
+        self.project_root: Path = (detected_root or start_dir).resolve()
         self._config: dict[str, Any] = {}
         self._overrides: dict[str, Any] = {}
         self._load_config()
@@ -117,16 +128,30 @@ class ConfigManager:
         self._config = self.DEFAULT_CONFIG.copy()
         self._overrides = {}
 
+        loaded = False
         if self.pyproject_path.exists():
             try:
                 pyproject_config = self._load_pyproject_toml(self.pyproject_path)
                 if pyproject_config:
                     self._config = _deep_merge(self._config, pyproject_config)
                     self._overrides = _deep_merge(self._overrides, pyproject_config)
+                    loaded = True
             except (tomllib.TOMLDecodeError, OSError) as e:
                 raise UsecliConfigError(
                     f"Failed to load pyproject.toml: {e}",
                     config_file=str(self.pyproject_path),
+                ) from e
+
+        if not loaded and self.usecli_toml_path.exists():
+            try:
+                usecli_config = self._load_usecli_toml(self.usecli_toml_path)
+                if usecli_config:
+                    self._config = _deep_merge(self._config, usecli_config)
+                    self._overrides = _deep_merge(self._overrides, usecli_config)
+            except (tomllib.TOMLDecodeError, OSError) as e:
+                raise UsecliConfigError(
+                    f"Failed to load usecli.toml: {e}",
+                    config_file=str(self.usecli_toml_path),
                 ) from e
 
         default_themes = _normalize_themes_dir(self.DEFAULT_CONFIG.get("themes_dir"))
@@ -151,7 +176,7 @@ class ConfigManager:
         current = start_dir.resolve()
 
         while True:
-            pyproject_path = current / "pyproject.toml"
+            pyproject_path = current / PYPROJECT_TOML
             if pyproject_path.exists():
                 return pyproject_path
 
@@ -160,6 +185,38 @@ class ConfigManager:
                 break
             current = parent
 
+        return None
+
+    @classmethod
+    def _find_usecli_toml(cls, start_dir: Path) -> Path | None:
+        current = start_dir.resolve()
+
+        while True:
+            config_path = current / USECLI_TOML
+            if config_path.exists():
+                return config_path
+
+            parent = current.parent
+            if parent == current:
+                break
+            current = parent
+
+        return cls._find_usecli_toml_on_sys_path()
+
+    @staticmethod
+    def _find_usecli_toml_on_sys_path() -> Path | None:
+        for entry in sys.path:
+            if not entry:
+                continue
+            path = Path(entry)
+            if not path.exists() or not path.is_dir():
+                continue
+            candidate = path / USECLI_TOML
+            if candidate.exists():
+                return candidate
+            for child in path.glob(f"*/{USECLI_TOML}"):
+                if child.exists():
+                    return child
         return None
 
     @staticmethod
@@ -175,6 +232,23 @@ class ConfigManager:
         with open(path, "rb") as f:
             data = tomllib.load(f)
             return data.get("tool", {}).get("usecli", {})
+
+    @staticmethod
+    def _load_usecli_toml(path: Path) -> dict[str, Any]:
+        with open(path, "rb") as f:
+            data = tomllib.load(f)
+
+        tool_section = data.get("tool", {})
+        if isinstance(tool_section, dict):
+            usecli_section = tool_section.get("usecli", {})
+            if isinstance(usecli_section, dict):
+                return usecli_section
+
+        usecli_section = data.get("usecli", {})
+        if isinstance(usecli_section, dict):
+            return usecli_section
+
+        return {}
 
     def get(self, key: str, default: Any = None) -> Any:
         """Get a configuration value using dot notation.
@@ -256,9 +330,13 @@ class ConfigManager:
     @property
     def pyproject_exists(self) -> bool:
         """Check if pyproject.toml with [tool.usecli] exists."""
-        if not self.pyproject_path.exists():
-            return False
-        return self._pyproject_has_usecli(self.pyproject_path)
+        if self.pyproject_path.exists() and self._pyproject_has_usecli(
+            self.pyproject_path
+        ):
+            return True
+        if self.usecli_toml_path.exists():
+            return True
+        return False
 
     @staticmethod
     def _load_project_version(path: Path) -> str | None:
@@ -305,8 +383,12 @@ def find_project_root(start_dir: Path | None = None) -> Path | None:
     current = start_dir.resolve()
 
     while True:
-        pyproject_path = current / "pyproject.toml"
+        pyproject_path = current / PYPROJECT_TOML
         if pyproject_path.exists():
+            return current
+
+        usecli_path = current / USECLI_TOML
+        if usecli_path.exists():
             return current
 
         git_dir = current / ".git"
