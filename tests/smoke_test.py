@@ -40,7 +40,7 @@ def _assert_basic_imports() -> None:
 
 
 def _assert_packaged_files() -> None:
-    _assert_resource("cli/templates/usecli.toml.j2")
+    _assert_resource("cli/templates/usecli.config.toml.j2")
     _assert_resource("cli/templates/theme.toml.j2")
     _assert_resource("cli/templates/command.py.j2")
     _assert_resource("cli/themes/default.toml")
