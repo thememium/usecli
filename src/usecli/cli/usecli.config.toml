@@ -1,0 +1,13 @@
+[usecli]
+title = "usecli"
+title_file = ""
+title_font = "ansi_shadow"
+description = "A custom CLI tool"
+commands_dir = "src/usecli/cli/commands/custom"
+templates_dir = "src/usecli/cli/templates"
+themes_dir = "src/usecli/cli/themes"
+theme = "default"
+hide_init = false
+hide_inspire = false
+hide_make_command = false
+hide_make_theme = false
