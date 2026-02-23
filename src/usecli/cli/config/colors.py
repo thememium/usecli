@@ -52,7 +52,11 @@ def _find_usecli_config_path(root_dir: Path, start_dir: Path) -> Path | None:
     if not root_dir.exists() or not root_dir.is_dir():
         return None
 
-    candidates = [path for path in root_dir.rglob(USECLI_CONFIG_TOML)]
+    candidates = [
+        path
+        for path in root_dir.rglob(USECLI_CONFIG_TOML)
+        if not any(part in {".venv", "venv"} for part in path.parts)
+    ]
     if not candidates:
         return None
 
