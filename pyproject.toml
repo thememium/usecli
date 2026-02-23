@@ -81,11 +81,6 @@ exclude = ["**/__pycache__", "**/.venv"]
 # Ty uses rule = "level" format (error, warn, ignore)
 # See all rules at: https://docs.astral.sh/ty/reference/rules/
 
-[tool.usecli]
-theme = "default"
-commands_dir = "src/usecli/cli/commands/custom"
-templates_dir = "src/usecli/cli/templates"
-themes_dir = "src/usecli/cli/themes"
-hide_init = false
-hide_inspire = false
-hide_make_command = false
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["cli*"]

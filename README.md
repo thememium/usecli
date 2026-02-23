@@ -161,8 +161,10 @@ make:command Create new command
 
 ### Hiding Built-in Commands
 
+Add this to `usecli.config.toml`:
+
 ```toml
-[tool.usecli]
+[usecli]
 hide_init = true
 hide_inspire = true
 ```
