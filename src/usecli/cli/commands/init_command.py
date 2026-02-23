@@ -27,7 +27,7 @@ from usecli.cli.core.base_command import BaseCommand
 from usecli.cli.core.exceptions import UsecliBadParameter
 from usecli.cli.core.validators import validate_command_name
 from usecli.cli.utils.interactive.terminal_menu import terminal_menu
-from usecli.shared.config.globals import TEMPLATES_DIR, THEMES_DIR, USECLI_TOML
+from usecli.shared.config.globals import TEMPLATES_DIR, THEMES_DIR, USECLI_CONFIG_TOML
 from usecli.shared.config.manager import ConfigManager, get_config
 
 console = Console()
@@ -43,27 +43,6 @@ class InitCommand(BaseCommand):
 
     def description(self) -> str:
         return "Initialize usecli in the current project"
-
-    def _replace_config_in_pyproject(
-        self, pyproject_path: Path, config_content: str
-    ) -> None:
-        """Replace existing [tool.usecli] section in pyproject.toml."""
-        content = pyproject_path.read_text()
-
-        # Pattern to match [tool.usecli] section until next section or end of file
-        pattern = r"\[tool\.usecli\].*?(?=\n\[|\Z)"
-        replacement = config_content.rstrip() + "\n"
-
-        # Replace the existing section
-        new_content = re.sub(pattern, replacement, content, flags=re.DOTALL)
-
-        pyproject_path.write_text(new_content)
-
-    def _get_config_source(self, pyproject_path: Path) -> str | None:
-        """Get the source of existing config."""
-        if pyproject_path.exists() and "[tool.usecli]" in pyproject_path.read_text():
-            return "pyproject.toml"
-        return None
 
     def _ensure_build_system(self, pyproject_path: Path) -> bool:
         if not pyproject_path.exists():
@@ -102,25 +81,29 @@ class InitCommand(BaseCommand):
             f'include = ["{root_package}*"]\n\n'
         )
 
-        if "[tool.usecli]" in content:
-            content = content.replace(
-                "[tool.usecli]",
-                f"{discovery_block}[tool.usecli]",
-            )
-        else:
-            content = content.rstrip() + f"\n\n{discovery_block}"
+        content = content.rstrip() + f"\n\n{discovery_block}"
 
         pyproject_path.write_text(content)
         return True
 
-    def _write_usecli_toml(
-        self, project_root: Path, config_content: str, force: bool
+    def _write_usecli_config(
+        self,
+        project_root: Path,
+        config_content: str,
+        force: bool,
+        commands_path: Path,
     ) -> str:
-        config_path = project_root / USECLI_TOML
+        config_root = project_root
+        if commands_path.parent != project_root:
+            config_root = commands_path.parent
+        config_path = config_root / USECLI_CONFIG_TOML
+        discovered_config = ConfigManager(start_dir=config_root).usecli_config_path
+        if discovered_config.exists():
+            config_path = discovered_config
         existed = config_path.exists()
         if existed and not force:
             should_overwrite = Confirm.ask(
-                f"[{COLOR.WARNING}]usecli.toml already exists at {config_path}.[/{COLOR.WARNING}]\n"
+                f"[{COLOR.WARNING}]usecli.config.toml already exists at {config_path}.[/{COLOR.WARNING}]\n"
                 "Overwrite it with the new settings from this init run?",
                 default=False,
             )
@@ -466,7 +449,6 @@ class InitCommand(BaseCommand):
         title: str,
         description: str,
         commands_dir: str,
-        config_content: str,
     ) -> None:
         parts = Path(commands_dir).parts
         root_package = parts[0] if parts else "src"
@@ -493,8 +475,7 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["{root_package}*"]
-
-{config_content}'''
+'''
 
         pyproject_path.write_text(pyproject_content)
 
@@ -612,21 +593,6 @@ include = ["{root_package}*"]
         console.print()
         console.print(f"[{COLOR.PRIMARY}]{title_text}")
 
-        # Check if config already exists
-        existing_source = self._get_config_source(pyproject_path)
-
-        if existing_source and not force:
-            should_overwrite = Confirm.ask(
-                f"[{COLOR.WARNING}]usecli config already exists in {existing_source}.[/{COLOR.WARNING}]\n"
-                "Overwrite it with the new settings from this init run?",
-                default=False,
-            )
-            if not should_overwrite:
-                console.print(
-                    f"[{COLOR.WARNING}]Skipping config update.[/{COLOR.WARNING}]"
-                )
-                return
-
         # Create the commands directory
         if not commands_path.exists():
             commands_path.mkdir(parents=True, exist_ok=True)
@@ -686,7 +652,9 @@ include = ["{root_package}*"]
             )
 
         # Load the template
-        template_path = Path(__file__).parent.parent / "templates" / "usecli.toml.j2"
+        template_path = (
+            Path(__file__).parent.parent / "templates" / "usecli.config.toml.j2"
+        )
         template_content = template_path.read_text()
         template = Template(template_content)
 
@@ -702,23 +670,10 @@ include = ["{root_package}*"]
         )
 
         scripts_status: str | None = None
-        usecli_toml_status: str | None = None
+        usecli_config_status: str | None = None
 
         # Check if pyproject.toml exists
         if pyproject_path.exists():
-            content = pyproject_path.read_text()
-            if "[tool.usecli]" in content:
-                self._replace_config_in_pyproject(pyproject_path, config_content)
-                console.print(
-                    f"[{COLOR.SUCCESS}]Updated [tool.usecli] in {pyproject_path}[/{COLOR.SUCCESS}]"
-                )
-            else:
-                with open(pyproject_path, "a") as f:
-                    f.write("\n\n" + config_content)
-                console.print(
-                    f"[{COLOR.SUCCESS}]Added [tool.usecli] to {pyproject_path}[/{COLOR.SUCCESS}]"
-                )
-
             scripts_status = self._ensure_project_scripts(
                 pyproject_path, command_name, force
             )
@@ -753,7 +708,6 @@ include = ["{root_package}*"]
                 title,
                 description,
                 commands_dir,
-                config_content,
             )
             console.print(
                 f"[{COLOR.SUCCESS}]Created {pyproject_path}[/{COLOR.SUCCESS}]"
@@ -762,20 +716,20 @@ include = ["{root_package}*"]
 
             self._sync_environment(project_root, command_name)
 
-        usecli_toml_status = self._write_usecli_toml(
-            project_root, config_content, force
+        usecli_config_status = self._write_usecli_config(
+            project_root, config_content, force, commands_path
         )
-        if usecli_toml_status == "created":
+        if usecli_config_status == "created":
             console.print(
-                f"[{COLOR.SUCCESS}]Created {USECLI_TOML} for runtime config fallback[/{COLOR.SUCCESS}]"
+                f"[{COLOR.SUCCESS}]Created {USECLI_CONFIG_TOML} for runtime config fallback[/{COLOR.SUCCESS}]"
             )
-        elif usecli_toml_status == "updated":
+        elif usecli_config_status == "updated":
             console.print(
-                f"[{COLOR.SUCCESS}]Updated {USECLI_TOML} for runtime config fallback[/{COLOR.SUCCESS}]"
+                f"[{COLOR.SUCCESS}]Updated {USECLI_CONFIG_TOML} for runtime config fallback[/{COLOR.SUCCESS}]"
             )
-        elif usecli_toml_status == "skipped":
+        elif usecli_config_status == "skipped":
             console.print(
-                f"[{COLOR.WARNING}]Skipped updating {USECLI_TOML}.[/{COLOR.WARNING}]"
+                f"[{COLOR.WARNING}]Skipped updating {USECLI_CONFIG_TOML}.[/{COLOR.WARNING}]"
             )
 
         # Show summary
