@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+import types
 from pathlib import Path
 
 import pytest
@@ -10,6 +11,7 @@ import pytest
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / "src"))
 
 from usecli.cli.core.exceptions.config import UsecliConfigError
+from usecli.shared.config import manager as config_manager
 from usecli.shared.config.manager import (
     ConfigManager,
     _deep_merge,
@@ -67,7 +69,9 @@ class TestDeepMerge:
 
 class TestConfigManagerDefaults:
     def test_starts_with_defaults(self, temp_project_dir):
-        manager = ConfigManager()
+        manager = ConfigManager(
+            usecli_config_path=temp_project_dir / "usecli.config.toml"
+        )
 
         assert manager.get("title") == "usecli"
         assert manager.get("description") == "A customizable CLI framework"
@@ -80,7 +84,9 @@ class TestConfigManagerDefaults:
         assert manager.get("hide_make_command") is False
 
     def test_default_environment_methods(self, temp_project_dir):
-        manager = ConfigManager()
+        manager = ConfigManager(
+            usecli_config_path=temp_project_dir / "usecli.config.toml"
+        )
 
         assert manager.is_prod() is True
         assert manager.is_dev() is False
@@ -123,6 +129,37 @@ commands_dir = "nested/commands"
         assert manager.get("description") == "Nested config"
         assert manager.get("commands_dir") == "nested/commands"
         assert manager.get_project_root() == nested_dir
+
+    def test_prefers_package_config_in_venv(self, temp_project_dir, monkeypatch):
+        project_config = temp_project_dir / "usecli.config.toml"
+        project_config.write_text(
+            """
+[usecli]
+title = "Project CLI"
+description = "Project config"
+"""
+        )
+
+        package_root = temp_project_dir / ".venv" / "lib" / "site-packages" / "usecli"
+        package_config_dir = package_root / "cli"
+        package_config_dir.mkdir(parents=True)
+        package_config = package_config_dir / "usecli.config.toml"
+        package_config.write_text(
+            """
+[usecli]
+title = "Package CLI"
+description = "Package config"
+"""
+        )
+
+        spec = types.SimpleNamespace(submodule_search_locations=[str(package_root)])
+        monkeypatch.setattr(
+            config_manager.importlib.util, "find_spec", lambda name: spec
+        )
+
+        manager = ConfigManager()
+
+        assert manager.get("title") == "Package CLI"
 
     def test_loads_from_usecli_toml_when_pyproject_missing(self, temp_project_dir):
         config_file = temp_project_dir / "usecli.config.toml"
@@ -183,7 +220,9 @@ themes_dir = ["custom/themes", "cli/themes", "custom/themes"]
         pyproject = temp_project_dir / "pyproject.toml"
         pyproject.write_text('[project]\nname = "other"')
 
-        manager = ConfigManager()
+        manager = ConfigManager(
+            usecli_config_path=temp_project_dir / "usecli.config.toml"
+        )
 
         assert manager.pyproject_exists is False
 
@@ -233,7 +272,9 @@ file_enabled = true
 
 class TestConfigManagerReload:
     def test_reload_picks_up_changes(self, temp_project_dir):
-        manager = ConfigManager()
+        manager = ConfigManager(
+            usecli_config_path=temp_project_dir / "usecli.config.toml"
+        )
         assert manager.get("title") == "usecli"
 
         # Add config after initialization
