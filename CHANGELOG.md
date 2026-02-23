@@ -1,6 +1,23 @@
 # Changelog
 
 
+## v0.1.35
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.34...v0.1.35)
+
+### 🚀 Enhancements
+
+- **config:** Ignore virtual environment directories when searching config files ([2a2dba0](https://github.com/thememium/usecli/commit/2a2dba0))
+- **init_command:** Let user choose config file location and resolve path ([a7db952](https://github.com/thememium/usecli/commit/a7db952))
+
+### 🩹 Fixes
+
+- **config:** Skip venv and .venv when searching for config ([180eb29](https://github.com/thememium/usecli/commit/180eb29))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.34
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.33...v0.1.34)
