@@ -527,9 +527,9 @@ class TestInitCommandDefaults:
         config_content = config_path.read_text()
         assert 'title = "My CLI"' in config_content
         assert 'description = "A custom CLI tool"' in config_content
-        assert 'commands_dir = "cli/commands"' in config_content
-        assert 'templates_dir = "cli/templates"' in config_content
-        assert 'themes_dir = "cli/themes"' in config_content
+        assert 'commands_dir = "commands"' in config_content
+        assert 'templates_dir = "templates"' in config_content
+        assert 'themes_dir = "themes"' in config_content
         assert 'title_font = "big"' in config_content
         assert "hide_init = false" in config_content
         assert "hide_inspire = false" in config_content

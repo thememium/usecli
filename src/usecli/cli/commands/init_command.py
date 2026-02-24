@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 import shutil
 import subprocess
@@ -651,24 +652,6 @@ include = ["{root_package}*"]
                 f"[{COLOR.WARNING}]Default theme already exists:[/{COLOR.WARNING}] {theme_template_path}"
             )
 
-        # Load the template
-        template_path = (
-            Path(__file__).parent.parent / "templates" / "usecli.config.toml.j2"
-        )
-        template_content = template_path.read_text()
-        template = Template(template_content)
-
-        # Render the config
-        config_content = template.render(
-            title=title,
-            description=description,
-            commands_dir=commands_dir,
-            templates_dir=templates_dir,
-            themes_dir=themes_dir,
-            title_font=title_font,
-            theme=theme,
-        )
-
         scripts_status: str | None = None
         usecli_config_status: str | None = None
 
@@ -743,6 +726,29 @@ include = ["{root_package}*"]
             )
             if replace_existing:
                 config_path = existing_config
+
+        config_dir = config_path.parent
+        config_commands_dir = os.path.relpath(commands_path, start=config_dir)
+        config_templates_dir = os.path.relpath(templates_path, start=config_dir)
+        config_themes_dir = os.path.relpath(themes_path, start=config_dir)
+
+        # Load the template
+        template_path = (
+            Path(__file__).parent.parent / "templates" / "usecli.config.toml.j2"
+        )
+        template_content = template_path.read_text()
+        template = Template(template_content)
+
+        # Render the config
+        config_content = template.render(
+            title=title,
+            description=description,
+            commands_dir=config_commands_dir,
+            templates_dir=config_templates_dir,
+            themes_dir=config_themes_dir,
+            title_font=title_font,
+            theme=theme,
+        )
 
         usecli_config_status = self._write_usecli_config(
             config_path, config_content, force
