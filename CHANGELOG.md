@@ -1,6 +1,23 @@
 # Changelog
 
 
+## v0.1.37
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.36...v0.1.37)
+
+### 🚀 Enhancements
+
+- **usecli:** Add default configuration file for the CLI tool ([68a0174](https://github.com/thememium/usecli/commit/68a0174))
+- **config:** Add console‑script discovery and improve config precedence ([ecef67e](https://github.com/thememium/usecli/commit/ecef67e))
+
+### 🩹 Fixes
+
+- **config:** Prevent locating package config when outside UseCLI package ([25fdc36](https://github.com/thememium/usecli/commit/25fdc36))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.36
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.35...v0.1.36)
