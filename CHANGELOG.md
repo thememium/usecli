@@ -1,6 +1,27 @@
 # Changelog
 
 
+## v0.1.40
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.39...v0.1.40)
+
+### 💅 Refactors
+
+- **cli:** Retrieve script command name using explicit cwd ([04ab51a](https://github.com/thememium/usecli/commit/04ab51a))
+
+### 🏡 Chore
+
+- **usecli:** Deduplicate command_name and move it before title for proper config parsing ([349d614](https://github.com/thememium/usecli/commit/349d614))
+- **pyproject:** Add `--fix` flag to ruff check in clean‑full task ([b6cf9d1](https://github.com/thememium/usecli/commit/b6cf9d1))
+
+### 🎨 Styles
+
+- **usecli:** Reorder command_name key in config template ([5b536c3](https://github.com/thememium/usecli/commit/5b536c3))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.39
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.38...v0.1.39)
