@@ -217,6 +217,9 @@ class ConfigManager:
         if console_match:
             return console_match
 
+        if not cls._is_within_usecli_package(start_dir):
+            return None
+
         package_match = cls._find_usecli_config_in_package()
         if package_match:
             return package_match
@@ -544,9 +547,10 @@ def find_project_root(start_dir: Path | None = None) -> Path | None:
     if config_match:
         return config_match.parent
 
-    package_match = ConfigManager._find_usecli_config_in_package()
-    if package_match:
-        return package_match.parent
+    if ConfigManager._is_within_usecli_package(start_dir):
+        package_match = ConfigManager._find_usecli_config_in_package()
+        if package_match:
+            return package_match.parent
 
     return git_root
 
