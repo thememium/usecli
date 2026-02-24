@@ -60,7 +60,7 @@ DEP002 = ["fzf-bin"]
 
 [tool.poe.tasks]
 dev = "uv run usecli"
-clean-full = "sh -c 'uv run isort . && uv run ruff check . && uv run ruff format . && uv run deptry . && uv run ty check'"
+clean-full = "sh -c 'uv run isort . && uv run ruff check . --fix && uv run ruff format . && uv run deptry . && uv run ty check'"
 clean = "sh -c 'uv run isort . && uv run ruff format .'"
 test = "uv run pytest tests/ -v"
 sort = "uv run isort ."
