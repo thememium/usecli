@@ -752,6 +752,7 @@ include = ["{root_package}*"]
             themes_dir=config_themes_dir,
             title_font=title_font,
             theme=theme,
+            command_name=command_name,
         )
 
         usecli_config_status = self._write_usecli_config(
