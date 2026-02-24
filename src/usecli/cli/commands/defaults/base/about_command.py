@@ -16,7 +16,7 @@ from rich.console import Console
 
 from usecli.cli.config.colors import COLOR
 from usecli.cli.core.base_command import BaseCommand
-from usecli.cli.core.ui.title import get_project_name
+from usecli.cli.core.ui.title import get_project_name, get_script_command_name
 from usecli.shared.config.manager import ConfigManager, get_config
 
 console = Console()
@@ -80,8 +80,11 @@ def _get_dependencies(config: ConfigManager) -> list[tuple[str, str | None]]:
 
 
 def _get_script_commands() -> list[str]:
+    primary_command = get_script_command_name(default=None)
     pyproject_path = Path.cwd() / "pyproject.toml"
     if not pyproject_path.exists():
+        if primary_command:
+            return [primary_command]
         return []
 
     try:
@@ -91,9 +94,16 @@ def _get_script_commands() -> list[str]:
 
     scripts = data.get("project", {}).get("scripts", {})
     if not isinstance(scripts, dict):
+        if primary_command:
+            return [primary_command]
         return []
 
-    return [name for name in scripts.keys() if isinstance(name, str) and name.strip()]
+    script_names = [
+        name for name in scripts.keys() if isinstance(name, str) and name.strip()
+    ]
+    if primary_command and primary_command not in script_names:
+        return [primary_command, *script_names]
+    return script_names
 
 
 class AboutCommand(BaseCommand):
