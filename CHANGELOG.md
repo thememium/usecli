@@ -1,6 +1,23 @@
 # Changelog
 
 
+## v0.1.39
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.38...v0.1.39)
+
+### 🚀 Enhancements
+
+- **config:** Add `command_name` option to CLI configuration ([f3b475a](https://github.com/thememium/usecli/commit/f3b475a))
+- **init_command.py:** Include command_name when creating usecli configuration ([4566b0b](https://github.com/thememium/usecli/commit/4566b0b))
+
+### ✅ Tests
+
+- **cli:** Add assertions for command_name in generated pyproject.toml ([3abda08](https://github.com/thememium/usecli/commit/3abda08))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.38
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.37...v0.1.38)
