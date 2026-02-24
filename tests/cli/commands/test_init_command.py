@@ -144,6 +144,7 @@ class TestInitCommandPyprojectToml:
         config_content = config_path.read_text()
         assert 'title = "Test CLI"' in config_content
         assert 'description = "Test description"' in config_content
+        assert 'command_name = "test"' in config_content
 
     def test_uses_parent_pyproject_from_subdir(self, temp_project_dir, init_command):
         pyproject = temp_project_dir / "pyproject.toml"
@@ -543,6 +544,7 @@ class TestInitCommandDefaults:
         config_content = config_path.read_text()
         assert 'title = "My CLI"' in config_content
         assert 'description = "A custom CLI tool"' in config_content
+        assert 'command_name = "usecli"' in config_content
         assert 'commands_dir = "commands"' in config_content
         assert 'templates_dir = "templates"' in config_content
         assert 'themes_dir = "themes"' in config_content
