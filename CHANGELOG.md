@@ -1,6 +1,23 @@
 # Changelog
 
 
+## v0.1.38
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.37...v0.1.38)
+
+### 🚀 Enhancements
+
+- **cli:** Resolve pyproject path via ConfigManager when present ([9daa980](https://github.com/thememium/usecli/commit/9daa980))
+
+### 💅 Refactors
+
+- **usecli.config.toml:** Update command, template, and theme directories to relative paths ([1f8b413](https://github.com/thememium/usecli/commit/1f8b413))
+- **init:** Generate relative paths for config directories ([064beed](https://github.com/thememium/usecli/commit/064beed))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.37
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.36...v0.1.37)
