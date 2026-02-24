@@ -505,7 +505,11 @@ include = ["{root_package}*"]
         cwd = Path.cwd()
         config_manager = ConfigManager(start_dir=cwd)
         project_root = config_manager.get_project_root()
-        pyproject_path = project_root / "pyproject.toml"
+        pyproject_path = (
+            config_manager.pyproject_path
+            if config_manager.pyproject_path.exists()
+            else project_root / "pyproject.toml"
+        )
 
         console.print()
         existing_command_name = self._get_existing_usecli_script_name(pyproject_path)

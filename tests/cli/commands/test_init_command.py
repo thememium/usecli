@@ -145,6 +145,22 @@ class TestInitCommandPyprojectToml:
         assert 'title = "Test CLI"' in config_content
         assert 'description = "Test description"' in config_content
 
+    def test_uses_parent_pyproject_from_subdir(self, temp_project_dir, init_command):
+        pyproject = temp_project_dir / "pyproject.toml"
+        pyproject.write_text("[project]\nname = 'test'\n")
+        subdir = temp_project_dir / "cli"
+        subdir.mkdir()
+        (subdir / "usecli.config.toml").write_text("[usecli]\n")
+
+        with patch("usecli.cli.commands.init_command.Path.cwd") as mock_cwd:
+            mock_cwd.return_value = subdir
+            init_command.handle(
+                DEFAULT_TITLE, DEFAULT_DESCRIPTION, DEFAULT_COMMANDS_DIR, force=True
+            )
+
+        assert pyproject.exists()
+        assert not (subdir / "pyproject.toml").exists()
+
     def test_auto_syncs_when_venv_exists(self, temp_project_dir, init_command):
         pyproject = temp_project_dir / "pyproject.toml"
         pyproject.write_text(
