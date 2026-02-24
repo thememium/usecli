@@ -1,8 +1,8 @@
 [usecli]
+command_name = "{{ command_name | default('usecli') }}"
 title = "{{ title | default('My CLI') }}"
 title_file = "{{ title_file | default('') }}"
 title_font = "{{ title_font | default('big') }}"
-command_name = "{{ command_name | default('usecli') }}"
 description = "{{ description | default('A custom CLI tool') }}"
 commands_dir = "{{ commands_dir | default('cli/commands') }}"
 templates_dir = "{{ templates_dir | default('cli/templates') }}"
