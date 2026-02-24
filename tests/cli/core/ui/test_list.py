@@ -602,6 +602,40 @@ class TestListCommands:
     @patch("usecli.cli.core.ui.list.print_title")
     @patch("usecli.cli.core.ui.list.console")
     @patch("usecli.cli.core.ui.list.typer.main.get_command")
+    def test_list_commands_uses_config_command_name(
+        self,
+        mock_get_command,
+        mock_console,
+        mock_print_title,
+        tmp_path,
+        monkeypatch,
+    ):
+        config_path = tmp_path / "usecli.config.toml"
+        config_path.write_text('[usecli]\ncommand_name = "mycli"\n')
+        monkeypatch.chdir(tmp_path)
+
+        from usecli.shared.config.manager import reset_config
+
+        reset_config()
+        try:
+            app = Mock()
+            app.registered_commands = []
+
+            click_group = Mock()
+            click_group.params = []
+            mock_get_command.return_value = click_group
+
+            list_commands(app)
+        finally:
+            reset_config()
+
+        print_calls = [str(call) for call in mock_console.print.call_args_list]
+        combined_output = "\n".join(print_calls)
+        assert "mycli [OPTIONS]" in combined_output
+
+    @patch("usecli.cli.core.ui.list.print_title")
+    @patch("usecli.cli.core.ui.list.console")
+    @patch("usecli.cli.core.ui.list.typer.main.get_command")
     def test_list_commands_usage_header(
         self, mock_get_command, mock_console, mock_print_title
     ):

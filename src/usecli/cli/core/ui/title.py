@@ -72,7 +72,7 @@ def get_project_name() -> str:
         return title
 
     # Fall back to command name from pyproject.toml scripts
-    command_name = get_script_command_name()
+    command_name = _get_script_command_name(Path.cwd())
     if command_name:
         return "useCli" if command_name == "usecli" else command_name
 
