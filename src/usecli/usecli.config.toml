@@ -2,6 +2,7 @@
 title = "usecli"
 title_file = ""
 title_font = "ansi_shadow"
+command_name = "usecli"
 description = "A custom CLI tool"
 commands_dir = "cli/commands/custom"
 templates_dir = "cli/templates"
