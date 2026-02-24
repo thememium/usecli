@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.41
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.40...v0.1.41)
+
+### 🚀 Enhancements
+
+- **about:** Include primary script command in About output ([def27da](https://github.com/thememium/usecli/commit/def27da))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.40
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.39...v0.1.40)
