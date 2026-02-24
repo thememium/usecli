@@ -11,7 +11,9 @@ Usage:
 
 from __future__ import annotations
 
+import importlib.metadata
 import importlib.util
+import os
 import sys
 from pathlib import Path
 from typing import Any, Callable, Final, final
@@ -26,7 +28,15 @@ PYPROJECT_TOML = "pyproject.toml"
 USECLI_CONFIG_TOML = "usecli.config.toml"
 DEFAULT_THEME_NAME = "default"
 THEMES_DIR = Path(__file__).resolve().parent.parent / "themes"
-_PACKAGE_PREFER_DIRS = {".venv", "venv", "site-packages"}
+_SKIP_DIRS = {
+    ".venv",
+    "venv",
+    "site-packages",
+    "dist-packages",
+    "__pypackages__",
+    "pipx",
+    "venvs",
+}
 DEFAULT_THEME_COLORS: dict[str, str] = {
     "primary": "#60D7FF",
     "secondary": "#5EFF87",
@@ -61,7 +71,7 @@ def _find_usecli_config_path(
         candidates = [
             path
             for path in candidates
-            if not any(part in {".venv", "venv"} for part in path.parts)
+            if not any(part in _SKIP_DIRS for part in path.parts)
         ]
     if not candidates:
         return None
@@ -106,8 +116,64 @@ def _find_usecli_config_in_package() -> Path | None:
     return None
 
 
+def _find_usecli_config_in_named_package(package_name: str) -> Path | None:
+    if not package_name:
+        return None
+    spec = importlib.util.find_spec(package_name)
+    if spec is None or not spec.submodule_search_locations:
+        return None
+    for location in spec.submodule_search_locations:
+        package_root = Path(location)
+        if not package_root.exists() or not package_root.is_dir():
+            continue
+        candidates = [
+            path for path in package_root.rglob(USECLI_CONFIG_TOML) if path.exists()
+        ]
+        if candidates:
+            candidates.sort(key=lambda path: (len(path.parts), str(path)))
+            return candidates[0]
+    return None
+
+
+def _find_usecli_config_for_console_script() -> Path | None:
+    command_name = os.path.basename(sys.argv[0]) if sys.argv else ""
+    if not command_name:
+        return None
+    try:
+        distributions = importlib.metadata.distributions()
+    except Exception:
+        return None
+    for dist in distributions:
+        try:
+            entry_points = dist.entry_points
+        except Exception:
+            continue
+        for entry_point in entry_points:
+            if entry_point.group != "console_scripts":
+                continue
+            if entry_point.name != command_name:
+                continue
+            metadata = dist.metadata
+            dist_name = ""
+            if "Name" in metadata:
+                dist_name = metadata["Name"]
+            elif "name" in metadata:
+                dist_name = metadata["name"]
+            candidates: list[str] = []
+            if dist_name:
+                candidates.append(dist_name)
+                normalized = dist_name.replace("-", "_")
+                if normalized not in candidates:
+                    candidates.append(normalized)
+            for package_name in candidates:
+                match = _find_usecli_config_in_named_package(package_name)
+                if match:
+                    return match
+    return None
+
+
 def _is_preferred_package_path(path: Path) -> bool:
-    return any(part in _PACKAGE_PREFER_DIRS for part in path.parts)
+    return any(part in _SKIP_DIRS for part in path.parts)
 
 
 def _is_within_usecli_package(start_dir: Path) -> bool:
@@ -132,10 +198,6 @@ def _find_project_root(start_dir: Path | None = None) -> Path | None:
     current = start_dir.resolve()
     git_root: Path | None = None
 
-    package_match = _find_usecli_config_in_package()
-    if package_match and _is_preferred_package_path(package_match):
-        return package_match.parent
-
     while True:
         pyproject_path = current / PYPROJECT_TOML
         if pyproject_path.exists():
@@ -156,11 +218,13 @@ def _find_project_root(start_dir: Path | None = None) -> Path | None:
         current = parent
 
     search_root = git_root or start_dir.resolve()
-    config_match = _find_usecli_config_path(
-        search_root, start_dir, skip_venv=_is_within_usecli_package(start_dir)
-    )
+    config_match = _find_usecli_config_path(search_root, start_dir, skip_venv=True)
     if config_match:
         return config_match.parent
+
+    console_match = _find_usecli_config_for_console_script()
+    if console_match:
+        return console_match.parent
 
     package_match = _find_usecli_config_in_package()
     if package_match:
@@ -173,18 +237,17 @@ def _load_usecli_config(project_root: Path | None) -> dict[str, Any]:
     if project_root is None:
         return {}
 
-    package_match = _find_usecli_config_in_package()
-    if package_match and _is_preferred_package_path(package_match):
-        return _load_usecli_config_file(package_match)
-
     config_path = project_root / USECLI_CONFIG_TOML
     if not config_path.exists():
         config_path = _find_usecli_config_path(
             project_root,
             project_root,
-            skip_venv=_is_within_usecli_package(project_root),
+            skip_venv=True,
         )
     if not config_path or not config_path.exists():
+        console_match = _find_usecli_config_for_console_script()
+        if console_match:
+            return _load_usecli_config_file(console_match)
         package_match = _find_usecli_config_in_package()
         if package_match:
             config_path = package_match

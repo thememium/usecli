@@ -130,7 +130,7 @@ commands_dir = "nested/commands"
         assert manager.get("commands_dir") == "nested/commands"
         assert manager.get_project_root() == nested_dir
 
-    def test_prefers_package_config_in_venv(self, temp_project_dir, monkeypatch):
+    def test_prefers_project_config_over_package(self, temp_project_dir, monkeypatch):
         project_config = temp_project_dir / "usecli.config.toml"
         project_config.write_text(
             """
@@ -159,7 +159,7 @@ description = "Package config"
 
         manager = ConfigManager()
 
-        assert manager.get("title") == "Package CLI"
+        assert manager.get("title") == "Project CLI"
 
     def test_loads_from_usecli_toml_when_pyproject_missing(self, temp_project_dir):
         config_file = temp_project_dir / "usecli.config.toml"
@@ -225,6 +225,53 @@ themes_dir = ["custom/themes", "cli/themes", "custom/themes"]
         )
 
         assert manager.pyproject_exists is False
+
+    def test_nested_config_overrides_pyproject_root(self, temp_project_dir):
+        pyproject = temp_project_dir / "pyproject.toml"
+        pyproject.write_text('[project]\nname = "sample"')
+
+        nested_dir = temp_project_dir / "pkg" / "cli"
+        nested_dir.mkdir(parents=True)
+        config_file = nested_dir / "usecli.config.toml"
+        config_file.write_text('[usecli]\ntitle = "Nested CLI"')
+
+        manager = ConfigManager()
+
+        assert manager.get_project_root() == nested_dir
+
+    def test_console_script_package_config_selected(
+        self, temp_project_dir, monkeypatch
+    ):
+        package_root = temp_project_dir / "site-packages" / "usechange"
+        package_cli = package_root / "cli"
+        package_cli.mkdir(parents=True)
+        package_config = package_cli / "usecli.config.toml"
+        package_config.write_text('[usecli]\ntitle = "Package CLI"')
+
+        class FakeEntryPoint:
+            def __init__(self, name: str) -> None:
+                self.group = "console_scripts"
+                self.name = name
+
+        class FakeDist:
+            def __init__(self, name: str) -> None:
+                self.metadata = {"Name": name}
+                self.entry_points = [FakeEntryPoint("usechange")]
+
+        spec = types.SimpleNamespace(submodule_search_locations=[str(package_root)])
+        monkeypatch.setattr(
+            config_manager.importlib.util, "find_spec", lambda name: spec
+        )
+        monkeypatch.setattr(
+            config_manager.importlib.metadata,
+            "distributions",
+            lambda: [FakeDist("usechange")],
+        )
+        monkeypatch.setattr(sys, "argv", ["usechange"])
+
+        manager = ConfigManager()
+
+        assert manager.get("title") == "Package CLI"
 
 
 class TestConfigManagerErrors:
