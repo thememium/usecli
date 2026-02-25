@@ -196,11 +196,12 @@ class ConfigManager:
     def _find_usecli_config(cls, start_dir: Path) -> Path | None:
         current = start_dir.resolve()
         command_name = cls._get_command_name()
+        aliases = cls._get_console_script_aliases(command_name)
 
         while True:
             config_path = current / USECLI_CONFIG_TOML
             if config_path.exists() and cls._config_matches_command(
-                config_path, command_name
+                config_path, command_name, aliases
             ):
                 return config_path
 
@@ -244,11 +245,12 @@ class ConfigManager:
                 if not any(part in ConfigManager._SKIP_DIRS for part in path.parts)
             ]
         command_name = ConfigManager._get_command_name()
+        aliases = ConfigManager._get_console_script_aliases(command_name)
         if command_name:
             candidates = [
                 path
                 for path in candidates
-                if ConfigManager._config_matches_command(path, command_name)
+                if ConfigManager._config_matches_command(path, command_name, aliases)
             ]
         if not candidates:
             return None
@@ -288,11 +290,14 @@ class ConfigManager:
                 path for path in package_root.rglob(USECLI_CONFIG_TOML) if path.exists()
             ]
             command_name = ConfigManager._get_command_name()
+            aliases = ConfigManager._get_console_script_aliases(command_name)
             if command_name:
                 candidates = [
                     path
                     for path in candidates
-                    if ConfigManager._config_matches_command(path, command_name)
+                    if ConfigManager._config_matches_command(
+                        path, command_name, aliases
+                    )
                 ]
             if candidates:
                 candidates.sort(key=lambda path: (len(path.parts), str(path)))
@@ -314,11 +319,12 @@ class ConfigManager:
                 path for path in package_root.rglob(USECLI_CONFIG_TOML) if path.exists()
             ]
             command_name = cls._get_command_name()
+            aliases = cls._get_console_script_aliases(command_name)
             if command_name:
                 candidates = [
                     path
                     for path in candidates
-                    if cls._config_matches_command(path, command_name)
+                    if cls._config_matches_command(path, command_name, aliases)
                 ]
             if candidates:
                 candidates.sort(key=lambda path: (len(path.parts), str(path)))
@@ -422,7 +428,33 @@ class ConfigManager:
         return command if command else None
 
     @staticmethod
-    def _config_matches_command(path: Path, command_name: str | None) -> bool:
+    def _get_console_script_aliases(command_name: str | None) -> set[str]:
+        if not command_name:
+            return set()
+        aliases: set[str] = {command_name}
+        try:
+            distributions = importlib.metadata.distributions()
+        except Exception:
+            return aliases
+        for dist in distributions:
+            try:
+                entry_points = dist.entry_points
+            except Exception:
+                continue
+            names = [
+                entry_point.name
+                for entry_point in entry_points
+                if entry_point.group == "console_scripts"
+            ]
+            if command_name in names:
+                aliases.update(names)
+                break
+        return aliases
+
+    @staticmethod
+    def _config_matches_command(
+        path: Path, command_name: str | None, aliases: set[str] | None = None
+    ) -> bool:
         if command_name is None:
             return True
         try:
@@ -432,7 +464,12 @@ class ConfigManager:
         config_command = config.get("command_name")
         if not isinstance(config_command, str):
             return True
-        return config_command.strip() == command_name
+        normalized = config_command.strip()
+        if not normalized:
+            return True
+        if aliases is None:
+            aliases = {command_name}
+        return normalized in aliases
 
     def get(self, key: str, default: Any = None) -> Any:
         """Get a configuration value using dot notation.
