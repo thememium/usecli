@@ -1,7 +1,7 @@
 [usecli]
 command_name = "usecli"
 title = "usecli"
-title_file = ""
+title_file = "cli/core/ui/title.txt"
 title_font = "ansi_shadow"
 description = "A custom CLI tool"
 commands_dir = "cli/commands/custom"
