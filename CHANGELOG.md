@@ -1,6 +1,19 @@
 # Changelog
 
 
+## v0.1.42
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.41...v0.1.42)
+
+### 🚀 Enhancements
+
+- **config:** Select config files based on command name for console scripts ([2f520b6](https://github.com/thememium/usecli/commit/2f520b6))
+- **config:** Add console‑script alias support for command matching ([5845f11](https://github.com/thememium/usecli/commit/5845f11))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.41
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.40...v0.1.41)
