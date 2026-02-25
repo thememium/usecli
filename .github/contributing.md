@@ -1,6 +1,6 @@
-# useSpec Contributing Guide
+# useCli Contributing Guide
 
-Hi! I'm really excited that you are interested in contributing to useSpec. Before submitting your contribution, please make sure to take a moment and read through the following guidelines:
+Hi! I'm really excited that you are interested in contributing to useCli. Before submitting your contribution, please make sure to take a moment and read through the following guidelines:
 
 - [Code of Conduct](#code-of-conduct)
 - [Issue Reporting Guidelines](#issue-reporting-guidelines)
@@ -118,7 +118,7 @@ Run the CLI application:
 $ uv run poe run --help
 ```
 
-This is equivalent to `uv run usespec --help`.
+This is equivalent to `uv run usecli --help`.
 
 ### `uv run poe test`
 
@@ -200,28 +200,31 @@ $ uv run poe typecheck
 ## Project Structure
 
 ```
-├── src/usespec/                   # Source code
-│   ├── __init__.py               # Main entry point
-│   ├── cli/                      # CLI implementation
-│   │   ├── commands/             # Command implementations
-│   │   │   ├── defaults/         # Built-in commands
-│   │   │   └── custom/           # User-defined commands
-│   │   ├── config/               # Color system and config
-│   │   ├── core/                 # BaseCommand, error handling, validators
-│   │   ├── services/             # Command loading service
-│   │   ├── templates/            # Jinja2 templates for scaffolding
-│   │   └── utils/                # Interactive utilities
-│   └── shared/                   # Global configuration
-├── tests/                        # Test files
-├── docs/                         # Documentation assets
-└── usespec/                      # useSpec configuration (when initialized)
+├── scripts/                     # Release and tooling scripts
+├── src/usecli/                  # Source code
+│   ├── __init__.py              # Main entry point
+│   ├── cli/                     # CLI implementation
+│   │   ├── commands/            # Command implementations
+│   │   │   ├── defaults/        # Built-in commands
+│   │   │   └── custom/          # User-defined commands
+│   │   ├── config/              # Color system and config
+│   │   ├── core/                # BaseCommand, error handling, validators
+│   │   ├── services/            # Command loading service
+│   │   ├── templates/           # Jinja2 templates for scaffolding
+│   │   ├── themes/              # Theme configuration
+│   │   └── utils/               # Interactive utilities
+│   ├── shared/                  # Global configuration
+│   └── usecli.config.toml        # Default config template
+├── tests/                       # Test files
+├── docs/                        # Documentation assets
+└── dist/                        # Build output
 ```
 
 ### Importing Code
 
 When working within the codebase:
 
-- Use absolute imports from `usespec` package
+- Use absolute imports from `usecli` package
 - Follow the import order: `__future__`, stdlib, third-party, local
 - Use `from __future__ import annotations` for forward references
 
@@ -237,8 +240,8 @@ from typing import TYPE_CHECKING, Any
 import typer
 from rich.console import Console
 
-from usespec.cli.config.colors import COLOR
-from usespec.cli.core.base_command import BaseCommand
+from usecli.cli.config.colors import COLOR
+from usecli.cli.core.base_command import BaseCommand
 
 if TYPE_CHECKING:
     from click.core import Context as ClickContext
@@ -248,7 +251,7 @@ if TYPE_CHECKING:
 
 - **Commands** should inherit from `BaseCommand`
 - **Colors** should use semantic constants from `COLOR`
-- **Error handling** should use custom exceptions from `usespec.cli.core.exceptions`
+- **Error handling** should use custom exceptions from `usecli.cli.core.exceptions`
 - **Type hints** are required on all functions
 - **Tests** should be grouped in classes with descriptive names
 
@@ -259,13 +262,13 @@ These are general guidelines for contributing code:
 - **Functions:** Keep logic within a single function unless breaking it out adds clear reuse or composition benefits.
 - **Type hints:** All functions must have type hints. Use `from __future__ import annotations` for forward references.
 - **Imports:** Follow the import order: `__future__`, stdlib, third-party, local.
-- **Error handling:** Use custom exception classes from `usespec.cli.core.exceptions`. Prefer specific exceptions over generic `Exception`.
+- **Error handling:** Use custom exception classes from `usecli.cli.core.exceptions`. Prefer specific exceptions over generic `Exception`.
 - **Variables:** Stick to immutable patterns when possible.
 - **Naming:** Choose concise identifiers. Classes are PascalCase, functions/variables are snake_case, constants are UPPER_CASE.
 - **Docstrings:** Use Google-style docstrings for public methods and classes.
 
 ## Credits
 
-Thank you to all the people who have already contributed to useSpec!
+Thank you to all the people who have already contributed to useCli!
 
-<a href="https://github.com/thememium/usespec/graphs/contributors"><img src="https://contrib.rocks/image?repo=thememium/usespec" /></a>
+<a href="https://github.com/thememium/usecli/graphs/contributors"><img src="https://contrib.rocks/image?repo=thememium/usecli" /></a>
