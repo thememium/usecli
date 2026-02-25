@@ -1,6 +1,24 @@
 # Changelog
 
 
+## v0.1.43
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.42...v0.1.43)
+
+### 🚀 Enhancements
+
+- **cli:** Add ASCII art title for CLI ([e0433f5](https://github.com/thememium/usecli/commit/e0433f5))
+- **usecli.config:** Set title_file to default UI title ([8986cf9](https://github.com/thememium/usecli/commit/8986cf9))
+
+### 📖 Documentation
+
+- **contributing:** Rename project from useSpec to useCli and update documentation ([9b00243](https://github.com/thememium/usecli/commit/9b00243))
+- **issue:** Update bug report template to reflect project rename to usecli ([5786ed3](https://github.com/thememium/usecli/commit/5786ed3))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.42
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.41...v0.1.42)
