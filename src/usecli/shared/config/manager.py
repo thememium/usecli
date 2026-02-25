@@ -195,10 +195,13 @@ class ConfigManager:
     @classmethod
     def _find_usecli_config(cls, start_dir: Path) -> Path | None:
         current = start_dir.resolve()
+        command_name = cls._get_command_name()
 
         while True:
             config_path = current / USECLI_CONFIG_TOML
-            if config_path.exists():
+            if config_path.exists() and cls._config_matches_command(
+                config_path, command_name
+            ):
                 return config_path
 
             parent = current.parent
@@ -240,6 +243,13 @@ class ConfigManager:
                 for path in candidates
                 if not any(part in ConfigManager._SKIP_DIRS for part in path.parts)
             ]
+        command_name = ConfigManager._get_command_name()
+        if command_name:
+            candidates = [
+                path
+                for path in candidates
+                if ConfigManager._config_matches_command(path, command_name)
+            ]
         if not candidates:
             return None
 
@@ -277,6 +287,13 @@ class ConfigManager:
             candidates = [
                 path for path in package_root.rglob(USECLI_CONFIG_TOML) if path.exists()
             ]
+            command_name = ConfigManager._get_command_name()
+            if command_name:
+                candidates = [
+                    path
+                    for path in candidates
+                    if ConfigManager._config_matches_command(path, command_name)
+                ]
             if candidates:
                 candidates.sort(key=lambda path: (len(path.parts), str(path)))
                 return candidates[0]
@@ -296,6 +313,13 @@ class ConfigManager:
             candidates = [
                 path for path in package_root.rglob(USECLI_CONFIG_TOML) if path.exists()
             ]
+            command_name = cls._get_command_name()
+            if command_name:
+                candidates = [
+                    path
+                    for path in candidates
+                    if cls._config_matches_command(path, command_name)
+                ]
             if candidates:
                 candidates.sort(key=lambda path: (len(path.parts), str(path)))
                 return candidates[0]
@@ -389,6 +413,26 @@ class ConfigManager:
             return usecli_section
 
         return {}
+
+    @staticmethod
+    def _get_command_name() -> str | None:
+        if not sys.argv:
+            return None
+        command = os.path.basename(sys.argv[0])
+        return command if command else None
+
+    @staticmethod
+    def _config_matches_command(path: Path, command_name: str | None) -> bool:
+        if command_name is None:
+            return True
+        try:
+            config = ConfigManager._load_usecli_toml(path)
+        except (tomllib.TOMLDecodeError, OSError):
+            return True
+        config_command = config.get("command_name")
+        if not isinstance(config_command, str):
+            return True
+        return config_command.strip() == command_name
 
     def get(self, key: str, default: Any = None) -> Any:
         """Get a configuration value using dot notation.

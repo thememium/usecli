@@ -273,6 +273,51 @@ themes_dir = ["custom/themes", "cli/themes", "custom/themes"]
 
         assert manager.get("title") == "Package CLI"
 
+    def test_console_script_ignores_mismatched_project_config(
+        self, temp_project_dir, monkeypatch
+    ):
+        project_config = temp_project_dir / "usecli.config.toml"
+        project_config.write_text(
+            """
+[usecli]
+title = "Project CLI"
+command_name = "usecli"
+"""
+        )
+
+        package_root = temp_project_dir / "site-packages" / "usechange"
+        package_cli = package_root / "cli"
+        package_cli.mkdir(parents=True)
+        package_config = package_cli / "usecli.config.toml"
+        package_config.write_text(
+            '[usecli]\ntitle = "Package CLI"\ncommand_name = "usechange"'
+        )
+
+        class FakeEntryPoint:
+            def __init__(self, name: str) -> None:
+                self.group = "console_scripts"
+                self.name = name
+
+        class FakeDist:
+            def __init__(self, name: str) -> None:
+                self.metadata = {"Name": name}
+                self.entry_points = [FakeEntryPoint("usechange")]
+
+        spec = types.SimpleNamespace(submodule_search_locations=[str(package_root)])
+        monkeypatch.setattr(
+            config_manager.importlib.util, "find_spec", lambda name: spec
+        )
+        monkeypatch.setattr(
+            config_manager.importlib.metadata,
+            "distributions",
+            lambda: [FakeDist("usechange")],
+        )
+        monkeypatch.setattr(sys, "argv", ["usechange"])
+
+        manager = ConfigManager()
+
+        assert manager.get("title") == "Package CLI"
+
 
 class TestConfigManagerErrors:
     def test_raises_on_invalid_pyproject_toml(self, temp_project_dir):
