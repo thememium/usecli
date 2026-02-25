@@ -68,7 +68,7 @@ def get_project_name() -> str:
     # First, try to get the title from the config
     config = get_config()
     title = config.get("title")
-    if title and title != "usecli":
+    if title:
         return title
 
     # Fall back to command name from pyproject.toml scripts
