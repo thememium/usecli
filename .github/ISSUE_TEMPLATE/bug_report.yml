@@ -9,9 +9,9 @@ body:
         This form is only for submitting bug reports. If you have a usage question
         or are unsure if this is really a bug, make sure to:
 
-        - Read the [documentation](https://github.com/thememium/usespec#readme)
+        - Read the [documentation](https://github.com/thememium/usecli#readme)
         - Look for existing issues (open and closed) that might answer your question
-        - Ask on [GitHub Discussions](https://github.com/thememium/usespec/discussions)
+        - Ask on [GitHub Discussions](https://github.com/thememium/usecli/discussions)
 
         Also try to search for your issue - it may have already been answered or even fixed in the development branch.
         However, if you find that an old, closed issue still persists in the latest version,
@@ -19,8 +19,8 @@ body:
   - type: input
     id: version
     attributes:
-      label: useSpec version
-      description: Run `usespec --version` to get the version
+      label: useCli version
+      description: Run `usecli --version` to get the version
     validations:
       required: true
   - type: input
@@ -47,7 +47,7 @@ body:
       description: |
         What do we need to do after opening your repro in order to make the bug happen? Clear and concise reproduction instructions are important for us to be able to triage your issue in a timely manner. Note that you can use [Markdown](https://guides.github.com/features/mastering-markdown/) to format lists and code.
       placeholder: |
-        1. Run `usespec init`
+        1. Run `usecli init`
         2. Select option X
         3. See error
     validations:
