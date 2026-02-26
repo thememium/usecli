@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.44
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.43...v0.1.44)
+
+### 🩹 Fixes
+
+- **title:** Return configured title even when it equals 'usecli' ([647083e](https://github.com/thememium/usecli/commit/647083e))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.43
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.42...v0.1.43)
