@@ -68,8 +68,9 @@ def get_project_name() -> str:
     # First, try to get the title from the config
     config = get_config()
     title = config.get("title")
-    if title:
-        return title
+    if config.has_key("title") and isinstance(title, str) and title.strip():
+        normalized = title.strip()
+        return "useCli" if normalized == "usecli" else normalized
 
     # Fall back to command name from pyproject.toml scripts
     command_name = _get_script_command_name(Path.cwd())
