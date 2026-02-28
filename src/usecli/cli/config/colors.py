@@ -15,6 +15,7 @@ import importlib.metadata
 import importlib.util
 import os
 import sys
+import time
 from pathlib import Path
 from typing import Any, Callable, Final, Protocol, cast, final
 
@@ -485,7 +486,24 @@ def _load_theme() -> tuple[dict[str, str], dict[str, str], str, Path | None]:
     return colors, ansi, theme_name, theme_path
 
 
-def _theme_context() -> tuple[Path | None, Path | None, str, Path | None]:
+_THEME_CACHE: dict[str, Any] = {
+    "context": None,
+    "cwd": None,
+    "config_path": None,
+    "config_sig": None,
+    "last_checked": 0.0,
+}
+
+
+def _config_signature(path: Path) -> tuple[Path, int | None, int | None]:
+    try:
+        stat = path.stat()
+    except OSError:
+        return (path.resolve(), None, None)
+    return (path.resolve(), int(stat.st_mtime), int(stat.st_size))
+
+
+def _compute_theme_context() -> tuple[Path | None, Path | None, str, Path | None]:
     project_root = _find_project_root()
     config_values, config_path = _load_usecli_config(project_root)
     theme_name = DEFAULT_THEME_NAME
@@ -499,6 +517,34 @@ def _theme_context() -> tuple[Path | None, Path | None, str, Path | None]:
         theme_name,
         theme_path.resolve() if theme_path else None,
     )
+
+
+def _theme_context() -> tuple[Path | None, Path | None, str, Path | None]:
+    now = time.monotonic()
+    cached_context = _THEME_CACHE.get("context")
+    cached_cwd = _THEME_CACHE.get("cwd")
+    cached_sig = _THEME_CACHE.get("config_sig")
+    cached_path = _THEME_CACHE.get("config_path")
+
+    cwd = Path.cwd().resolve()
+    if cached_context is not None and cached_cwd == cwd:
+        if cached_path is None:
+            return cached_context
+        if now - float(_THEME_CACHE.get("last_checked", 0.0)) < 0.25:
+            return cached_context
+        _THEME_CACHE["last_checked"] = now
+        current_sig = _config_signature(cached_path)
+        if current_sig == cached_sig:
+            return cached_context
+
+    context = _compute_theme_context()
+    _THEME_CACHE["context"] = context
+    _THEME_CACHE["cwd"] = cwd
+    config_path = context[1]
+    _THEME_CACHE["config_path"] = config_path
+    _THEME_CACHE["config_sig"] = _config_signature(config_path) if config_path else None
+    _THEME_CACHE["last_checked"] = now
+    return context
 
 
 class _AnsiNamespace(Protocol):
