@@ -16,7 +16,7 @@ import importlib.util
 import os
 import sys
 from pathlib import Path
-from typing import Any, Callable, Final, final
+from typing import Any, Callable, Final, Protocol, cast, final
 
 if sys.version_info >= (3, 11):
     import tomllib
@@ -233,9 +233,11 @@ def _find_project_root(start_dir: Path | None = None) -> Path | None:
     return git_root
 
 
-def _load_usecli_config(project_root: Path | None) -> dict[str, Any]:
+def _load_usecli_config(
+    project_root: Path | None,
+) -> tuple[dict[str, Any], Path | None]:
     if project_root is None:
-        return {}
+        return {}, None
 
     config_path = project_root / USECLI_CONFIG_TOML
     if not config_path.exists():
@@ -247,14 +249,14 @@ def _load_usecli_config(project_root: Path | None) -> dict[str, Any]:
     if not config_path or not config_path.exists():
         console_match = _find_usecli_config_for_console_script()
         if console_match:
-            return _load_usecli_config_file(console_match)
+            return _load_usecli_config_file(console_match), console_match
         package_match = _find_usecli_config_in_package()
         if package_match:
             config_path = package_match
     if not config_path or not config_path.exists():
-        return {}
+        return {}, None
 
-    return _load_usecli_config_file(config_path)
+    return _load_usecli_config_file(config_path), config_path
 
 
 def _load_usecli_config_file(config_path: Path) -> dict[str, Any]:
@@ -461,16 +463,16 @@ def _load_theme_file(theme_path: Path) -> dict[str, Any]:
     return data
 
 
-def _load_theme() -> tuple[dict[str, str], dict[str, str]]:
+def _load_theme() -> tuple[dict[str, str], dict[str, str], str, Path | None]:
     project_root = _find_project_root()
-    config = _load_usecli_config(project_root)
+    config_values, _ = _load_usecli_config(project_root)
 
     theme_name = DEFAULT_THEME_NAME
-    config_theme = config.get("theme")
+    config_theme = config_values.get("theme")
     if isinstance(config_theme, str) and config_theme.strip():
         theme_name = config_theme.strip()
 
-    theme_path = _resolve_theme_path(theme_name, project_root, config)
+    theme_path = _resolve_theme_path(theme_name, project_root, config_values)
     theme_data = _load_theme_file(theme_path) if theme_path else {}
 
     colors = _merge_theme_values(
@@ -480,14 +482,108 @@ def _load_theme() -> tuple[dict[str, str], dict[str, str]]:
     )
     ansi = _build_ansi_palette(colors)
 
-    return colors, ansi
+    return colors, ansi, theme_name, theme_path
 
 
-_THEME_COLORS, _THEME_ANSI = _load_theme()
+def _theme_context() -> tuple[Path | None, Path | None, str, Path | None]:
+    project_root = _find_project_root()
+    config_values, config_path = _load_usecli_config(project_root)
+    theme_name = DEFAULT_THEME_NAME
+    config_theme = config_values.get("theme")
+    if isinstance(config_theme, str) and config_theme.strip():
+        theme_name = config_theme.strip()
+    theme_path = _resolve_theme_path(theme_name, project_root, config_values)
+    return (
+        project_root.resolve() if project_root else None,
+        config_path.resolve() if config_path else None,
+        theme_name,
+        theme_path.resolve() if theme_path else None,
+    )
+
+
+class _AnsiNamespace(Protocol):
+    PRIMARY: str
+    SECONDARY: str
+    ACCENT: str
+    FOREGROUND: str
+    FOREGROUND_MUTED: str
+    RESET: str
+    RED: str
+    GREEN: str
+    YELLOW: str
+    BLUE: str
+
+
+class _ColorNamespace(Protocol):
+    ANSI: type[_AnsiNamespace]
+
+
+def _apply_theme(
+    color_class: _ColorNamespace, colors: dict[str, str], ansi: dict[str, str]
+) -> None:
+    for key in (
+        "primary",
+        "secondary",
+        "accent",
+        "success",
+        "error",
+        "warning",
+        "info",
+        "foreground",
+        "foreground_muted",
+        "background",
+        "border",
+        "border_focus",
+        "command",
+        "option",
+        "link",
+        "prompt",
+        "panel_primary",
+        "panel_secondary",
+        "panel_accent",
+    ):
+        setattr(color_class, key.upper(), colors[key])
+
+    ansi_class = color_class.ANSI
+    for key in (
+        "primary",
+        "secondary",
+        "accent",
+        "foreground",
+        "foreground_muted",
+        "reset",
+        "red",
+        "green",
+        "yellow",
+        "blue",
+    ):
+        setattr(ansi_class, key.upper(), ansi[key])
+
+
+def _ensure_theme_loaded(color_class: type[Any]) -> None:
+    global _THEME_CONTEXT
+    context = _theme_context()
+    if context == _THEME_CONTEXT:
+        return
+    colors, ansi, _, _ = _load_theme()
+    _THEME_CONTEXT = context
+    _THEME_COLORS.update(colors)
+    _THEME_ANSI.update(ansi)
+    _apply_theme(cast(_ColorNamespace, color_class), _THEME_COLORS, _THEME_ANSI)
+
+
+_THEME_COLORS, _THEME_ANSI, _THEME_NAME, _THEME_PATH = _load_theme()
+_THEME_CONTEXT: tuple[Path | None, Path | None, str, Path | None] = _theme_context()
+
+
+class _ColorMeta(type):
+    def __getattribute__(cls, name: str) -> Any:
+        _ensure_theme_loaded(cls)
+        return super().__getattribute__(name)
 
 
 @final
-class COLOR:
+class COLOR(metaclass=_ColorMeta):
     """Semantic color system for usecli CLI.
 
     All colors are defined as hex color codes compatible with Rich console.
