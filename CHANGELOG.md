@@ -1,6 +1,35 @@
 # Changelog
 
 
+## v0.1.45
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.44...v0.1.45)
+
+### 🚀 Enhancements
+
+- **init:** Create missing config directories and skip venv configs ([7b7aa83](https://github.com/thememium/usecli/commit/7b7aa83))
+- **colors:** Implement lazy theme loading with context tracking ([ed3c959](https://github.com/thememium/usecli/commit/ed3c959))
+
+### 🔥 Performance
+
+- **usecli:** Cache theme context and add config‑signature validation ([7df4ea5](https://github.com/thememium/usecli/commit/7df4ea5))
+
+### 🩹 Fixes
+
+- **config/manager:** Refresh ConfigManager when project root changes ([0b55c8e](https://github.com/thememium/usecli/commit/0b55c8e))
+
+### 💅 Refactors
+
+- **title:** Improve validation and normalization of project name ([0b93475](https://github.com/thememium/usecli/commit/0b93475))
+
+### ✅ Tests
+
+- **config:** Add test to verify get_config refreshes on root directory change ([76bc1df](https://github.com/thememium/usecli/commit/76bc1df))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.44
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.43...v0.1.44)
