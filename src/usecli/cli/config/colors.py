@@ -100,6 +100,110 @@ def _find_usecli_config_path(
     return selection[0]
 
 
+def _get_command_name() -> str | None:
+    """Get the current command name from sys.argv."""
+    if not sys.argv:
+        return None
+    command = os.path.basename(sys.argv[0])
+    return command if command else None
+
+
+def _get_console_script_aliases(command_name: str | None) -> set[str]:
+    """Get all aliases for a console script from package metadata."""
+    if not command_name:
+        return set()
+    aliases: set[str] = {command_name}
+    try:
+        distributions = importlib.metadata.distributions()
+    except Exception:
+        return aliases
+    for dist in distributions:
+        try:
+            entry_points = dist.entry_points
+        except Exception:
+            continue
+        names = [
+            entry_point.name
+            for entry_point in entry_points
+            if entry_point.group == "console_scripts"
+        ]
+        if command_name in names:
+            aliases.update(names)
+            break
+    return aliases
+
+
+def _config_matches_command(path: Path, command_name: str | None) -> bool:
+    """Check if a config file matches the given command name."""
+    if command_name is None:
+        return True
+    try:
+        data = _load_usecli_config_file(path)
+    except (tomllib.TOMLDecodeError, OSError):
+        return True
+    config_command = data.get("command_name")
+    if not isinstance(config_command, str):
+        return True
+    normalized = config_command.strip()
+    if not normalized:
+        return True
+    if normalized == command_name:
+        return True
+    aliases = _get_console_script_aliases(command_name)
+    return normalized in aliases
+
+
+def _find_usecli_config_path_for_command(
+    root_dir: Path, start_dir: Path, *, skip_venv: bool
+) -> Path | None:
+    """Find usecli config that matches the current command."""
+    if not root_dir.exists() or not root_dir.is_dir():
+        return None
+
+    candidates = [path for path in root_dir.rglob(USECLI_CONFIG_TOML)]
+    if skip_venv:
+        candidates = [
+            path
+            for path in candidates
+            if not any(part in _SKIP_DIRS for part in path.parts)
+        ]
+    if not candidates:
+        return None
+
+    command_name = _get_command_name()
+
+    # Filter candidates by command_name matching
+    if command_name:
+        candidates = [
+            path for path in candidates if _config_matches_command(path, command_name)
+        ]
+
+    if not candidates:
+        return None
+
+    start_dir = start_dir.resolve()
+    preferred: list[Path] = []
+    for path in candidates:
+        try:
+            path.relative_to(start_dir)
+            preferred.append(path)
+        except ValueError:
+            continue
+
+    selection = preferred or candidates
+
+    def _depth_key(path: Path) -> tuple[int, str]:
+        try:
+            relative = path.relative_to(start_dir)
+            return (len(relative.parts), str(path))
+        except ValueError:
+            relative = path.relative_to(root_dir)
+            return (len(relative.parts), str(path))
+
+    selection.sort(key=_depth_key)
+    return selection[0]
+
+
 def _find_usecli_config_in_package() -> Path | None:
     spec = importlib.util.find_spec(_get_package_name())
     if spec is None or not spec.submodule_search_locations:
@@ -242,7 +346,7 @@ def _load_usecli_config(
 
     config_path = project_root / USECLI_CONFIG_TOML
     if not config_path.exists():
-        config_path = _find_usecli_config_path(
+        config_path = _find_usecli_config_path_for_command(
             project_root,
             project_root,
             skip_venv=True,
