@@ -439,3 +439,21 @@ class TestConfigSingleton:
         config2 = get_config()
 
         assert config1 is not config2
+
+    def test_get_config_refreshes_on_root_change(self, temp_project_dir, monkeypatch):
+        reset_config()
+        (temp_project_dir / "usecli.config.toml").write_text(
+            '[usecli]\ntitle = "First"'
+        )
+
+        config1 = get_config()
+        assert config1.get("title") == "First"
+
+        other_root = temp_project_dir / "other"
+        other_root.mkdir()
+        (other_root / "usecli.config.toml").write_text('[usecli]\ntitle = "Second"')
+        monkeypatch.chdir(other_root)
+
+        config2 = get_config()
+        assert config2.get("title") == "Second"
+        assert config1 is not config2
