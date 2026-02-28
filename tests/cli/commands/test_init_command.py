@@ -146,6 +146,45 @@ class TestInitCommandPyprojectToml:
         assert 'description = "Test description"' in config_content
         assert 'command_name = "test"' in config_content
 
+    def test_ignores_venv_config_default(self, temp_project_dir, monkeypatch):
+        venv_site = temp_project_dir / ".venv" / "lib" / "python3.12" / "site-packages"
+        venv_package = venv_site / "usecli"
+        venv_package.mkdir(parents=True)
+        (venv_package / "usecli.config.toml").write_text("[usecli]\n")
+        monkeypatch.syspath_prepend(str(venv_site))
+
+        config_default: dict[str, str | None] = {"value": None}
+
+        with patch("usecli.cli.commands.init_command.Prompt.ask") as mock_prompt:
+            with patch(
+                "usecli.cli.commands.init_command.terminal_menu"
+            ) as mock_terminal_menu:
+
+                def _prompt_side_effect(*args, **kwargs):
+                    if args and "Config file location" in args[0]:
+                        config_default["value"] = kwargs.get("default", "")
+                    return kwargs.get("default", "")
+
+                mock_prompt.side_effect = _prompt_side_effect
+
+                def _menu_side_effect(options, *args, **kwargs):
+                    if isinstance(options, list) and "big" in options:
+                        return ["big"]
+                    return ["default"]
+
+                mock_terminal_menu.side_effect = _menu_side_effect
+                init_command = InitCommand(MagicMock())
+                init_command.handle(
+                    DEFAULT_TITLE,
+                    DEFAULT_DESCRIPTION,
+                    DEFAULT_COMMANDS_DIR,
+                    force=True,
+                )
+
+        assert config_default["value"] == str(
+            _config_path(temp_project_dir, DEFAULT_COMMANDS_DIR)
+        )
+
     def test_uses_parent_pyproject_from_subdir(self, temp_project_dir, init_command):
         pyproject = temp_project_dir / "pyproject.toml"
         pyproject.write_text("[project]\nname = 'test'\n")
@@ -161,6 +200,37 @@ class TestInitCommandPyprojectToml:
 
         assert pyproject.exists()
         assert not (subdir / "pyproject.toml").exists()
+
+    def test_creates_missing_config_directory(self, temp_project_dir):
+        config_location = temp_project_dir / "config" / "nested"
+        with patch("usecli.cli.commands.init_command.Prompt.ask") as mock_prompt:
+            with patch(
+                "usecli.cli.commands.init_command.terminal_menu"
+            ) as mock_terminal_menu:
+
+                def _prompt_side_effect(*args, **kwargs):
+                    if args and "Config file location" in args[0]:
+                        return str(config_location)
+                    return kwargs.get("default", "")
+
+                mock_prompt.side_effect = _prompt_side_effect
+
+                def _menu_side_effect(options, *args, **kwargs):
+                    if isinstance(options, list) and "big" in options:
+                        return ["big"]
+                    return ["default"]
+
+                mock_terminal_menu.side_effect = _menu_side_effect
+                init_command = InitCommand(MagicMock())
+                init_command.handle(
+                    DEFAULT_TITLE,
+                    DEFAULT_DESCRIPTION,
+                    DEFAULT_COMMANDS_DIR,
+                    force=True,
+                )
+
+        expected_path = config_location / "usecli.config.toml"
+        assert expected_path.exists()
 
     def test_auto_syncs_when_venv_exists(self, temp_project_dir, init_command):
         pyproject = temp_project_dir / "pyproject.toml"

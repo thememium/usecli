@@ -103,14 +103,20 @@ class InitCommand(BaseCommand):
             if not should_overwrite:
                 return "skipped"
 
+        config_path.parent.mkdir(parents=True, exist_ok=True)
         config_path.write_text(config_content.rstrip() + "\n")
         return "updated" if existed else "created"
+
+    def _should_skip_config_path(self, path: Path) -> bool:
+        return any(part in ConfigManager._SKIP_DIRS for part in path.parts)
 
     def _resolve_config_path(self, value: str, project_root: Path) -> Path:
         path = Path(value).expanduser()
         if not path.is_absolute():
             path = project_root / path
         if path.exists() and path.is_dir():
+            return (path / USECLI_CONFIG_TOML).resolve()
+        if not path.exists() and path.suffix == "":
             return (path / USECLI_CONFIG_TOML).resolve()
         return path.resolve()
 
@@ -707,6 +713,8 @@ include = ["{root_package}*"]
         if commands_path.parent != project_root:
             config_root = commands_path.parent
         existing_config = ConfigManager(start_dir=config_root).usecli_config_path
+        if existing_config.exists() and self._should_skip_config_path(existing_config):
+            existing_config = config_root / USECLI_CONFIG_TOML
         default_config_path = (
             existing_config
             if existing_config.exists()
