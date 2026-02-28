@@ -1,6 +1,19 @@
 # Changelog
 
 
+## v0.1.46
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.45...v0.1.46)
+
+### 🚀 Enhancements
+
+- **init:** Improve project root and config discovery ([570cae3](https://github.com/thememium/usecli/commit/570cae3))
+- **config:** Add command‑aware config discovery ([b3e02dc](https://github.com/thememium/usecli/commit/b3e02dc))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.45
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.44...v0.1.45)
