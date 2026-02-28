@@ -108,7 +108,17 @@ class InitCommand(BaseCommand):
         return "updated" if existed else "created"
 
     def _should_skip_config_path(self, path: Path) -> bool:
-        return any(part in ConfigManager._SKIP_DIRS for part in path.parts)
+        try:
+            resolved = path.resolve()
+        except OSError:
+            resolved = path
+        if any(part in ConfigManager._SKIP_DIRS for part in resolved.parts):
+            return True
+        try:
+            resolved.relative_to(Path(sys.prefix).resolve())
+        except ValueError:
+            return False
+        return True
 
     def _resolve_config_path(self, value: str, project_root: Path) -> Path:
         path = Path(value).expanduser()
@@ -185,6 +195,36 @@ class InitCommand(BaseCommand):
                 created = True
 
         return created
+
+    def _find_project_root_for_init(self, start_dir: Path) -> Path:
+        current = start_dir.resolve()
+        git_root: Path | None = None
+        while True:
+            if (current / "pyproject.toml").exists():
+                return current
+            if (current / USECLI_CONFIG_TOML).exists():
+                return current
+            git_dir = current / ".git"
+            if git_dir.exists():
+                git_root = current
+                break
+            parent = current.parent
+            if parent == current:
+                break
+            current = parent
+        return (git_root or start_dir).resolve()
+
+    def _find_pyproject_path_for_init(self, start_dir: Path) -> Path | None:
+        current = start_dir.resolve()
+        while True:
+            pyproject_path = current / "pyproject.toml"
+            if pyproject_path.exists():
+                return pyproject_path
+            parent = current.parent
+            if parent == current:
+                break
+            current = parent
+        return None
 
     def _derive_templates_dir(self, commands_dir: str) -> str:
         commands_path = Path(commands_dir)
@@ -509,12 +549,9 @@ include = ["{root_package}*"]
         ),
     ) -> None:
         cwd = Path.cwd()
-        config_manager = ConfigManager(start_dir=cwd)
-        project_root = config_manager.get_project_root()
-        pyproject_path = (
-            config_manager.pyproject_path
-            if config_manager.pyproject_path.exists()
-            else project_root / "pyproject.toml"
+        project_root = self._find_project_root_for_init(cwd)
+        pyproject_path = self._find_pyproject_path_for_init(cwd) or (
+            project_root / "pyproject.toml"
         )
 
         console.print()
@@ -712,14 +749,20 @@ include = ["{root_package}*"]
         config_root = project_root
         if commands_path.parent != project_root:
             config_root = commands_path.parent
-        existing_config = ConfigManager(start_dir=config_root).usecli_config_path
-        if existing_config.exists() and self._should_skip_config_path(existing_config):
+        existing_config = ConfigManager._find_usecli_config_in_tree(
+            project_root,
+            config_root,
+            skip_venv=True,
+        )
+        if existing_config is None or self._should_skip_config_path(existing_config):
             existing_config = config_root / USECLI_CONFIG_TOML
         default_config_path = (
             existing_config
             if existing_config.exists()
             else config_root / USECLI_CONFIG_TOML
         )
+        if self._should_skip_config_path(default_config_path):
+            default_config_path = config_root / USECLI_CONFIG_TOML
         config_location = Prompt.ask(
             f"[bold {COLOR.SECONDARY}]Config file location[/bold {COLOR.SECONDARY}]"
             " (path or directory)",
