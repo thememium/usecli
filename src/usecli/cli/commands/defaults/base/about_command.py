@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import importlib.metadata
+import os
 import platform
 import re
 import sys
@@ -55,7 +57,51 @@ def _parse_dependency_requirement(req: str) -> tuple[str, str | None]:
     return name, remainder
 
 
+def _get_console_script_distribution(
+    command_name: str | None,
+) -> importlib.metadata.Distribution | None:
+    if not command_name:
+        return None
+    try:
+        distributions = importlib.metadata.distributions()
+    except Exception:
+        return None
+    for dist in distributions:
+        try:
+            entry_points = dist.entry_points
+        except Exception:
+            continue
+        for entry_point in entry_points:
+            if entry_point.group != "console_scripts":
+                continue
+            if entry_point.name == command_name:
+                return dist
+    return None
+
+
+def _get_package_dependencies_from_distribution(
+    dist: importlib.metadata.Distribution,
+) -> list[tuple[str, str | None]]:
+    requires = dist.requires or []
+    result: list[tuple[str, str | None]] = []
+    for req in requires:
+        if not isinstance(req, str):
+            continue
+        name, spec = _parse_dependency_requirement(req)
+        if name and not req.startswith("("):
+            result.append((name, spec))
+    return result
+
+
 def _get_dependencies(config: ConfigManager) -> list[tuple[str, str | None]]:
+    command_name = os.path.basename(sys.argv[0]) if sys.argv else None
+    dist = _get_console_script_distribution(command_name)
+    if dist is None:
+        primary_command = get_script_command_name(default=None)
+        dist = _get_console_script_distribution(primary_command)
+    if dist is not None:
+        return _get_package_dependencies_from_distribution(dist)
+
     pyproject_path = config.pyproject_path
     if not pyproject_path.exists():
         return []
@@ -79,8 +125,35 @@ def _get_dependencies(config: ConfigManager) -> list[tuple[str, str | None]]:
     return result
 
 
+def _get_installed_script_commands(command_name: str | None) -> list[str]:
+    dist = _get_console_script_distribution(command_name)
+    if dist is None:
+        return []
+    try:
+        entry_points = dist.entry_points
+    except Exception:
+        return []
+    script_names = [
+        entry_point.name
+        for entry_point in entry_points
+        if entry_point.group == "console_scripts"
+    ]
+    if not script_names:
+        return []
+    if command_name and command_name in script_names:
+        return [command_name, *[name for name in script_names if name != command_name]]
+    return script_names
+
+
 def _get_script_commands() -> list[str]:
     primary_command = get_script_command_name(default=None)
+    command_name = os.path.basename(sys.argv[0]) if sys.argv else primary_command
+    installed_commands = _get_installed_script_commands(command_name)
+    if installed_commands:
+        if primary_command and primary_command not in installed_commands:
+            return [primary_command, *installed_commands]
+        return installed_commands
+
     pyproject_path = Path.cwd() / "pyproject.toml"
     if not pyproject_path.exists():
         if primary_command:
