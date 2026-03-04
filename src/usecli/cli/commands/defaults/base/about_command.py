@@ -125,12 +125,17 @@ def _get_dependencies(config: ConfigManager) -> list[tuple[str, str | None]]:
     return result
 
 
-def _get_application_version(config: ConfigManager) -> str:
+def _get_application_distribution() -> importlib.metadata.Distribution | None:
     command_name = os.path.basename(sys.argv[0]) if sys.argv else None
     dist = _get_console_script_distribution(command_name)
     if dist is None:
         primary_command = get_script_command_name(default=None)
         dist = _get_console_script_distribution(primary_command)
+    return dist
+
+
+def _get_application_version(config: ConfigManager) -> str:
+    dist = _get_application_distribution()
     if dist is not None:
         return dist.version
 
@@ -139,6 +144,30 @@ def _get_application_version(config: ConfigManager) -> str:
         return config_version
 
     return _get_version()
+
+
+def _get_application_description(config: ConfigManager) -> str:
+    dist = _get_application_distribution()
+    if dist is not None:
+        try:
+            summary = dist.metadata.get("Summary")
+        except Exception:
+            summary = None
+        if isinstance(summary, str) and summary.strip():
+            return summary.strip()
+
+    description = config.get("description")
+    if (
+        config.has_key("description")
+        and isinstance(description, str)
+        and description.strip()
+    ):
+        return description.strip()
+
+    return (
+        "An elegant CLI framework for Python with prefix matching, "
+        "rich UI, and command scaffolding."
+    )
 
 
 def _get_installed_script_commands(command_name: str | None) -> list[str]:
@@ -206,17 +235,7 @@ class AboutCommand(BaseCommand):
         config = get_config()
         version = _get_application_version(config)
         app_name = get_project_name()
-        description = config.get("description")
-        if not (
-            config.has_key("description")
-            and isinstance(description, str)
-            and description.strip()
-        ):
-            description = (
-                "An elegant CLI framework for Python with prefix matching, "
-                "rich UI, and command scaffolding."
-            )
-        description = description.strip() if isinstance(description, str) else ""
+        description = _get_application_description(config)
 
         console.print()
         console.print(f"[bold {COLOR.PRIMARY}]Description[/bold {COLOR.PRIMARY}]")
@@ -227,8 +246,11 @@ class AboutCommand(BaseCommand):
         console.print(f"[bold {COLOR.PRIMARY}]Environment[/bold {COLOR.PRIMARY}]")
         console.print(f"[{COLOR.PRIMARY}]─" * 78)
 
-        self._print_row("Application Name", app_name)
-        self._print_row("Application Version", version)
+        dist = _get_application_distribution()
+        name_label = "Cli Name" if dist is not None else "Application Name"
+        version_label = "Cli Version" if dist is not None else "Application Version"
+        self._print_row(name_label, app_name)
+        self._print_row(version_label, version)
         self._print_row("Python Version", platform.python_version())
         self._print_row("Platform", f"[{COLOR.FOREGROUND_MUTED}]{platform.platform()}")
 
