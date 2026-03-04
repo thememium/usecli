@@ -150,8 +150,8 @@ def _get_application_description(config: ConfigManager) -> str:
     dist = _get_application_distribution()
     if dist is not None:
         try:
-            summary = dist.metadata.get("Summary")
-        except Exception:
+            summary = dist.metadata["Summary"]
+        except (KeyError, TypeError):
             summary = None
         if isinstance(summary, str) and summary.strip():
             return summary.strip()
