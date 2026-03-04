@@ -1,6 +1,30 @@
 # Changelog
 
 
+## v0.1.47
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.46...v0.1.47)
+
+### 🚀 Enhancements
+
+- **usecli:** Retrieve dependencies and script commands from package metadata ([59d1655](https://github.com/thememium/usecli/commit/59d1655))
+- **about:** Add _get_application_version helper to resolve app version ([09685cb](https://github.com/thememium/usecli/commit/09685cb))
+- **about:** Improve metadata handling and description fallback ([40b446a](https://github.com/thememium/usecli/commit/40b446a))
+- **cli:** Read description from pyproject.toml for default application description ([a032d54](https://github.com/thememium/usecli/commit/a032d54))
+
+### 🩹 Fixes
+
+- **about:** Remove special case for usecli dependency in AboutCommand ([1a0f52d](https://github.com/thememium/usecli/commit/1a0f52d))
+- **about_command:** Handle missing Summary metadata correctly and limit caught exceptions ([9eff320](https://github.com/thememium/usecli/commit/9eff320))
+
+### 📖 Documentation
+
+- **usecli:** Update description to highlight framework capabilities ([116639e](https://github.com/thememium/usecli/commit/116639e))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.46
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.45...v0.1.46)
