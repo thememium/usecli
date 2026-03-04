@@ -147,15 +147,6 @@ def _get_application_version(config: ConfigManager) -> str:
 
 
 def _get_application_description(config: ConfigManager) -> str:
-    dist = _get_application_distribution()
-    if dist is not None:
-        try:
-            summary = dist.metadata["Summary"]
-        except (KeyError, TypeError):
-            summary = None
-        if isinstance(summary, str) and summary.strip():
-            return summary.strip()
-
     description = config.get("description")
     if (
         config.has_key("description")
@@ -164,10 +155,30 @@ def _get_application_description(config: ConfigManager) -> str:
     ):
         return description.strip()
 
+    project_description = _get_project_description(config)
+    if project_description:
+        return project_description
+
     return (
         "An elegant CLI framework for Python with prefix matching, "
         "rich UI, and command scaffolding."
     )
+
+
+def _get_project_description(config: ConfigManager) -> str | None:
+    pyproject_path = config.pyproject_path
+    if not pyproject_path.exists():
+        return None
+
+    try:
+        data = tomllib.loads(pyproject_path.read_text())
+    except (tomllib.TOMLDecodeError, OSError):
+        return None
+
+    description = data.get("project", {}).get("description")
+    if isinstance(description, str) and description.strip():
+        return description.strip()
+    return None
 
 
 def _get_installed_script_commands(command_name: str | None) -> list[str]:
