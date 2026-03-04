@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import importlib.metadata
+import os
 import platform
 import re
 import sys
@@ -55,7 +57,51 @@ def _parse_dependency_requirement(req: str) -> tuple[str, str | None]:
     return name, remainder
 
 
+def _get_console_script_distribution(
+    command_name: str | None,
+) -> importlib.metadata.Distribution | None:
+    if not command_name:
+        return None
+    try:
+        distributions = importlib.metadata.distributions()
+    except Exception:
+        return None
+    for dist in distributions:
+        try:
+            entry_points = dist.entry_points
+        except Exception:
+            continue
+        for entry_point in entry_points:
+            if entry_point.group != "console_scripts":
+                continue
+            if entry_point.name == command_name:
+                return dist
+    return None
+
+
+def _get_package_dependencies_from_distribution(
+    dist: importlib.metadata.Distribution,
+) -> list[tuple[str, str | None]]:
+    requires = dist.requires or []
+    result: list[tuple[str, str | None]] = []
+    for req in requires:
+        if not isinstance(req, str):
+            continue
+        name, spec = _parse_dependency_requirement(req)
+        if name and not req.startswith("("):
+            result.append((name, spec))
+    return result
+
+
 def _get_dependencies(config: ConfigManager) -> list[tuple[str, str | None]]:
+    command_name = os.path.basename(sys.argv[0]) if sys.argv else None
+    dist = _get_console_script_distribution(command_name)
+    if dist is None:
+        primary_command = get_script_command_name(default=None)
+        dist = _get_console_script_distribution(primary_command)
+    if dist is not None:
+        return _get_package_dependencies_from_distribution(dist)
+
     pyproject_path = config.pyproject_path
     if not pyproject_path.exists():
         return []
@@ -79,8 +125,91 @@ def _get_dependencies(config: ConfigManager) -> list[tuple[str, str | None]]:
     return result
 
 
+def _get_application_distribution() -> importlib.metadata.Distribution | None:
+    command_name = os.path.basename(sys.argv[0]) if sys.argv else None
+    dist = _get_console_script_distribution(command_name)
+    if dist is None:
+        primary_command = get_script_command_name(default=None)
+        dist = _get_console_script_distribution(primary_command)
+    return dist
+
+
+def _get_application_version(config: ConfigManager) -> str:
+    dist = _get_application_distribution()
+    if dist is not None:
+        return dist.version
+
+    config_version = config.get_project_version()
+    if config_version:
+        return config_version
+
+    return _get_version()
+
+
+def _get_application_description(config: ConfigManager) -> str:
+    description = config.get("description")
+    if (
+        config.has_key("description")
+        and isinstance(description, str)
+        and description.strip()
+    ):
+        return description.strip()
+
+    project_description = _get_project_description(config)
+    if project_description:
+        return project_description
+
+    return (
+        "An elegant CLI framework for Python with prefix matching, "
+        "rich UI, and command scaffolding."
+    )
+
+
+def _get_project_description(config: ConfigManager) -> str | None:
+    pyproject_path = config.pyproject_path
+    if not pyproject_path.exists():
+        return None
+
+    try:
+        data = tomllib.loads(pyproject_path.read_text())
+    except (tomllib.TOMLDecodeError, OSError):
+        return None
+
+    description = data.get("project", {}).get("description")
+    if isinstance(description, str) and description.strip():
+        return description.strip()
+    return None
+
+
+def _get_installed_script_commands(command_name: str | None) -> list[str]:
+    dist = _get_console_script_distribution(command_name)
+    if dist is None:
+        return []
+    try:
+        entry_points = dist.entry_points
+    except Exception:
+        return []
+    script_names = [
+        entry_point.name
+        for entry_point in entry_points
+        if entry_point.group == "console_scripts"
+    ]
+    if not script_names:
+        return []
+    if command_name and command_name in script_names:
+        return [command_name, *[name for name in script_names if name != command_name]]
+    return script_names
+
+
 def _get_script_commands() -> list[str]:
     primary_command = get_script_command_name(default=None)
+    command_name = os.path.basename(sys.argv[0]) if sys.argv else primary_command
+    installed_commands = _get_installed_script_commands(command_name)
+    if installed_commands:
+        if primary_command and primary_command not in installed_commands:
+            return [primary_command, *installed_commands]
+        return installed_commands
+
     pyproject_path = Path.cwd() / "pyproject.toml"
     if not pyproject_path.exists():
         if primary_command:
@@ -115,19 +244,9 @@ class AboutCommand(BaseCommand):
 
     def handle(self) -> None:
         config = get_config()
-        version = config.get_project_version() or _get_version()
+        version = _get_application_version(config)
         app_name = get_project_name()
-        description = config.get("description")
-        if not (
-            config.has_key("description")
-            and isinstance(description, str)
-            and description.strip()
-        ):
-            description = (
-                "An elegant CLI framework for Python with prefix matching, "
-                "rich UI, and command scaffolding."
-            )
-        description = description.strip() if isinstance(description, str) else ""
+        description = _get_application_description(config)
 
         console.print()
         console.print(f"[bold {COLOR.PRIMARY}]Description[/bold {COLOR.PRIMARY}]")
@@ -138,8 +257,11 @@ class AboutCommand(BaseCommand):
         console.print(f"[bold {COLOR.PRIMARY}]Environment[/bold {COLOR.PRIMARY}]")
         console.print(f"[{COLOR.PRIMARY}]─" * 78)
 
-        self._print_row("Application Name", app_name)
-        self._print_row("Application Version", version)
+        dist = _get_application_distribution()
+        name_label = "Cli Name" if dist is not None else "Application Name"
+        version_label = "Cli Version" if dist is not None else "Application Version"
+        self._print_row(name_label, app_name)
+        self._print_row(version_label, version)
         self._print_row("Python Version", platform.python_version())
         self._print_row("Platform", f"[{COLOR.FOREGROUND_MUTED}]{platform.platform()}")
 
@@ -159,9 +281,6 @@ class AboutCommand(BaseCommand):
         deps = _get_dependencies(config)
         if deps:
             for dep_name, spec in deps:
-                if dep_name == "usecli" and spec:
-                    self._print_row(dep_name, spec)
-                    continue
                 try:
                     installed_version = get_version(dep_name)
                     self._print_row(dep_name, installed_version)
