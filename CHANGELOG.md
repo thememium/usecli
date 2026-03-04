@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.48
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.47...v0.1.48)
+
+### 🏡 Chore
+
+- Delete unused SkillGenerator module ([0409c79](https://github.com/thememium/usecli/commit/0409c79))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.47
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.46...v0.1.47)
