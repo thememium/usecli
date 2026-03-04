@@ -125,6 +125,22 @@ def _get_dependencies(config: ConfigManager) -> list[tuple[str, str | None]]:
     return result
 
 
+def _get_application_version(config: ConfigManager) -> str:
+    command_name = os.path.basename(sys.argv[0]) if sys.argv else None
+    dist = _get_console_script_distribution(command_name)
+    if dist is None:
+        primary_command = get_script_command_name(default=None)
+        dist = _get_console_script_distribution(primary_command)
+    if dist is not None:
+        return dist.version
+
+    config_version = config.get_project_version()
+    if config_version:
+        return config_version
+
+    return _get_version()
+
+
 def _get_installed_script_commands(command_name: str | None) -> list[str]:
     dist = _get_console_script_distribution(command_name)
     if dist is None:
@@ -188,7 +204,7 @@ class AboutCommand(BaseCommand):
 
     def handle(self) -> None:
         config = get_config()
-        version = config.get_project_version() or _get_version()
+        version = _get_application_version(config)
         app_name = get_project_name()
         description = config.get("description")
         if not (
