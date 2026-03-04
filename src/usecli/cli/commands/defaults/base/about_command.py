@@ -248,9 +248,6 @@ class AboutCommand(BaseCommand):
         deps = _get_dependencies(config)
         if deps:
             for dep_name, spec in deps:
-                if dep_name == "usecli" and spec:
-                    self._print_row(dep_name, spec)
-                    continue
                 try:
                     installed_version = get_version(dep_name)
                     self._print_row(dep_name, installed_version)
