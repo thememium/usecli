@@ -4,11 +4,21 @@ from __future__ import annotations
 
 import sys
 from importlib import import_module
+from typing import Any, Optional, Sequence
 
 import click
 import typer
 from click.exceptions import BadParameter, ClickException, Exit, UsageError
 from typer.core import TyperGroup
+
+try:
+    from typer._click.exceptions import BadParameter as TyperBadParameter  # type: ignore[import-untyped]
+    from typer._click.exceptions import ClickException as TyperClickException  # type: ignore[import-untyped]
+    from typer._click.exceptions import UsageError as TyperUsageError  # type: ignore[import-untyped]
+except ImportError:
+    TyperBadParameter = BadParameter
+    TyperClickException = ClickException
+    TyperUsageError = UsageError
 
 from usecli.cli.config.colors import COLOR
 from usecli.cli.core.base_command import BaseCommand
@@ -156,6 +166,31 @@ class PrefixMatchingGroup(TyperGroup):
 
         return FilteredListCommand(cmd_name)
 
+    def main(
+        self,
+        args: Optional[Sequence[str]] = None,
+        prog_name: Optional[str] = None,
+        complete_var: Optional[str] = None,
+        standalone_mode: bool = True,
+        windows_expand_args: bool = True,
+        **extra: Any,
+    ) -> Any:
+        """Override main to disable standalone mode.
+
+        Click's default standalone_mode=True catches ClickException
+        internally and calls sys.exit(), preventing our custom error
+        handlers from running. Setting standalone_mode=False lets
+        exceptions propagate to our styled error handlers in invoke().
+        """
+        return super().main(
+            args=args,
+            prog_name=prog_name,
+            complete_var=complete_var,
+            standalone_mode=False,
+            windows_expand_args=windows_expand_args,
+            **extra,
+        )
+
     def invoke(self, ctx: click.Context) -> None:
         """Invoke the group with custom error handling.
 
@@ -169,15 +204,15 @@ class PrefixMatchingGroup(TyperGroup):
             return super().invoke(ctx)
         except Exit:
             sys.exit(0)
-        except BadParameter as e:
+        except (BadParameter, TyperBadParameter) as e:
             styled_error = UsecliBadParameter(e.message, ctx=e.ctx, param=e.param)
             styled_error.show()
             sys.exit(styled_error.exit_code)
-        except UsageError as e:
+        except (UsageError, TyperUsageError) as e:
             styled_error = UsecliUsageError(e.message, ctx=e.ctx)
             styled_error.show()
             sys.exit(styled_error.exit_code)
-        except ClickException as e:
+        except (ClickException, TyperClickException) as e:
             if hasattr(e, "show"):
                 e.show()
             sys.exit(e.exit_code if hasattr(e, "exit_code") else 1)
@@ -276,15 +311,15 @@ def main() -> None:
         app()
     except Exit:
         sys.exit(0)
-    except BadParameter as e:
+    except (BadParameter, TyperBadParameter) as e:
         styled_error = UsecliBadParameter(e.message, ctx=e.ctx, param=e.param)
         styled_error.show()
         sys.exit(styled_error.exit_code)
-    except UsageError as e:
+    except (UsageError, TyperUsageError) as e:
         styled_error = UsecliUsageError(e.message, ctx=e.ctx)
         styled_error.show()
         sys.exit(styled_error.exit_code)
-    except ClickException as e:
+    except (ClickException, TyperClickException) as e:
         if hasattr(e, "show"):
             e.show()
         sys.exit(e.exit_code if hasattr(e, "exit_code") else 1)
