@@ -1,6 +1,26 @@
 # Changelog
 
 
+## v0.1.50
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.49...v0.1.50)
+
+### 🩹 Fixes
+
+- **inspire_command:** Add headers and timeout to API request ([fde721a](https://github.com/thememium/usecli/commit/fde721a))
+
+### 💅 Refactors
+
+- **cli: ui/list.py:** Add helper _is_click_group and replace direct click.Group checks to support Typer's vendored click ([2411000](https://github.com/thememium/usecli/commit/2411000))
+
+### 🏡 Chore
+
+- Ignore .omo files ([abeb26f](https://github.com/thememium/usecli/commit/abeb26f))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.49
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.48...v0.1.49)
