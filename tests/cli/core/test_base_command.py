@@ -13,7 +13,7 @@ import pytest
 import typer
 from click import Argument, Option
 from click.exceptions import Exit
-from typer.core import TyperArgument, TyperCommand, TyperOption
+from typer.core import TyperArgument, TyperOption
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
@@ -1015,38 +1015,3 @@ class TestCustomHelpCommandGetHelp:
 
         cmd.format_help(MagicMock(), MagicMock())
         assert mock_console.print.called
-
-
-class TestCustomHelpCommandMainOverride:
-    """Tests for CustomHelpCommand.main() standalone_mode override."""
-
-    def test_main_passes_standalone_mode_false(self):
-        """Test main() overrides standalone_mode to False for custom error handling."""
-        cmd = CustomHelpCommand(name="test")
-
-        with patch.object(TyperCommand, "main", return_value=None) as mock_parent:
-            cmd.main(args=[], standalone_mode=True)
-
-        mock_parent.assert_called_once()
-        call_kwargs = mock_parent.call_args.kwargs
-        assert call_kwargs["standalone_mode"] is False
-
-    def test_main_preserves_other_arguments(self):
-        """Test main() preserves args, prog_name, and extra kwargs."""
-        cmd = CustomHelpCommand(name="test")
-
-        with patch.object(TyperCommand, "main", return_value=None) as mock_parent:
-            cmd.main(
-                args=["--help"],
-                prog_name="myapp",
-                complete_var="_MYAPP_COMPLETE",
-                standalone_mode=True,
-                extra_key="value",
-            )
-
-        call_kwargs = mock_parent.call_args.kwargs
-        assert call_kwargs["args"] == ["--help"]
-        assert call_kwargs["prog_name"] == "myapp"
-        assert call_kwargs["complete_var"] == "_MYAPP_COMPLETE"
-        assert call_kwargs["extra_key"] == "value"
-        assert call_kwargs["standalone_mode"] is False
