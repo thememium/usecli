@@ -23,6 +23,17 @@ console = Console()
 SPACER_LENGTH = 6
 
 
+def _is_click_group(obj: object) -> bool:
+    """Check if an object is a Click group (has subcommands).
+
+    Works with both standard click.Group and Typer's vendored click
+    (TyperGroup in typer>=0.26 no longer extends click.Group directly).
+    """
+    return isinstance(obj, click.Group) or (
+        hasattr(obj, "commands") and isinstance(getattr(obj, "commands", None), dict)
+    )
+
+
 class CommandEntry(TypedDict):
     name: str
     display_name: str
@@ -87,9 +98,10 @@ def list_commands(app: typer.Typer, prefix_filter: str | None = None) -> None:
     commands.sort(key=lambda x: x["name"])
 
     groups: dict[str, str] = {}
-    if isinstance(click_group, click.Group):
-        for cmd_name, cmd_obj in click_group.commands.items():
-            if isinstance(cmd_obj, click.Group):
+    if _is_click_group(click_group):
+        sub_commands: dict[str, object] = getattr(click_group, "commands", {})
+        for cmd_name, cmd_obj in sub_commands.items():
+            if _is_click_group(cmd_obj):
                 if (
                     cmd_name in group_alias_to_primary
                     and group_alias_to_primary[cmd_name] != cmd_name
