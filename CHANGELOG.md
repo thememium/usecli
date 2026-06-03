@@ -1,6 +1,26 @@
 # Changelog
 
 
+## v0.1.53
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.52...v0.1.53)
+
+### 🚀 Enhancements
+
+- **cli:** Add get_help to CustomHelpCommand for Rich help formatting ([7a37966](https://github.com/thememium/usecli/commit/7a37966))
+
+### 🩹 Fixes
+
+- **usecli:** Add graceful handling of click.Exit for CLI ([807dcb7](https://github.com/thememium/usecli/commit/807dcb7))
+
+### ✅ Tests
+
+- **cli:** Replace click Argument/Option with Typer types in CustomHelpCommand tests ([ffe7dd2](https://github.com/thememium/usecli/commit/ffe7dd2))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.52
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.51...v0.1.52)
