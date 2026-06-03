@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.52
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.51...v0.1.52)
+
+### 💅 Refactors
+
+- **usecli:** Replace external quote API with static quotes ([28053b8](https://github.com/thememium/usecli/commit/28053b8))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.51
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.50...v0.1.51)
