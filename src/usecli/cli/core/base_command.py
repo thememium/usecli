@@ -268,6 +268,24 @@ class CustomHelpCommand(TyperCommand):
 
             console.print()
 
+    def get_help(self, ctx: ClickContext) -> str:
+        """Display Rich-formatted help and exit.
+
+        Overrides Click's get_help to display custom Rich output and
+        exit cleanly. This is the proper level to handle the exit,
+        not in format_help.
+
+        Args:
+            ctx: The Click context.
+
+        Returns:
+            Never returns — always raises Exit.
+
+        Raises:
+            Exit: After displaying help.
+        """
+        formatter = ctx.make_formatter()
+        self.format_help(ctx, formatter)
         raise Exit()
 
 
