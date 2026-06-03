@@ -1,6 +1,22 @@
 # Changelog
 
 
+## v0.1.51
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.50...v0.1.51)
+
+### 🚀 Enhancements
+
+- **core-ui:** Add helper to detect Click groups incl. Typer support ([d4326a2](https://github.com/thememium/usecli/commit/d4326a2))
+
+### 💅 Refactors
+
+- **fzf_command.py:** Replace explicit click.Group checks with is_click_group ([6a6b37a](https://github.com/thememium/usecli/commit/6a6b37a))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.50
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.49...v0.1.50)
