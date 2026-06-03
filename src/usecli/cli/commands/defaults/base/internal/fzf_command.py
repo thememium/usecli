@@ -19,6 +19,7 @@ from usecli.cli.config.colors import COLOR
 from usecli.cli.core.base_command import BaseCommand
 from usecli.cli.core.error.handler import ErrorHandler
 from usecli.cli.core.exceptions import UsecliError
+from usecli.cli.core.ui import is_click_group
 from usecli.cli.utils.interactive.terminal_menu import terminal_menu
 
 if TYPE_CHECKING:
@@ -208,9 +209,10 @@ def run_interactive(
 
     click_group = typer.main.get_command(app)
     groups: dict[str, str] = {}
-    if isinstance(click_group, click.Group):
-        for cmd_name, cmd_obj in click_group.commands.items():
-            if isinstance(cmd_obj, click.Group):
+    if is_click_group(click_group):
+        sub_commands: dict[str, object] = getattr(click_group, "commands", {})
+        for cmd_name, cmd_obj in sub_commands.items():
+            if is_click_group(cmd_obj):
                 groups[cmd_name] = (
                     getattr(cmd_obj, "help", f"Commands for {cmd_name}")
                     or f"Commands for {cmd_name}"
