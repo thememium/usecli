@@ -1,6 +1,22 @@
 # Changelog
 
 
+## v0.1.49
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.48...v0.1.49)
+
+### 🩹 Fixes
+
+- **cli/templates:** Quote alias placeholder in command template ([df0f0ac](https://github.com/thememium/usecli/commit/df0f0ac))
+
+### 💅 Refactors
+
+- **cli:** Replace click imports with TyperArgument and TyperOption in base_command ([886e137](https://github.com/thememium/usecli/commit/886e137))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.48
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.47...v0.1.48)
