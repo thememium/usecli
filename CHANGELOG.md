@@ -1,6 +1,19 @@
 # Changelog
 
 
+## v0.1.54
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.53...v0.1.54)
+
+### 💅 Refactors
+
+- **cli:** Override TyperCommand.main to disable standalone mode ([08afe22](https://github.com/thememium/usecli/commit/08afe22))
+- **server,cli:** Rename port var, env var support, test help command ([1ce65d5](https://github.com/thememium/usecli/commit/1ce65d5))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.53
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.52...v0.1.53)
