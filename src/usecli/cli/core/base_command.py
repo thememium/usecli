@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar, Optional, Sequence
 
 import typer
 from click.exceptions import Exit
@@ -190,6 +190,42 @@ class CustomHelpCommand(TyperCommand):
             isinstance(param, TyperOption)
             and ("--interactive" in param.opts or "-i" in param.opts)
             for param in getattr(self, "params", [])
+        )
+
+    def main(
+        self,
+        args: Optional[Sequence[str]] = None,
+        prog_name: Optional[str] = None,
+        complete_var: Optional[str] = None,
+        standalone_mode: bool = True,
+        windows_expand_args: bool = True,
+        **extra: Any,
+    ) -> Any:
+        """Override main to disable standalone mode.
+
+        Click's default standalone_mode=True catches ClickException
+        internally and calls sys.exit(), preventing our custom error
+        handlers from running. Setting standalone_mode=False lets
+        exceptions propagate to our styled error handlers.
+
+        Args:
+            args: Command-line arguments.
+            prog_name: Program name for help display.
+            complete_var: Shell completion variable name.
+            standalone_mode: Must be False for custom error handling.
+            windows_expand_args: Windows argument expansion flag.
+            **extra: Additional context arguments.
+
+        Returns:
+            The command return value.
+        """
+        return super().main(
+            args=args,
+            prog_name=prog_name,
+            complete_var=complete_var,
+            standalone_mode=False,
+            windows_expand_args=windows_expand_args,
+            **extra,
         )
 
     def invoke(self, ctx: ClickContext) -> Any:
