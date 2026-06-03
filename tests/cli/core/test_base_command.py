@@ -13,6 +13,7 @@ import pytest
 import typer
 from click import Argument, Option
 from click.exceptions import Exit
+from typer.core import TyperArgument, TyperOption
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
@@ -66,8 +67,7 @@ class TestCustomHelpCommandFormatHelpNoParams:
         cmd = CustomHelpCommand(name="deploy")
         cmd.params = []
 
-        with pytest.raises(Exit):
-            cmd.format_help(MagicMock(), MagicMock())
+        cmd.format_help(MagicMock(), MagicMock())
 
         # Verify console.print was called
         assert mock_console.print.called
@@ -78,8 +78,7 @@ class TestCustomHelpCommandFormatHelpNoParams:
         cmd = CustomHelpCommand(name="deploy")
         cmd.params = []
 
-        with pytest.raises(Exit):
-            cmd.format_help(MagicMock(), MagicMock())
+        cmd.format_help(MagicMock(), MagicMock())
 
         # Check that 'Usage:' is printed
         usage_calls = [
@@ -93,8 +92,7 @@ class TestCustomHelpCommandFormatHelpNoParams:
         cmd = CustomHelpCommand(name="deploy")
         cmd.params = []
 
-        with pytest.raises(Exit):
-            cmd.format_help(MagicMock(), MagicMock())
+        cmd.format_help(MagicMock(), MagicMock())
 
         # Check that 'Options:' is printed
         options_calls = [
@@ -103,20 +101,22 @@ class TestCustomHelpCommandFormatHelpNoParams:
         assert len(options_calls) > 0
 
     @patch("usecli.cli.core.base_command.console")
-    def test_format_help_raises_exit(self, mock_console):
-        """Test format_help raises Exit exception."""
+    def test_get_help_raises_exit(self, mock_console):
+        """Test get_help raises Exit exception."""
         cmd = CustomHelpCommand(name="deploy")
+        ctx = MagicMock()
+        ctx.make_formatter.return_value = MagicMock()
         cmd.params = []
 
         with pytest.raises(Exit):
-            cmd.format_help(MagicMock(), MagicMock())
+            cmd.get_help(ctx)
 
         # Verify console.print was called
         assert mock_console.print.called
         cmd.params = []
 
         with pytest.raises(Exit):
-            cmd.format_help(MagicMock(), MagicMock())
+            cmd.get_help(ctx)
 
         # Check that 'Usage:' is printed
         usage_calls = [
@@ -132,11 +132,10 @@ class TestCustomHelpCommandFormatHelpWithArguments:
     def test_format_help_with_single_argument(self, mock_console):
         """Test format_help with single argument parameter."""
         cmd = CustomHelpCommand(name="init")
-        arg = Argument(["project_name"])
+        arg = TyperArgument(param_decls=["project_name"])
         cmd.params = [arg]
 
-        with pytest.raises(Exit):
-            cmd.format_help(MagicMock(), MagicMock())
+        cmd.format_help(MagicMock(), MagicMock())
 
         # Verify console.print was called for arguments
         assert mock_console.print.called
@@ -151,8 +150,7 @@ class TestCustomHelpCommandFormatHelpWithArguments:
         arg2 = Argument(["destination"])
         cmd.params = [arg1, arg2]
 
-        with pytest.raises(Exit):
-            cmd.format_help(MagicMock(), MagicMock())
+        cmd.format_help(MagicMock(), MagicMock())
 
         assert mock_console.print.called
 
@@ -163,8 +161,7 @@ class TestCustomHelpCommandFormatHelpWithArguments:
         arg = Argument(["project_name"])
         cmd.params = [arg]
 
-        with pytest.raises(Exit):
-            cmd.format_help(MagicMock(), MagicMock())
+        cmd.format_help(MagicMock(), MagicMock())
 
         # Find usage line call
         usage_calls = [str(c) for c in mock_console.print.call_args_list]
@@ -176,11 +173,10 @@ class TestCustomHelpCommandFormatHelpWithArguments:
     def test_format_help_prints_arguments_section(self, mock_console):
         """Test format_help prints Arguments section when arguments exist."""
         cmd = CustomHelpCommand(name="init")
-        arg = Argument(["project_name"])
+        arg = TyperArgument(param_decls=["project_name"])
         cmd.params = [arg]
 
-        with pytest.raises(Exit):
-            cmd.format_help(MagicMock(), MagicMock())
+        cmd.format_help(MagicMock(), MagicMock())
 
         arguments_calls = [
             c for c in mock_console.print.call_args_list if "Arguments:" in str(c)
@@ -195,11 +191,10 @@ class TestCustomHelpCommandFormatHelpWithOptions:
     def test_format_help_with_single_option(self, mock_console):
         """Test format_help with single option parameter."""
         cmd = CustomHelpCommand(name="deploy")
-        option = Option(["-e", "--env"])
+        option = TyperOption(param_decls=["-e", "--env"])
         cmd.params = [option]
 
-        with pytest.raises(Exit):
-            cmd.format_help(MagicMock(), MagicMock())
+        cmd.format_help(MagicMock(), MagicMock())
 
         assert mock_console.print.called
         all_print_calls = str(mock_console.print.call_args_list)
@@ -213,8 +208,7 @@ class TestCustomHelpCommandFormatHelpWithOptions:
         opt2 = Option(["-v", "--verbose"], is_flag=True)
         cmd.params = [opt1, opt2]
 
-        with pytest.raises(Exit):
-            cmd.format_help(MagicMock(), MagicMock())
+        cmd.format_help(MagicMock(), MagicMock())
 
         assert mock_console.print.called
 
@@ -226,8 +220,7 @@ class TestCustomHelpCommandFormatHelpWithOptions:
         other_opt = Option(["-v", "--verbose"])
         cmd.params = [help_opt, other_opt]
 
-        with pytest.raises(Exit):
-            cmd.format_help(MagicMock(), MagicMock())
+        cmd.format_help(MagicMock(), MagicMock())
 
         # Help option should appear once as the standard help line
         # but not in the options list
@@ -239,11 +232,10 @@ class TestCustomHelpCommandFormatHelpWithOptions:
     def test_format_help_option_descriptions_printed(self, mock_console):
         """Test format_help prints option descriptions."""
         cmd = CustomHelpCommand(name="deploy")
-        option = Option(["-e", "--env"])
+        option = TyperOption(param_decls=["-e", "--env"])
         cmd.params = [option]
 
-        with pytest.raises(Exit):
-            cmd.format_help(MagicMock(), MagicMock())
+        cmd.format_help(MagicMock(), MagicMock())
 
         # Verify the option flag is printed
         all_calls = str(mock_console.print.call_args_list)
@@ -256,8 +248,7 @@ class TestCustomHelpCommandFormatHelpWithOptions:
         opt = Option(["-x", "--extra"])
         cmd.params = [opt]
 
-        with pytest.raises(Exit):
-            cmd.format_help(MagicMock(), MagicMock())
+        cmd.format_help(MagicMock(), MagicMock())
 
         all_calls = str(mock_console.print.call_args_list)
         assert "--help, -h" in all_calls or (
@@ -276,8 +267,7 @@ class TestCustomHelpCommandFormatHelpWithBothArgumentsAndOptions:
         opt = Option(["-e", "--env"])
         cmd.params = [arg, opt]
 
-        with pytest.raises(Exit):
-            cmd.format_help(MagicMock(), MagicMock())
+        cmd.format_help(MagicMock(), MagicMock())
 
         assert mock_console.print.called
 
@@ -289,8 +279,7 @@ class TestCustomHelpCommandFormatHelpWithBothArgumentsAndOptions:
         opt = Option(["-e", "--env"])
         cmd.params = [arg, opt]
 
-        with pytest.raises(Exit):
-            cmd.format_help(MagicMock(), MagicMock())
+        cmd.format_help(MagicMock(), MagicMock())
 
         usage_calls = [str(c) for c in mock_console.print.call_args_list]
         usage_text = " ".join(usage_calls)
@@ -301,12 +290,13 @@ class TestCustomHelpCommandFormatHelpWithBothArgumentsAndOptions:
     def test_format_help_sections_printed_in_order(self, mock_console):
         """Test format_help prints Usage, Options, Arguments sections."""
         cmd = CustomHelpCommand(name="build")
-        arg = Argument(["target"])
-        opt = Option(["-d", "--debug"], is_flag=True, help="Debug mode")
+        arg = TyperArgument(param_decls=["target"])
+        opt = TyperOption(
+            param_decls=["-d", "--debug"], is_flag=True, help="Debug mode"
+        )
         cmd.params = [arg, opt]
 
-        with pytest.raises(Exit):
-            cmd.format_help(MagicMock(), MagicMock())
+        cmd.format_help(MagicMock(), MagicMock())
 
         # Extract all print calls
         all_calls = [str(c) for c in mock_console.print.call_args_list]
@@ -326,8 +316,7 @@ class TestCustomHelpCommandFormatHelpWithBothArgumentsAndOptions:
         long_opt = Option(["--verbose-option"])
         cmd.params = [short_opt, long_opt]
 
-        with pytest.raises(Exit):
-            cmd.format_help(MagicMock(), MagicMock())
+        cmd.format_help(MagicMock(), MagicMock())
 
         # Verify console.print was called (padding applied internally)
         assert mock_console.print.called
@@ -342,8 +331,7 @@ class TestCustomHelpCommandFormatHelpColorUsage:
         cmd = CustomHelpCommand(name="test")
         cmd.params = []
 
-        with pytest.raises(Exit):
-            cmd.format_help(MagicMock(), MagicMock())
+        cmd.format_help(MagicMock(), MagicMock())
 
         # Get all print call arguments
         all_calls = mock_console.print.call_args_list
@@ -359,8 +347,7 @@ class TestCustomHelpCommandFormatHelpColorUsage:
         cmd = CustomHelpCommand(name="test")
         cmd.params = []
 
-        with pytest.raises(Exit):
-            cmd.format_help(MagicMock(), MagicMock())
+        cmd.format_help(MagicMock(), MagicMock())
 
         all_calls = str(mock_console.print.call_args_list)
         # Should contain bold markers
@@ -931,3 +918,100 @@ class TestNestedCommandRegistration:
         assert cmd._is_valid_subcommand_name("[option]") is False
         assert cmd._is_valid_subcommand_name("--flag") is False
         assert cmd._is_valid_subcommand_name("arg1") is True  # alphanumeric is valid
+
+
+class TestCustomHelpCommandGetHelp:
+    """Tests for CustomHelpCommand.get_help method."""
+
+    @patch("usecli.cli.core.base_command.console")
+    def test_get_help_raises_exit(self, mock_console):
+        """Test get_help raises Exit to stop execution after displaying help."""
+        cmd = CustomHelpCommand(name="test")
+        ctx = MagicMock()
+        ctx.make_formatter.return_value = MagicMock()
+        cmd.params = []
+
+        with pytest.raises(Exit):
+            cmd.get_help(ctx)
+
+    @patch("usecli.cli.core.base_command.console")
+    def test_get_help_calls_format_help(self, mock_console):
+        """Test get_help delegates to format_help for display."""
+        cmd = CustomHelpCommand(name="test")
+        ctx = MagicMock()
+        formatter = MagicMock()
+        ctx.make_formatter.return_value = formatter
+        cmd.params = []
+
+        with pytest.raises(Exit):
+            cmd.get_help(ctx)
+
+        assert mock_console.print.called
+
+    @patch("usecli.cli.core.base_command.console")
+    def test_get_help_creates_formatter_from_context(self, mock_console):
+        """Test get_help creates a formatter from the context."""
+        cmd = CustomHelpCommand(name="test")
+        ctx = MagicMock()
+        cmd.params = []
+
+        with pytest.raises(Exit):
+            cmd.get_help(ctx)
+
+        ctx.make_formatter.assert_called_once()
+
+    @patch("usecli.cli.core.base_command.console")
+    def test_get_help_displays_usage(self, mock_console):
+        """Test get_help displays usage section via format_help."""
+        cmd = CustomHelpCommand(name="deploy")
+        ctx = MagicMock()
+        ctx.make_formatter.return_value = MagicMock()
+        cmd.params = []
+
+        with pytest.raises(Exit):
+            cmd.get_help(ctx)
+
+        usage_calls = [
+            c for c in mock_console.print.call_args_list if "Usage:" in str(c)
+        ]
+        assert len(usage_calls) > 0
+
+    @patch("usecli.cli.core.base_command.console")
+    def test_get_help_displays_options(self, mock_console):
+        """Test get_help displays options section via format_help."""
+        cmd = CustomHelpCommand(name="deploy")
+        ctx = MagicMock()
+        ctx.make_formatter.return_value = MagicMock()
+        opt = Option(["-e", "--env"])
+        cmd.params = [opt]
+
+        with pytest.raises(Exit):
+            cmd.get_help(ctx)
+
+        options_calls = [
+            c for c in mock_console.print.call_args_list if "Options:" in str(c)
+        ]
+        assert len(options_calls) > 0
+
+    @patch("usecli.cli.core.base_command.console")
+    def test_get_help_with_arguments(self, mock_console):
+        """Test get_help with argument parameters."""
+        cmd = CustomHelpCommand(name="init")
+        ctx = MagicMock()
+        ctx.make_formatter.return_value = MagicMock()
+        arg = TyperArgument(param_decls=["project_name"])
+        cmd.params = [arg]
+
+        with pytest.raises(Exit):
+            cmd.get_help(ctx)
+
+        assert mock_console.print.called
+
+    @patch("usecli.cli.core.base_command.console")
+    def test_format_help_does_not_raise_exit(self, mock_console):
+        """Test format_help no longer raises Exit (exit is in get_help)."""
+        cmd = CustomHelpCommand(name="test")
+        cmd.params = []
+
+        cmd.format_help(MagicMock(), MagicMock())
+        assert mock_console.print.called
