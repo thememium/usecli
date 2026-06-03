@@ -33,9 +33,14 @@ class InspireCommand(BaseCommand):
     def handle(self) -> None:
         """Handle the command execution."""
         try:
-            with urllib.request.urlopen(
-                "https://zenquotes.io/api/random/inspiration"
-            ) as response:
+            req = urllib.request.Request(
+                "https://zenquotes.io/api/random/inspiration",
+                headers={
+                    "User-Agent": "Mozilla/5.0 (compatible; usecli/1.0)",
+                    "Accept": "application/json",
+                },
+            )
+            with urllib.request.urlopen(req, timeout=10) as response:
                 data: list[dict[str, str]] = json.loads(response.read().decode())
                 quote = data[0]["q"]
                 author = data[0]["a"]
