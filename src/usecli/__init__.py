@@ -7,7 +7,7 @@ from importlib import import_module
 
 import click
 import typer
-from click.exceptions import BadParameter, ClickException, UsageError
+from click.exceptions import BadParameter, ClickException, Exit, UsageError
 from typer.core import TyperGroup
 
 from usecli.cli.config.colors import COLOR
@@ -167,6 +167,8 @@ class PrefixMatchingGroup(TyperGroup):
         """
         try:
             return super().invoke(ctx)
+        except Exit:
+            sys.exit(0)
         except BadParameter as e:
             styled_error = UsecliBadParameter(e.message, ctx=e.ctx, param=e.param)
             styled_error.show()
@@ -272,6 +274,8 @@ def main() -> None:
     """Run the CLI application with custom error handling."""
     try:
         app()
+    except Exit:
+        sys.exit(0)
     except BadParameter as e:
         styled_error = UsecliBadParameter(e.message, ctx=e.ctx, param=e.param)
         styled_error.show()
