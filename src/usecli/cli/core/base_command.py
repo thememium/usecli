@@ -6,10 +6,9 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING, Any, ClassVar
 
 import typer
-from click import Argument, Option
 from click.exceptions import Exit
 from rich.console import Console
-from typer.core import TyperCommand
+from typer.core import TyperArgument, TyperCommand, TyperOption
 
 from usecli.cli.config.colors import COLOR
 from usecli.cli.core.ui.title import get_script_command_name
@@ -179,8 +178,8 @@ class CustomHelpCommand(TyperCommand):
             self.params = []
         if not self._has_interactive_option():
             self.params.append(
-                Option(
-                    ["--interactive", "-i"],
+                TyperOption(
+                    param_decls=["--interactive", "-i"],
                     is_flag=True,
                     help="Run in interactive mode.",
                 )
@@ -188,7 +187,7 @@ class CustomHelpCommand(TyperCommand):
 
     def _has_interactive_option(self) -> bool:
         return any(
-            isinstance(param, Option)
+            isinstance(param, TyperOption)
             and ("--interactive" in param.opts or "-i" in param.opts)
             for param in getattr(self, "params", [])
         )
@@ -217,10 +216,12 @@ class CustomHelpCommand(TyperCommand):
         Raises:
             Exit: After displaying help.
         """
-        arguments = [p for p in self.params if isinstance(p, Argument)]
+        arguments = [p for p in self.params if isinstance(p, TyperArgument)]
         argument_names = [p.name for p in arguments if p.name]
         options = [
-            p for p in self.params if isinstance(p, Option) and "--help" not in p.opts
+            p
+            for p in self.params
+            if isinstance(p, TyperOption) and "--help" not in p.opts
         ]
 
         arg_usage = " ".join(rf"\[{name.upper()}]" for name in argument_names)
