@@ -29,9 +29,9 @@ def _is_click_group(obj: object) -> bool:
     Works with both standard click.Group and Typer's vendored click
     (TyperGroup in typer>=0.26 no longer extends click.Group directly).
     """
-    return isinstance(obj, click.Group) or (
-        hasattr(obj, "commands") and isinstance(getattr(obj, "commands", None), dict)
-    )
+    from usecli.cli.core.ui import is_click_group
+
+    return is_click_group(obj)
 
 
 class CommandEntry(TypedDict):
