@@ -1,6 +1,20 @@
 # Changelog
 
 
+## v0.1.55
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.54...v0.1.55)
+
+### 💅 Refactors
+
+- **cli/tests:** Drop unused TyperCommand import and obsolete help command tests ([3f47176](https://github.com/thememium/usecli/commit/3f47176))
+- **base_command.py:** Remove unused imports and obsolete main override ([9b21129](https://github.com/thememium/usecli/commit/9b21129))
+- **usecli:** Make custom errors propagate by disabling standalone mode ([46e7878](https://github.com/thememium/usecli/commit/46e7878))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.54
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.53...v0.1.54)
