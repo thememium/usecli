@@ -139,7 +139,12 @@ class ConfigManager:
                         ):
                             detected_root = config_parent
         self.project_root: Path = (detected_root or start_dir).resolve()
-        if self._is_in_venv(self.project_root):
+        # Only override project_root for the framework itself (usecli).
+        # Downstream packages (usechange, userun, etc.) legitimately live
+        # inside .venv when installed as dependencies — don't break them.
+        command_name = self._get_command_name()
+        is_framework = command_name == "usecli" if command_name else True
+        if is_framework and self._is_in_venv(self.project_root):
             self.project_root = start_dir.resolve()
         self._config: dict[str, Any] = {}
         self._overrides: dict[str, Any] = {}
@@ -214,8 +219,9 @@ class ConfigManager:
             current = parent
 
         search_root = find_project_root(start_dir) or start_dir.resolve()
+        is_framework = command_name == "usecli" if command_name else True
         recursive_match = cls._find_usecli_config_in_tree(
-            search_root, start_dir, skip_venv=True
+            search_root, start_dir, skip_venv=is_framework
         )
         if recursive_match:
             return recursive_match
