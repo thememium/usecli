@@ -659,14 +659,10 @@ class ConfigManager:
         """Check if usecli is a direct dependency of the current project.
 
         Returns True when:
-        - The current command IS usecli (framework mode)
+        - The current project IS usecli (name matches)
         - usecli appears in pyproject.toml [project.dependencies]
         - usecli appears in pyproject.toml [dependency-groups]
         """
-        command_name = self._get_command_name()
-        if command_name == "usecli":
-            return True
-
         if not self.pyproject_path.exists():
             return False
 
@@ -675,6 +671,10 @@ class ConfigManager:
                 data = tomllib.load(f)
         except (tomllib.TOMLDecodeError, OSError):
             return False
+
+        project_name = data.get("project", {}).get("name", "")
+        if isinstance(project_name, str) and project_name.strip().lower() == "usecli":
+            return True
 
         for dep in data.get("project", {}).get("dependencies", []):
             if isinstance(dep, str) and dep.strip().lower().startswith("usecli"):
