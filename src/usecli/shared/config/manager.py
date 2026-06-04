@@ -655,6 +655,43 @@ class ConfigManager:
         """Check if running in production environment."""
         return self.get("environment", "prod") == "prod"
 
+    def is_usecli_direct_dependency(self) -> bool:
+        """Check if usecli is a direct dependency of the current project.
+
+        Returns True when:
+        - The current command IS usecli (framework mode)
+        - usecli appears in pyproject.toml [project.dependencies]
+        - usecli appears in pyproject.toml [dependency-groups]
+        """
+        command_name = self._get_command_name()
+        if command_name == "usecli":
+            return True
+
+        if not self.pyproject_path.exists():
+            return False
+
+        try:
+            with open(self.pyproject_path, "rb") as f:
+                data = tomllib.load(f)
+        except (tomllib.TOMLDecodeError, OSError):
+            return False
+
+        for dep in data.get("project", {}).get("dependencies", []):
+            if isinstance(dep, str) and dep.strip().lower().startswith("usecli"):
+                return True
+
+        for group_deps in data.get("dependency-groups", {}).values():
+            if not isinstance(group_deps, list):
+                continue
+            for dep in group_deps:
+                dep_str = dep if isinstance(dep, str) else dep.get("dependency", "")
+                if isinstance(dep_str, str) and dep_str.strip().lower().startswith(
+                    "usecli"
+                ):
+                    return True
+
+        return False
+
     def reload(self) -> None:
         """Reload configuration from disk."""
         self.usecli_config_path = self._find_usecli_config(self.start_dir) or (
