@@ -282,8 +282,9 @@ def run_app(
         raise typer.Exit()
 
     if version:
+        config = get_config()
         console.print(
-            f"[bold blue]CLI Version:[/bold blue] [green]{service.version}[/green]"
+            f"[bold {theme.SECONDARY}]{config.get("title")} {service.version}"
         )
         raise typer.Exit()
 
