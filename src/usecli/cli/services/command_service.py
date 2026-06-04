@@ -41,10 +41,14 @@ class CommandService:
     def load_commands(self) -> None:
         """Load all commands from the commands directory and project directories."""
         self._load_version()
-        package_commands_dir = (PACKAGE_ROOT / "cli/commands").resolve()
-        self._load_from_dir(package_commands_dir)
+        config = get_config()
 
-        project_commands_dir = get_config().get_project_commands_dir().resolve()
+        if config.is_usecli_direct_dependency():
+            package_commands_dir = (PACKAGE_ROOT / "cli/commands").resolve()
+            self._load_from_dir(package_commands_dir)
+
+        project_commands_dir = config.get_project_commands_dir().resolve()
+        package_commands_dir = (PACKAGE_ROOT / "cli/commands").resolve()
         if project_commands_dir == package_commands_dir:
             return
         try:
