@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import importlib.metadata
 import importlib.util
+import json
 import os
 import sys
 from pathlib import Path
@@ -138,6 +139,8 @@ class ConfigManager:
                         ):
                             detected_root = config_parent
         self.project_root: Path = (detected_root or start_dir).resolve()
+        if self._is_in_venv(self.project_root):
+            self.project_root = start_dir.resolve()
         self._config: dict[str, Any] = {}
         self._overrides: dict[str, Any] = {}
         self._load_config()
@@ -279,9 +282,26 @@ class ConfigManager:
 
     @staticmethod
     def _find_usecli_config_in_package() -> Path | None:
-        spec = importlib.util.find_spec(_get_package_name())
+        package_name = _get_package_name()
+        spec = importlib.util.find_spec(package_name)
         if spec is None or not spec.submodule_search_locations:
             return None
+
+        command_name = ConfigManager._get_command_name()
+        aliases = ConfigManager._get_console_script_aliases(command_name)
+
+        try:
+            dist = importlib.metadata.distribution(package_name)
+            source_root = ConfigManager._resolve_editable_source_root(dist)
+            if source_root:
+                source_config = ConfigManager._search_source_for_config(
+                    source_root, command_name, aliases
+                )
+                if source_config:
+                    return source_config
+        except Exception:
+            pass
+
         for location in spec.submodule_search_locations:
             package_root = Path(location)
             if not package_root.exists() or not package_root.is_dir():
@@ -289,8 +309,6 @@ class ConfigManager:
             candidates = [
                 path for path in package_root.rglob(USECLI_CONFIG_TOML) if path.exists()
             ]
-            command_name = ConfigManager._get_command_name()
-            aliases = ConfigManager._get_console_script_aliases(command_name)
             if command_name:
                 candidates = [
                     path
@@ -311,6 +329,22 @@ class ConfigManager:
         spec = importlib.util.find_spec(package_name)
         if spec is None or not spec.submodule_search_locations:
             return None
+
+        command_name = cls._get_command_name()
+        aliases = cls._get_console_script_aliases(command_name)
+
+        try:
+            dist = importlib.metadata.distribution(package_name)
+            source_root = cls._resolve_editable_source_root(dist)
+            if source_root:
+                source_config = cls._search_source_for_config(
+                    source_root, command_name, aliases
+                )
+                if source_config:
+                    return source_config
+        except Exception:
+            pass
+
         for location in spec.submodule_search_locations:
             package_root = Path(location)
             if not package_root.exists() or not package_root.is_dir():
@@ -318,8 +352,6 @@ class ConfigManager:
             candidates = [
                 path for path in package_root.rglob(USECLI_CONFIG_TOML) if path.exists()
             ]
-            command_name = cls._get_command_name()
-            aliases = cls._get_console_script_aliases(command_name)
             if command_name:
                 candidates = [
                     path
@@ -362,7 +394,15 @@ class ConfigManager:
                     normalized = dist_name.replace("-", "_")
                     if normalized not in candidates:
                         candidates.append(normalized)
+                aliases = cls._get_console_script_aliases(command_name)
                 for package_name in candidates:
+                    source_root = cls._resolve_editable_source_root(dist)
+                    if source_root:
+                        source_config = cls._search_source_for_config(
+                            source_root, command_name, aliases
+                        )
+                        if source_config:
+                            return source_config
                     match = cls._find_usecli_config_in_named_package(package_name)
                     if match:
                         return match
@@ -470,6 +510,71 @@ class ConfigManager:
         if aliases is None:
             aliases = {command_name}
         return normalized in aliases
+
+    @staticmethod
+    def _is_in_venv(path: Path) -> bool:
+        resolved = path.resolve()
+        return any(part in ConfigManager._SKIP_DIRS for part in resolved.parts)
+
+    @staticmethod
+    def _resolve_editable_source_root(
+        dist: importlib.metadata.Distribution,
+    ) -> Path | None:
+        """Resolve the source directory for an editable-installed package.
+
+        Reads ``direct_url.json`` from the distribution's metadata to find the
+        local source tree.  Returns the source root or ``None`` when the
+        distribution is not an editable install or the source no longer exists.
+        """
+        try:
+            text = dist.read_text("direct_url.json")
+        except Exception:
+            return None
+        if not text:
+            return None
+        try:
+            data = json.loads(text)
+        except (json.JSONDecodeError, TypeError):
+            return None
+        if not isinstance(data, dict):
+            return None
+        if data.get("dir_info", {}).get("editable") is not True:
+            return None
+        url = data.get("url", "")
+        if not url:
+            return None
+        # ``url`` is a ``file://`` URI.
+        if url.startswith("file://"):
+            url = url[len("file://") :]
+        source = Path(url)
+        if source.exists() and source.is_dir():
+            return source.resolve()
+        return None
+
+    @staticmethod
+    def _search_source_for_config(
+        source_root: Path,
+        command_name: str | None,
+        aliases: set[str] | None,
+    ) -> Path | None:
+        """Search a source tree for a ``usecli.config.toml`` that matches."""
+        if not source_root.exists() or not source_root.is_dir():
+            return None
+        candidates = [
+            p
+            for p in source_root.rglob(USECLI_CONFIG_TOML)
+            if not any(part in ConfigManager._SKIP_DIRS for part in p.parts)
+        ]
+        if command_name:
+            candidates = [
+                p
+                for p in candidates
+                if ConfigManager._config_matches_command(p, command_name, aliases)
+            ]
+        if not candidates:
+            return None
+        candidates.sort(key=lambda p: (len(p.parts), str(p)))
+        return candidates[0]
 
     def get(self, key: str, default: Any = None) -> Any:
         """Get a configuration value using dot notation.
