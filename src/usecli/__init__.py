@@ -310,6 +310,17 @@ def run_app(
 
 def main() -> None:
     """Run the CLI application with custom error handling."""
+    config = get_config()
+    command_name = config._get_command_name()
+    if command_name == "usecli" and not config.is_usecli_direct_dependency():
+        console.print(
+            "[bold red]Error:[/bold red] usecli is not a direct dependency of this project."
+        )
+        console.print(
+            "Add it to your [cyan]pyproject.toml[/cyan] dependencies or dependency-groups."
+        )
+        sys.exit(1)
+
     try:
         app()
     except Exit:
