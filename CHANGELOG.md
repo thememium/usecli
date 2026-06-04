@@ -1,6 +1,22 @@
 # Changelog
 
 
+## v0.1.58
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.57...v0.1.58)
+
+### 🚀 Enhancements
+
+- **usecli:** Validate that usecli is a direct dependency ([e3cf717](https://github.com/thememium/usecli/commit/e3cf717))
+
+### 💅 Refactors
+
+- **config:** Change usecli detection to check project name ([de9e06d](https://github.com/thememium/usecli/commit/de9e06d))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.57
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.56...v0.1.57)
