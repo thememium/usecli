@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shutil
 import sys
 from importlib import import_module
 from typing import Any, Optional, Sequence
@@ -283,8 +284,9 @@ def run_app(
 
     if version:
         config = get_config()
+        command_path = shutil.which(sys.argv[0]) or sys.argv[0]
         console.print(
-            f"[bold {theme.SECONDARY}]{config.get("title")} {service.version}"
+            f"[bold {theme.SECONDARY}]{config.get('title')} {service.version}[/bold {theme.SECONDARY}] [{theme.INFO}]({command_path})[/{theme.INFO}]"
         )
         raise typer.Exit()
 
