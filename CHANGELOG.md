@@ -1,6 +1,23 @@
 # Changelog
 
 
+## v0.1.56
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.55...v0.1.56)
+
+### 🚀 Enhancements
+
+- **config:** Support editable installs and virtual‑environment config lookup ([880c058](https://github.com/thememium/usecli/commit/880c058))
+- **usecli:** Show command path in version output ([fe2e9b9](https://github.com/thememium/usecli/commit/fe2e9b9))
+
+### 💅 Refactors
+
+- **usecli:** Update version output to include title and use secondary theme ([9e410fb](https://github.com/thememium/usecli/commit/9e410fb))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.55
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.54...v0.1.55)
