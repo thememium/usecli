@@ -1,6 +1,23 @@
 # Changelog
 
 
+## v0.1.57
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.56...v0.1.57)
+
+### 🚀 Enhancements
+
+- Add direct dependency check to ConfigManager ([a441363](https://github.com/thememium/usecli/commit/a441363))
+
+### 💅 Refactors
+
+- **manager:** Only override project_root for usecli framework ([e75216d](https://github.com/thememium/usecli/commit/e75216d))
+- **command_service:** Conditionally load package commands based on config ([ab1df9a](https://github.com/thememium/usecli/commit/ab1df9a))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.56
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.55...v0.1.56)
