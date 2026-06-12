@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+import sys
 from pathlib import Path
 
 import typer
@@ -23,8 +25,8 @@ console = Console()
 
 class MakeThemeCommand(BaseCommand):
     def visible(self) -> bool:
-        config = get_config()
-        return not config.get("hide_make_theme", False)
+        command_name = os.path.basename(sys.argv[0]) if sys.argv else ""
+        return command_name == "usecli"
 
     def signature(self) -> str:
         return "make:theme"
