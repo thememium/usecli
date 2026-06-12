@@ -154,19 +154,10 @@ choice = Menu(["A", "B", "C"]).show()
 ```
 about        Show app info
 help         Show help
-init         Initialize usecli
+init         Initialize usecli (usecli only)
 inspire      Random quote
-make:command Create new command
-```
-
-### Hiding Built-in Commands
-
-Add this to `usecli.config.toml`:
-
-```toml
-[usecli]
-hide_init = true
-hide_inspire = true
+make:command Create new command (usecli only)
+make:theme   Create new theme (usecli only)
 ```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
