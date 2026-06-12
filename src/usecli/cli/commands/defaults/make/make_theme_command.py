@@ -46,6 +46,7 @@ class MakeThemeCommand(BaseCommand):
             reset_config()
             config = get_config()
 
+        project_paths = config.get_project_paths()
         themes_entries = self._normalize_theme_entries(config.get("themes_dir", []))
         if not themes_entries:
             console.print(
@@ -86,7 +87,8 @@ class MakeThemeCommand(BaseCommand):
                     break
                 counter += 1
 
-        project_template_path = config.get_project_templates_dir() / "theme.toml.j2"
+        templates_dir = project_paths["templates_dir"]
+        project_template_path = templates_dir / "theme.toml.j2"
         if project_template_path.exists():
             template_path = project_template_path
         else:
