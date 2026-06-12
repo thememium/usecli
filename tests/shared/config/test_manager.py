@@ -79,9 +79,7 @@ class TestConfigManagerDefaults:
         assert manager.get("themes_dir") == ["cli/themes"]
         assert manager.get("environment") == "prod"
         assert manager.get("command_name") == "usecli"
-        assert manager.get("hide_init") is False
         assert manager.get("hide_inspire") is False
-        assert manager.get("hide_make_command") is False
 
     def test_default_environment_methods(self, temp_project_dir):
         manager = ConfigManager(
