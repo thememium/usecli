@@ -83,9 +83,7 @@ class ConfigManager:
         "theme": "default",
         "environment": "prod",
         "command_name": "usecli",
-        "hide_init": False,
         "hide_inspire": False,
-        "hide_make_command": False,
     }
 
     def __init__(
