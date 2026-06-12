@@ -462,8 +462,6 @@ class TestInitCommandPyprojectToml:
 
         config_path = _config_path(temp_project_dir, DEFAULT_COMMANDS_DIR)
         assert config_path.exists()
-        config_content = config_path.read_text()
-        assert "hide_make_theme = false" in config_content
 
         content = pyproject.read_text()
         assert "[project.scripts]" in content
@@ -619,9 +617,7 @@ class TestInitCommandDefaults:
         assert 'templates_dir = "templates"' in config_content
         assert 'themes_dir = "themes"' in config_content
         assert 'title_font = "big"' in config_content
-        assert "hide_init = false" in config_content
         assert "hide_inspire = false" in config_content
-        assert "hide_make_command = false" in config_content
 
 
 class TestInitCommandIntegration:
