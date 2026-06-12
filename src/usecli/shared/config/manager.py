@@ -256,21 +256,11 @@ class ConfigManager:
         command_name = ConfigManager._get_command_name()
         aliases = ConfigManager._get_console_script_aliases(command_name)
         if command_name:
-            matching = [
+            candidates = [
                 path
                 for path in candidates
                 if ConfigManager._config_matches_command(path, command_name, aliases)
             ]
-            if matching:
-                candidates = matching
-            elif command_name == "usecli":
-                candidates = [
-                    path
-                    for path in candidates
-                    if not any(
-                        part in ConfigManager._SKIP_DIRS for part in path.parts
-                    )
-                ]
         if not candidates:
             return None
 
@@ -388,7 +378,6 @@ class ConfigManager:
             distributions = importlib.metadata.distributions()
         except Exception:
             return None
-        is_framework = command_name == "usecli"
         for dist in distributions:
             try:
                 entry_points = dist.entry_points
@@ -422,8 +411,6 @@ class ConfigManager:
                             return source_config
                     match = cls._find_usecli_config_in_named_package(package_name)
                     if match:
-                        if is_framework and cls._is_in_venv(match):
-                            continue
                         return match
         return None
 
@@ -665,6 +652,43 @@ class ConfigManager:
                 theme_path = config_dir / theme_path
             result.append(theme_path.resolve())
         return result
+
+    def get_project_paths(self) -> dict[str, Path]:
+        project_config = self._find_project_config()
+        if project_config is None:
+            return {
+                "commands_dir": self.get_project_commands_dir(),
+                "templates_dir": self.get_project_templates_dir(),
+            }
+        config_dir = project_config.parent
+        config_data = self._load_usecli_toml(project_config)
+        commands_dir = config_data.get("commands_dir", "cli/commands")
+        templates_dir = config_data.get("templates_dir", "cli/templates")
+        commands_path = Path(commands_dir)
+        templates_path = Path(templates_dir)
+        if not commands_path.is_absolute():
+            commands_path = config_dir / commands_path
+        if not templates_path.is_absolute():
+            templates_path = config_dir / templates_path
+        return {
+            "commands_dir": commands_path.resolve(),
+            "templates_dir": templates_path.resolve(),
+        }
+
+    def _find_project_config(self) -> Path | None:
+        start_dir = self.start_dir
+        project_root = find_project_root(start_dir)
+        if project_root is None:
+            return None
+        candidates = [
+            p
+            for p in project_root.rglob(USECLI_CONFIG_TOML)
+            if not any(part in self._SKIP_DIRS for part in p.parts)
+        ]
+        if not candidates:
+            return None
+        candidates.sort(key=lambda p: (len(p.parts), str(p)))
+        return candidates[0]
 
     def is_dev(self) -> bool:
         """Check if running in development environment."""
