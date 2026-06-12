@@ -8,7 +8,4 @@ commands_dir = "{{ commands_dir | default('cli/commands') }}"
 templates_dir = "{{ templates_dir | default('cli/templates') }}"
 themes_dir = "{{ themes_dir | default('cli/themes') }}"
 theme = "{{ theme | default('default') }}"
-hide_init = {{ hide_init | default(false) | lower }}
 hide_inspire = {{ hide_inspire | default(false) | lower }}
-hide_make_command = {{ hide_make_command | default(false) | lower }}
-hide_make_theme = {{ hide_make_theme | default(false) | lower }}
