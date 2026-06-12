@@ -627,23 +627,29 @@ class ConfigManager:
         commands_path = Path(commands_dir)
         if commands_path.is_absolute():
             return commands_path
-        return (self.project_root / commands_path).resolve()
+        # Resolve relative to the config file's directory, not project_root.
+        # This ensures nested configs (e.g., src/mycli/cli/usecli.config.toml)
+        # resolve paths correctly relative to their location.
+        config_dir = self.usecli_config_path.parent
+        return (config_dir / commands_path).resolve()
 
     def get_project_templates_dir(self) -> Path:
         templates_dir = self.get("templates_dir", "cli/templates")
         templates_path = Path(templates_dir)
         if templates_path.is_absolute():
             return templates_path
-        return (self.project_root / templates_path).resolve()
+        config_dir = self.usecli_config_path.parent
+        return (config_dir / templates_path).resolve()
 
     def get_project_themes_dirs(self) -> list[Path]:
         themes_dir = self.get("themes_dir", [])
         themes_entries = _normalize_themes_dir(themes_dir)
         result: list[Path] = []
+        config_dir = self.usecli_config_path.parent
         for entry in themes_entries:
             theme_path = Path(entry)
             if not theme_path.is_absolute():
-                theme_path = self.project_root / theme_path
+                theme_path = config_dir / theme_path
             result.append(theme_path.resolve())
         return result
 
