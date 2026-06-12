@@ -29,15 +29,15 @@ from usecli.cli.core.exceptions import UsecliBadParameter
 from usecli.cli.core.validators import validate_command_name
 from usecli.cli.utils.interactive.terminal_menu import terminal_menu
 from usecli.shared.config.globals import TEMPLATES_DIR, THEMES_DIR, USECLI_CONFIG_TOML
-from usecli.shared.config.manager import ConfigManager, get_config
+from usecli.shared.config.manager import ConfigManager
 
 console = Console()
 
 
 class InitCommand(BaseCommand):
     def visible(self) -> bool:
-        config = get_config()
-        return not config.get("hide_init", False)
+        command_name = os.path.basename(sys.argv[0]) if sys.argv else ""
+        return command_name == "usecli"
 
     def signature(self) -> str:
         return "init"
