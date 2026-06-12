@@ -256,11 +256,21 @@ class ConfigManager:
         command_name = ConfigManager._get_command_name()
         aliases = ConfigManager._get_console_script_aliases(command_name)
         if command_name:
-            candidates = [
+            matching = [
                 path
                 for path in candidates
                 if ConfigManager._config_matches_command(path, command_name, aliases)
             ]
+            if matching:
+                candidates = matching
+            elif command_name == "usecli":
+                candidates = [
+                    path
+                    for path in candidates
+                    if not any(
+                        part in ConfigManager._SKIP_DIRS for part in path.parts
+                    )
+                ]
         if not candidates:
             return None
 
@@ -378,6 +388,7 @@ class ConfigManager:
             distributions = importlib.metadata.distributions()
         except Exception:
             return None
+        is_framework = command_name == "usecli"
         for dist in distributions:
             try:
                 entry_points = dist.entry_points
@@ -411,6 +422,8 @@ class ConfigManager:
                             return source_config
                     match = cls._find_usecli_config_in_named_package(package_name)
                     if match:
+                        if is_framework and cls._is_in_venv(match):
+                            continue
                         return match
         return None
 
