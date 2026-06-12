@@ -50,7 +50,8 @@ class MakeCommand(BaseCommand):
         if config.get_project_root().resolve() != current_root:
             reset_config()
             config = get_config()
-        commands_dir = config.get_project_commands_dir()
+        project_paths = config.get_project_paths()
+        commands_dir = project_paths["commands_dir"]
         commands_dir.mkdir(parents=True, exist_ok=True)
         target_file = commands_dir / file_name
 
@@ -59,7 +60,8 @@ class MakeCommand(BaseCommand):
                 f"[{COLOR.ERROR}]Error: Command file {target_file} already exists.[/{COLOR.ERROR}]"
             )
             return
-        project_template_path = config.get_project_templates_dir() / "command.py.j2"
+        templates_dir = project_paths["templates_dir"]
+        project_template_path = templates_dir / "command.py.j2"
         if project_template_path.exists():
             template_path = project_template_path
         else:
