@@ -1,6 +1,38 @@
 # Changelog
 
 
+## v0.1.62
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.61...v0.1.62)
+
+### 🚀 Enhancements
+
+- Skip expensive recursive search from high-level directories ([8d765a1](https://github.com/thememium/usecli/commit/8d765a1))
+- Lazy CLI initialization - don't import click/typer at module level ([d76ecc7](https://github.com/thememium/usecli/commit/d76ecc7))
+- Skip console_script search when start_dir is HOME/root ([724330f](https://github.com/thememium/usecli/commit/724330f))
+
+### 🔥 Performance
+
+- Lazy tomllib import ([000fa7c](https://github.com/thememium/usecli/commit/000fa7c))
+- Lazy PrefixMatchingGroup creation - defer typer import ([0073eab](https://github.com/thememium/usecli/commit/0073eab))
+- Move typing.Any under TYPE_CHECKING ([61e7348](https://github.com/thememium/usecli/commit/61e7348))
+- Avoid typing import in __init__.py (6ms saved) ([b1cc933](https://github.com/thememium/usecli/commit/b1cc933))
+- Cache parsed TOML files to avoid repeated parsing ([5ed5362](https://github.com/thememium/usecli/commit/5ed5362))
+- Lazy pathlib import - saves ~5ms on import ([1a96333](https://github.com/thememium/usecli/commit/1a96333))
+
+### 🩹 Fixes
+
+- Lazy tomllib ([e928f54](https://github.com/thememium/usecli/commit/e928f54))
+- Use BaseCommand as init guard to prevent partial initialization ([f708f84](https://github.com/thememium/usecli/commit/f708f84))
+
+### 🎨 Styles
+
+- **src:** Reformat imports and add TYPE_CHECKING guard in config manager ([21e14d7](https://github.com/thememium/usecli/commit/21e14d7))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.61
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.60...v0.1.61)
