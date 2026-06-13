@@ -91,11 +91,13 @@ class CommandService:
         if not directory.exists():
             return
 
+        skip_usecli_only = self._skip_usecli_only_commands
+
         for path in directory.rglob("*.py"):
             if path.name == "__init__.py":
                 continue
 
-            if self._skip_usecli_only_commands and (
+            if skip_usecli_only and (
                 path.name == "init_command.py" or "make" in path.parts
             ):
                 continue
