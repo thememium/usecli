@@ -106,7 +106,7 @@ class CommandService:
                 continue
 
             module = self._import_file(path)
-            if not module:
+            if module is None:
                 continue
 
             if isinstance(module, ModuleType):
