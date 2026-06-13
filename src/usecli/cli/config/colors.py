@@ -719,19 +719,33 @@ def _apply_theme(
 
 
 def _ensure_theme_loaded(color_class: type[Any]) -> None:
-    global _THEME_CONTEXT
-    context = _theme_context()
-    if context == _THEME_CONTEXT:
-        return
-    colors, ansi, _, _ = _load_theme()
-    _THEME_CONTEXT = context
-    _THEME_COLORS.update(colors)
-    _THEME_ANSI.update(ansi)
+    global _THEME_CONTEXT, _THEME_LOADED
+    if _THEME_LOADED:
+        context = _theme_context()
+        if context == _THEME_CONTEXT:
+            return
+        colors, ansi, _, _ = _load_theme()
+        _THEME_CONTEXT = context
+        _THEME_COLORS.update(colors)
+        _THEME_ANSI.update(ansi)
+    else:
+        colors, ansi, _, _ = _load_theme()
+        _THEME_CONTEXT = _theme_context()
+        _THEME_COLORS.update(colors)
+        _THEME_ANSI.update(ansi)
+        _THEME_LOADED = True
     _apply_theme(cast(_ColorNamespace, color_class), _THEME_COLORS, _THEME_ANSI)
 
 
-_THEME_COLORS, _THEME_ANSI, _THEME_NAME, _THEME_PATH = _load_theme()
-_THEME_CONTEXT: tuple[Path | None, Path | None, str, Path | None] = _theme_context()
+# Deferred: _load_theme() and _theme_context() are called on first COLOR attribute access
+# via _ColorMeta.__getattribute__ -> _ensure_theme_loaded, instead of at import time.
+# This avoids ~50ms of filesystem walking during startup when colors aren't needed yet.
+_THEME_LOADED: bool = False
+_THEME_COLORS: dict[str, str] = DEFAULT_THEME_COLORS.copy()
+_THEME_ANSI: dict[str, str] = {"reset": "\033[0m", "primary": "", "secondary": "", "accent": "", "foreground": "", "foreground_muted": "", "red": "", "green": "", "yellow": "", "blue": ""}
+_THEME_NAME: str = DEFAULT_THEME_NAME
+_THEME_PATH: Path | None = None
+_THEME_CONTEXT: tuple[Path | None, Path | None, str, Path | None] = (None, None, DEFAULT_THEME_NAME, None)
 
 
 class _ColorMeta(type):
