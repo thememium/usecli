@@ -30,4 +30,10 @@ Make the `usecli` CLI extremely fast and efficient at startup, both when run as 
 - Existing tests should pass; `.auto/checks.sh` runs focused pytest.
 
 ## What's Been Tried
-- Baseline setup in progress. Initial source reading found likely hotspots in `ConfigManager._find_usecli_config`, `_get_console_script_aliases`, `_find_usecli_config_for_console_script`, and recursive `rglob` usage in both config and command discovery.
+- Baseline used uv-managed env; plain python lacked `simple_term_menu`.
+- Kept: lazy console-script alias lookup in config matching to avoid `importlib.metadata.distributions()` when `command_name` exactly matches.
+- Kept: non-`usecli` CLIs skip usecli-only package command modules (`init`, `make:*`) to avoid importing Jinja/caseconverter/pyfiglet scaffolding deps. Corrected to avoid skipping downstream project commands in `make` directories by scoping the skip to the package load via an instance flag.
+- Kept: direct module `__dict__` class scanning for real command modules and lazy `inspect` fallback for tests/mocks.
+- Kept: lazy `about` command support imports, lazy `usecli.cli.core`/`ui` package exports, lazy config exception import, lazy command_service `get_version`, lazy top-level UI exports from `usecli`, and a lazy Rich Console proxy in `base_command`.
+- Discarded: `get_config()` unchanged-cwd cache (helped self startup but not primary), pyproject parse cache, lazy `Menu` terminal-menu import, lazy list_commands top-level import, deferring title import from `base_command`, and generator prefiltering; all regressed primary or failed checks.
+- Current best correct line is around mid-50ms primary on this benchmark (down from ~68.6ms baseline). Continue targeting dependency/config startup and avoid broad filesystem scanning or over-skipping project command folders.
