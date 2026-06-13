@@ -178,6 +178,15 @@ def _dedupe_items(items: list[str]) -> list[str]:
     return result
 
 
+# Cache for parsed TOML files to avoid repeated parsing
+_toml_cache: dict[str, dict[str, Any]] = {}
+
+
+def _reset_toml_cache() -> None:
+    global _toml_cache
+    _toml_cache = {}
+
+
 class ConfigManager:
     """Manages useCli configuration from project-level files."""
 
@@ -585,6 +594,10 @@ class ConfigManager:
 
     @staticmethod
     def _load_usecli_toml(path: Path) -> dict[str, Any]:
+        cache_key = str(path)
+        if cache_key in _toml_cache:
+            return _toml_cache[cache_key]
+
         with open(path, "rb") as f:
             data = _get_tomllib().load(f)
 
@@ -592,12 +605,15 @@ class ConfigManager:
         if isinstance(tool_section, dict) and "usecli" in tool_section:
             usecli_section = tool_section.get("usecli")
             if isinstance(usecli_section, dict):
+                _toml_cache[cache_key] = usecli_section
                 return usecli_section
 
         usecli_section = data.get("usecli", {})
         if isinstance(usecli_section, dict):
+            _toml_cache[cache_key] = usecli_section
             return usecli_section
 
+        _toml_cache[cache_key] = {}
         return {}
 
     @staticmethod
