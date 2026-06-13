@@ -92,6 +92,92 @@ def _ensure_cli_initialized() -> None:
     globals()["_UsageError"] = UsageError
     globals()["_TyperGroup"] = TyperGroup
 
+    # Create PrefixMatchingGroup now that TyperGroup is available
+    class PrefixMatchingGroup(TyperGroup):
+        """Custom Typer group that supports prefix matching for commands."""
+
+        def get_command(self, ctx, cmd_name):
+            """Get a command by name, with prefix matching fallback."""
+            rv = TyperGroup.get_command(self, ctx, cmd_name)
+            if rv is not None:
+                return rv
+
+            app = _get_app()
+            group_alias_registry = _get_group_alias_registry(app)
+            group_alias_to_primary = _build_alias_to_primary(group_alias_registry)
+
+            if (
+                cmd_name in group_alias_to_primary
+                and group_alias_to_primary[cmd_name] != cmd_name
+            ):
+                return TyperGroup.get_command(self, ctx, group_alias_to_primary[cmd_name])
+
+            matches = [x for x in self.list_commands(ctx) if x.startswith(cmd_name)]
+            group_aliases = [
+                alias for aliases in group_alias_registry.values() for alias in aliases
+            ]
+            matches.extend([alias for alias in group_aliases if alias.startswith(cmd_name)])
+            matches = list(dict.fromkeys(matches))
+
+            if not matches:
+                return None
+
+            if cmd_name in matches:
+                if (
+                    cmd_name in group_alias_to_primary
+                    and group_alias_to_primary[cmd_name] != cmd_name
+                ):
+                    return TyperGroup.get_command(
+                        self, ctx, group_alias_to_primary[cmd_name]
+                    )
+                return TyperGroup.get_command(self, ctx, cmd_name)
+
+            return _FilteredListCommand(cmd_name)
+
+        def main(
+            self,
+            args=None,
+            prog_name=None,
+            complete_var=None,
+            standalone_mode=True,
+            windows_expand_args=True,
+            **extra,
+        ):
+            return super().main(
+                args=args,
+                prog_name=prog_name,
+                complete_var=complete_var,
+                standalone_mode=False,
+                windows_expand_args=windows_expand_args,
+                **extra,
+            )
+
+        def invoke(self, ctx):
+            from click.exceptions import BadParameter, ClickException, Exit, UsageError
+
+            try:
+                return super().invoke(ctx)
+            except Exit:
+                sys.exit(0)
+            except BadParameter as e:
+                from usecli.cli.core.exceptions import UsecliBadParameter
+
+                styled_error = UsecliBadParameter(e.message, ctx=e.ctx, param=e.param)
+                styled_error.show()
+                sys.exit(styled_error.exit_code)
+            except UsageError as e:
+                from usecli.cli.core.exceptions import UsecliUsageError
+
+                styled_error = UsecliUsageError(e.message, ctx=e.ctx)
+                styled_error.show()
+                sys.exit(styled_error.exit_code)
+            except ClickException as e:
+                if hasattr(e, "show"):
+                    e.show()
+                sys.exit(e.exit_code if hasattr(e, "exit_code") else 1)
+
+    globals()["PrefixMatchingGroup"] = PrefixMatchingGroup
+
     # Setup module aliasing
     colors = import_module("usecli.cli.config.colors")
     globals()["colors"] = colors
@@ -109,10 +195,12 @@ def _ensure_cli_initialized() -> None:
     )
     globals()["app"] = _app
 
+    # Set BaseCommand BEFORE load_commands() since commands import it
+    globals()["BaseCommand"] = BaseCommand
+
     _service = CommandService(_app)
     _service.load_commands()
     globals()["service"] = _service
-    globals()["BaseCommand"] = BaseCommand
 
 
 def _get_app():
@@ -210,111 +298,9 @@ def _build_alias_to_primary(alias_registry: dict[str, list[str]]) -> dict[str, s
     return alias_to_primary
 
 
-class PrefixMatchingGroup:
-    """Custom Typer group that supports prefix matching for commands.
-
-    This allows users to type partial command names (e.g., 'he' for 'help').
-    """
-
-    def __init_subclass__(cls, **kwargs):
-        # This is called when PrefixMatchingGroup is used as a base class
-        pass
-
-    @classmethod
-    def _get_typer_group(cls):
-        """Get the actual TyperGroup class."""
-        from typer.core import TyperGroup
-        return TyperGroup
-
-
-def _create_prefix_matching_group():
-    """Dynamically create the PrefixMatchingGroup class with TyperGroup."""
-    import click
-    from typer.core import TyperGroup
-
-    class _PrefixMatchingGroup(TyperGroup):
-        """Custom Typer group that supports prefix matching for commands."""
-
-        def get_command(self, ctx: click.Context, cmd_name: str) -> click.Command | None:
-            rv = TyperGroup.get_command(self, ctx, cmd_name)
-            if rv is not None:
-                return rv
-
-            app = _get_app()
-            group_alias_registry = _get_group_alias_registry(app)
-            group_alias_to_primary = _build_alias_to_primary(group_alias_registry)
-
-            if (
-                cmd_name in group_alias_to_primary
-                and group_alias_to_primary[cmd_name] != cmd_name
-            ):
-                return TyperGroup.get_command(self, ctx, group_alias_to_primary[cmd_name])
-
-            matches = [x for x in self.list_commands(ctx) if x.startswith(cmd_name)]
-            group_aliases = [
-                alias for aliases in group_alias_registry.values() for alias in aliases
-            ]
-            matches.extend([alias for alias in group_aliases if alias.startswith(cmd_name)])
-            matches = list(dict.fromkeys(matches))
-
-            if not matches:
-                return None
-
-            if cmd_name in matches:
-                if (
-                    cmd_name in group_alias_to_primary
-                    and group_alias_to_primary[cmd_name] != cmd_name
-                ):
-                    return TyperGroup.get_command(
-                        self, ctx, group_alias_to_primary[cmd_name]
-                    )
-                return TyperGroup.get_command(self, ctx, cmd_name)
-
-            return _FilteredListCommand(cmd_name)
-
-        def main(
-            self,
-            args: Optional[Sequence[str]] = None,
-            prog_name: Optional[str] = None,
-            complete_var: Optional[str] = None,
-            standalone_mode: bool = True,
-            windows_expand_args: bool = True,
-            **extra: Any,
-        ) -> Any:
-            return super().main(
-                args=args,
-                prog_name=prog_name,
-                complete_var=complete_var,
-                standalone_mode=False,
-                windows_expand_args=windows_expand_args,
-                **extra,
-            )
-
-        def invoke(self, ctx: click.Context) -> None:
-            from click.exceptions import BadParameter, ClickException, Exit, UsageError
-
-            try:
-                return super().invoke(ctx)
-            except Exit:
-                sys.exit(0)
-            except BadParameter as e:
-                from usecli.cli.core.exceptions import UsecliBadParameter
-
-                styled_error = UsecliBadParameter(e.message, ctx=e.ctx, param=e.param)
-                styled_error.show()
-                sys.exit(styled_error.exit_code)
-            except UsageError as e:
-                from usecli.cli.core.exceptions import UsecliUsageError
-
-                styled_error = UsecliUsageError(e.message, ctx=e.ctx)
-                styled_error.show()
-                sys.exit(styled_error.exit_code)
-            except ClickException as e:
-                if hasattr(e, "show"):
-                    e.show()
-                sys.exit(e.exit_code if hasattr(e, "exit_code") else 1)
-
-    return _PrefixMatchingGroup
+# PrefixMatchingGroup is created lazily by _ensure_cli_initialized()
+# to avoid importing typer at module level.
+PrefixMatchingGroup = None
 
 
 class _FilteredListCommand:
@@ -347,6 +333,10 @@ def _get_run_app_callback():
         return globals()["run_app"]
 
     import typer
+
+    # Inject typer into module globals so annotation evaluation works
+    # (required because `from __future__ import annotations` makes them strings)
+    globals()["typer"] = typer
 
     @app.callback()
     def run_app(
