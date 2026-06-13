@@ -13,12 +13,7 @@ from rich.console import Console
 from usecli.cli.config.colors import COLOR
 from usecli.cli.core.base_command import BaseCommand
 from usecli.shared.config.globals import TEMPLATES_DIR
-from usecli.shared.config.manager import (
-    ConfigManager,
-    find_project_root,
-    get_config,
-    reset_config,
-)
+from usecli.shared.config.manager import find_project_root, get_config, reset_config
 
 console = Console()
 
@@ -49,25 +44,7 @@ class MakeThemeCommand(BaseCommand):
             config = get_config()
 
         project_paths = config.get_project_paths()
-        themes_entries = self._normalize_theme_entries(config.get("themes_dir", []))
-        if not themes_entries:
-            console.print(
-                f"[{COLOR.ERROR}]Error: No theme directory configured.[/{COLOR.ERROR}]"
-            )
-            return
-
-        default_entries = self._normalize_theme_entries(
-            ConfigManager.DEFAULT_CONFIG.get("themes_dir", [])
-        )
-        preferred_entries = [
-            entry for entry in themes_entries if entry not in default_entries
-        ]
-        if not preferred_entries:
-            preferred_entries = themes_entries
-
-        themes_dir = self._resolve_theme_dir(
-            preferred_entries[0], config.get_project_root()
-        )
+        themes_dir = project_paths["themes_dir"]
         themes_dir.mkdir(parents=True, exist_ok=True)
 
         base_name = Path(clean_name).name
@@ -103,26 +80,3 @@ class MakeThemeCommand(BaseCommand):
         console.print(
             f"[{COLOR.SUCCESS}]Successfully created theme at {target_file}[/{COLOR.SUCCESS}]"
         )
-
-    @staticmethod
-    def _normalize_theme_entries(value: object) -> list[str]:
-        if isinstance(value, str):
-            normalized = value.strip()
-            return [normalized] if normalized else []
-        if isinstance(value, list):
-            result: list[str] = []
-            for entry in value:
-                if not isinstance(entry, str):
-                    continue
-                normalized = entry.strip()
-                if normalized:
-                    result.append(normalized)
-            return result
-        return []
-
-    @staticmethod
-    def _resolve_theme_dir(entry: str, project_root: Path) -> Path:
-        theme_path = Path(entry)
-        if not theme_path.is_absolute():
-            theme_path = project_root / theme_path
-        return theme_path.resolve()
