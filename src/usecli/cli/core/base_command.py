@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING, Any, ClassVar
 
 import typer
 from click.exceptions import Exit
-from rich.console import Console
 from typer.core import TyperArgument, TyperCommand, TyperOption
 
 from usecli.cli.config.colors import COLOR
@@ -17,7 +16,21 @@ if TYPE_CHECKING:
     from click.core import Context as ClickContext
     from click.formatting import HelpFormatter
 
-console = Console()
+class _LazyConsole:
+    _console: Any | None = None
+
+    def _get_console(self) -> Any:
+        if self._console is None:
+            from rich.console import Console
+
+            self._console = Console()
+        return self._console
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._get_console(), name)
+
+
+console = _LazyConsole()
 
 
 class NestedCommandRegistry:
