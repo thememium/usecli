@@ -319,11 +319,17 @@ class ConfigManager:
         current = start_dir.resolve()
         command_name = cls._get_command_name()
 
+        # Check cache first to avoid repeated expensive searches.
+        cache_key = str(start_dir.resolve())
+        if cache_key in _config_search_cache:
+            return _config_search_cache[cache_key]
+
         while True:
             config_path = current / USECLI_CONFIG_TOML
             if config_path.exists() and cls._config_matches_command(
                 config_path, command_name
             ):
+                _config_search_cache[cache_key] = config_path
                 return config_path
 
             parent = current.parent
@@ -334,21 +340,19 @@ class ConfigManager:
         # Try fast lookups before expensive rglob (perf: global tools).
         console_match = cls._find_usecli_config_for_console_script()
         if console_match:
+            _config_search_cache[cache_key] = console_match
             return console_match
 
         if cls._is_within_usecli_package(start_dir):
             package_match = cls._find_usecli_config_in_package()
             if package_match:
+                _config_search_cache[cache_key] = package_match
                 return package_match
 
             sys_match = cls._find_usecli_config_on_sys_path()
             if sys_match:
+                _config_search_cache[cache_key] = sys_match
                 return sys_match
-
-        # Check cache first to avoid repeated expensive searches.
-        cache_key = str(start_dir.resolve())
-        if cache_key in _config_search_cache:
-            return _config_search_cache[cache_key]
 
         search_root = find_project_root(start_dir) or start_dir.resolve()
 
@@ -366,6 +370,7 @@ class ConfigManager:
         if recursive_match:
             return recursive_match
 
+        _config_search_cache[cache_key] = None
         return None
 
     @staticmethod

@@ -6,39 +6,22 @@ import sys
 from importlib import import_module
 from typing import TYPE_CHECKING, Any, Optional, Sequence
 
-import click
-import typer
-from click.exceptions import BadParameter, ClickException, Exit, UsageError
-from typer.core import TyperGroup
-
 if TYPE_CHECKING:
+    import click
+    import typer
     from rich.console import Console
 
+    from usecli.cli.core.base_command import BaseCommand
     from usecli.menu import Menu
     from usecli.params import Argument, Option
     from usecli.ui import Confirm, Prompt
 
     console: Console
 
-try:
-    from typer._click.exceptions import BadParameter as TyperBadParameter  # type: ignore[import-untyped]
-    from typer._click.exceptions import ClickException as TyperClickException  # type: ignore[import-untyped]
-    from typer._click.exceptions import UsageError as TyperUsageError  # type: ignore[import-untyped]
-except ImportError:
-    TyperBadParameter = BadParameter
-    TyperClickException = ClickException
-    TyperUsageError = UsageError
-
-from usecli.cli.config.colors import COLOR
-from usecli.cli.core.base_command import BaseCommand
-from usecli.cli.services.command_service import CommandService
-from usecli.shared.config.manager import get_config
-
-colors = import_module("usecli.cli.config.colors")
-theme = COLOR
-
-sys.modules.setdefault(__name__ + ".colors", colors)
-sys.modules.setdefault("colors", colors)
+# Lazy module-level placeholders - these are populated on first access
+_app: Any = None
+_service: Any = None
+_help_resolved: bool = False
 
 _LAZY_EXPORTS = {
     "Menu": ("usecli.menu", "Menu"),
@@ -52,13 +35,88 @@ _LAZY_EXPORTS = {
 
 
 def __getattr__(name: str) -> Any:
+    # Handle lazy exports
     export = _LAZY_EXPORTS.get(name)
-    if export is None:
-        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
-    module_name, attr_name = export
-    value = getattr(import_module(module_name), attr_name)
-    globals()[name] = value
-    return value
+    if export is not None:
+        module_name, attr_name = export
+        value = getattr(import_module(module_name), attr_name)
+        globals()[name] = value
+        return value
+
+    # Handle CLI framework components - lazy initialization
+    if name in ("app", "service", "BaseCommand", "colors", "theme"):
+        _ensure_cli_initialized()
+        return globals()[name]
+
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def _ensure_cli_initialized() -> None:
+    """Lazily initialize the CLI framework components."""
+    global _app, _service
+    if _app is not None:
+        return
+
+    import click
+    import typer
+    from click.exceptions import BadParameter, ClickException, Exit, UsageError
+    from typer.core import TyperGroup
+
+    from usecli.cli.config.colors import COLOR
+    from usecli.cli.core.base_command import BaseCommand
+    from usecli.cli.services.command_service import CommandService
+
+    # Store exceptions for error handling
+    try:
+        from typer._click.exceptions import BadParameter as TyperBadParameter  # type: ignore[import-untyped]
+        from typer._click.exceptions import ClickException as TyperClickException  # type: ignore[import-untyped]
+        from typer._click.exceptions import UsageError as TyperUsageError  # type: ignore[import-untyped]
+    except ImportError:
+        TyperBadParameter = BadParameter
+        TyperClickException = ClickException
+        TyperUsageError = UsageError
+
+    # Store in globals for use by other functions
+    globals()["_TyperBadParameter"] = TyperBadParameter
+    globals()["_TyperClickException"] = TyperClickException
+    globals()["_TyperUsageError"] = TyperUsageError
+    globals()["_Exit"] = Exit
+    globals()["_BadParameter"] = BadParameter
+    globals()["_ClickException"] = ClickException
+    globals()["_UsageError"] = UsageError
+    globals()["_TyperGroup"] = TyperGroup
+
+    # Setup module aliasing
+    colors = import_module("usecli.cli.config.colors")
+    globals()["colors"] = colors
+    globals()["theme"] = COLOR
+    sys.modules.setdefault(__name__ + ".colors", colors)
+    sys.modules.setdefault("colors", colors)
+
+    # Create app and service
+    _app = typer.Typer(
+        help="Usecli CLI - An elegant CLI framework for Python",
+        invoke_without_command=True,
+        no_args_is_help=False,
+        cls=PrefixMatchingGroup,
+        pretty_exceptions_enable=False,
+    )
+    globals()["app"] = _app
+
+    _service = CommandService(_app)
+    _service.load_commands()
+    globals()["service"] = _service
+    globals()["BaseCommand"] = BaseCommand
+
+
+def _get_app():
+    _ensure_cli_initialized()
+    return _app
+
+
+def _get_service():
+    _ensure_cli_initialized()
+    return _service
 
 
 __all__ = [
@@ -93,6 +151,8 @@ def _is_interactive_flag_present() -> bool:
 
 
 def _get_cli_help_text() -> str:
+    from usecli.shared.config.manager import get_config
+
     fallback = "Usecli CLI - An elegant CLI framework for Python"
     fallback_description = "An elegant CLI framework for Python"
     config = get_config()
@@ -130,7 +190,7 @@ def _get_cli_help_text() -> str:
     return f"{display_name} - {display_description}"
 
 
-def _get_group_alias_registry(app: typer.Typer) -> dict[str, list[str]]:
+def _get_group_alias_registry(app: Any) -> dict[str, list[str]]:
     registry = getattr(app, "_usecli_group_aliases", {})
     return registry if isinstance(registry, dict) else {}
 
@@ -144,229 +204,201 @@ def _build_alias_to_primary(alias_registry: dict[str, list[str]]) -> dict[str, s
     return alias_to_primary
 
 
-class PrefixMatchingGroup(TyperGroup):
+class PrefixMatchingGroup:
     """Custom Typer group that supports prefix matching for commands.
 
     This allows users to type partial command names (e.g., 'he' for 'help').
     """
 
-    def get_command(self, ctx: click.Context, cmd_name: str) -> click.Command | None:
-        """Get a command by name, with prefix matching fallback.
+    def __init_subclass__(cls, **kwargs):
+        # This is called when PrefixMatchingGroup is used as a base class
+        pass
 
-        Args:
-            ctx: The Click context.
-            cmd_name: The command name or prefix to search for.
+    @classmethod
+    def _get_typer_group(cls):
+        """Get the actual TyperGroup class."""
+        from typer.core import TyperGroup
+        return TyperGroup
 
-        Returns:
-            The matching command, or None if not found.
-        """
-        rv = TyperGroup.get_command(self, ctx, cmd_name)
-        if rv is not None:
-            return rv
 
-        group_alias_registry = _get_group_alias_registry(app)
-        group_alias_to_primary = _build_alias_to_primary(group_alias_registry)
+def _create_prefix_matching_group():
+    """Dynamically create the PrefixMatchingGroup class with TyperGroup."""
+    import click
+    from typer.core import TyperGroup
 
-        if (
-            cmd_name in group_alias_to_primary
-            and group_alias_to_primary[cmd_name] != cmd_name
-        ):
-            return TyperGroup.get_command(self, ctx, group_alias_to_primary[cmd_name])
+    class _PrefixMatchingGroup(TyperGroup):
+        """Custom Typer group that supports prefix matching for commands."""
 
-        matches = [x for x in self.list_commands(ctx) if x.startswith(cmd_name)]
-        group_aliases = [
-            alias for aliases in group_alias_registry.values() for alias in aliases
-        ]
-        matches.extend([alias for alias in group_aliases if alias.startswith(cmd_name)])
-        matches = list(dict.fromkeys(matches))
+        def get_command(self, ctx: click.Context, cmd_name: str) -> click.Command | None:
+            rv = TyperGroup.get_command(self, ctx, cmd_name)
+            if rv is not None:
+                return rv
 
-        if not matches:
-            return None
+            app = _get_app()
+            group_alias_registry = _get_group_alias_registry(app)
+            group_alias_to_primary = _build_alias_to_primary(group_alias_registry)
 
-        if cmd_name in matches:
             if (
                 cmd_name in group_alias_to_primary
                 and group_alias_to_primary[cmd_name] != cmd_name
             ):
-                return TyperGroup.get_command(
-                    self, ctx, group_alias_to_primary[cmd_name]
-                )
-            return TyperGroup.get_command(self, ctx, cmd_name)
+                return TyperGroup.get_command(self, ctx, group_alias_to_primary[cmd_name])
 
-        return FilteredListCommand(cmd_name)
+            matches = [x for x in self.list_commands(ctx) if x.startswith(cmd_name)]
+            group_aliases = [
+                alias for aliases in group_alias_registry.values() for alias in aliases
+            ]
+            matches.extend([alias for alias in group_aliases if alias.startswith(cmd_name)])
+            matches = list(dict.fromkeys(matches))
 
-    def main(
-        self,
-        args: Optional[Sequence[str]] = None,
-        prog_name: Optional[str] = None,
-        complete_var: Optional[str] = None,
-        standalone_mode: bool = True,
-        windows_expand_args: bool = True,
-        **extra: Any,
-    ) -> Any:
-        """Override main to disable standalone mode.
+            if not matches:
+                return None
 
-        Click's default standalone_mode=True catches ClickException
-        internally and calls sys.exit(), preventing our custom error
-        handlers from running. Setting standalone_mode=False lets
-        exceptions propagate to our styled error handlers in invoke().
-        """
-        return super().main(
-            args=args,
-            prog_name=prog_name,
-            complete_var=complete_var,
-            standalone_mode=False,
-            windows_expand_args=windows_expand_args,
-            **extra,
-        )
+            if cmd_name in matches:
+                if (
+                    cmd_name in group_alias_to_primary
+                    and group_alias_to_primary[cmd_name] != cmd_name
+                ):
+                    return TyperGroup.get_command(
+                        self, ctx, group_alias_to_primary[cmd_name]
+                    )
+                return TyperGroup.get_command(self, ctx, cmd_name)
 
-    def invoke(self, ctx: click.Context) -> None:
-        """Invoke the group with custom error handling.
+            return _FilteredListCommand(cmd_name)
 
-        Args:
-            ctx: The Click context.
+        def main(
+            self,
+            args: Optional[Sequence[str]] = None,
+            prog_name: Optional[str] = None,
+            complete_var: Optional[str] = None,
+            standalone_mode: bool = True,
+            windows_expand_args: bool = True,
+            **extra: Any,
+        ) -> Any:
+            return super().main(
+                args=args,
+                prog_name=prog_name,
+                complete_var=complete_var,
+                standalone_mode=False,
+                windows_expand_args=windows_expand_args,
+                **extra,
+            )
 
-        Raises:
-            SystemExit: On Click exceptions, after displaying styled errors.
-        """
-        try:
-            return super().invoke(ctx)
-        except Exit:
-            sys.exit(0)
-        except (BadParameter, TyperBadParameter) as e:
-            from usecli.cli.core.exceptions import UsecliBadParameter
+        def invoke(self, ctx: click.Context) -> None:
+            from click.exceptions import BadParameter, ClickException, Exit, UsageError
 
-            styled_error = UsecliBadParameter(e.message, ctx=e.ctx, param=e.param)
-            styled_error.show()
-            sys.exit(styled_error.exit_code)
-        except (UsageError, TyperUsageError) as e:
-            from usecli.cli.core.exceptions import UsecliUsageError
+            try:
+                return super().invoke(ctx)
+            except Exit:
+                sys.exit(0)
+            except BadParameter as e:
+                from usecli.cli.core.exceptions import UsecliBadParameter
 
-            styled_error = UsecliUsageError(e.message, ctx=e.ctx)
-            styled_error.show()
-            sys.exit(styled_error.exit_code)
-        except (ClickException, TyperClickException) as e:
-            if hasattr(e, "show"):
-                e.show()
-            sys.exit(e.exit_code if hasattr(e, "exit_code") else 1)
+                styled_error = UsecliBadParameter(e.message, ctx=e.ctx, param=e.param)
+                styled_error.show()
+                sys.exit(styled_error.exit_code)
+            except UsageError as e:
+                from usecli.cli.core.exceptions import UsecliUsageError
+
+                styled_error = UsecliUsageError(e.message, ctx=e.ctx)
+                styled_error.show()
+                sys.exit(styled_error.exit_code)
+            except ClickException as e:
+                if hasattr(e, "show"):
+                    e.show()
+                sys.exit(e.exit_code if hasattr(e, "exit_code") else 1)
+
+    return _PrefixMatchingGroup
 
 
-class FilteredListCommand(click.Command):
-    """Command that displays a filtered list of commands.
-
-    This command is used when a user types a partial command name
-    that matches multiple commands.
-    """
+class _FilteredListCommand:
+    """Command that displays a filtered list of commands."""
 
     def __init__(self, prefix_filter: str) -> None:
-        """Initialize the filtered list command.
-
-        Args:
-            prefix_filter: The prefix to filter commands by.
-        """
-        super().__init__(name="filtered-list")
         self.prefix_filter = prefix_filter
+        self.name = "filtered-list"
 
-    def invoke(self, ctx: click.Context) -> None:
-        """Invoke the command to display filtered commands.
-
-        Args:
-            ctx: The Click context.
-        """
+    def __call__(self, *args, **kwargs):
         from usecli.cli.core.ui.list import list_commands
-
-        list_commands(app, prefix_filter=self.prefix_filter)
-        return None
+        list_commands(_get_app(), prefix_filter=self.prefix_filter)
 
 
 def _get_default_help() -> str:
     return "Usecli CLI - An elegant CLI framework for Python"
 
 
-app = typer.Typer(
-    help=_get_default_help(),
-    invoke_without_command=True,
-    no_args_is_help=False,
-    cls=PrefixMatchingGroup,
-    pretty_exceptions_enable=False,  # Use custom error styling
-)
-
-_help_resolved = False
-
-
 def _resolve_help():
     global _help_resolved
     if not _help_resolved:
+        app = _get_app()
         app.info.help = _get_cli_help_text()
         _help_resolved = True
 
 
-service = CommandService(app)
-service.load_commands()
+def _get_run_app_callback():
+    """Get the run_app callback function."""
+    import typer
 
+    @app.callback()
+    def run_app(
+        ctx: typer.Context,
+        version: bool = typer.Option(
+            None, "--version", "-v", help="Show the version and exit.", is_eager=True
+        ),
+        help: bool = typer.Option(None, "--help", "-h", is_eager=True),
+        interactive: bool = typer.Option(
+            False, "--interactive", "-i", help="Run in interactive mode.", is_eager=True
+        ),
+    ) -> None:
+        _resolve_help()
 
-@app.callback()
-def run_app(
-    ctx: typer.Context,
-    version: bool = typer.Option(
-        None, "--version", "-v", help="Show the version and exit.", is_eager=True
-    ),
-    help: bool = typer.Option(None, "--help", "-h", is_eager=True),
-    interactive: bool = typer.Option(
-        False, "--interactive", "-i", help="Run in interactive mode.", is_eager=True
-    ),
-) -> None:
-    """Main callback for the CLI application.
+        if help:
+            from usecli.cli.core.ui.list import list_commands
+            list_commands(_get_app())
+            raise typer.Exit()
 
-    Handles version display, help display, and command listing when no
-    subcommand is provided.
+        if version:
+            import shutil
+            from usecli.shared.config.manager import get_config
 
-    Args:
-        ctx: The Typer context.
-        version: Flag to show version and exit.
-        help: Flag to show help and exit.
-    """
-    _resolve_help()
+            config = get_config()
+            service = _get_service()
+            command_path = shutil.which(sys.argv[0]) or sys.argv[0]
+            _console().print(
+                f"[bold {globals()['theme'].SECONDARY}]{config.get('title')} {service.version}[/bold {globals()['theme'].SECONDARY}] [{globals()['theme'].INFO}]({command_path})[/{globals()['theme'].INFO}]"
+            )
+            raise typer.Exit()
 
-    if help:
-        from usecli.cli.core.ui.list import list_commands
+        interactive_requested = interactive or _is_interactive_flag_present()
 
-        list_commands(app)
-        raise typer.Exit()
+        if interactive_requested:
+            from usecli.cli.commands.defaults.base.internal.fzf_command import (
+                run_interactive,
+            )
+            cmd_parts = [ctx.invoked_subcommand] if ctx.invoked_subcommand else None
+            run_interactive(_get_app(), cmd_parts=cmd_parts)
+            raise typer.Exit()
 
-    if version:
-        import shutil
+        if ctx.invoked_subcommand is None:
+            prefix_filter: str | None = None
+            if ctx.obj and isinstance(ctx.obj, dict):
+                prefix_filter = ctx.obj.get("prefix_filter")
+            from usecli.cli.core.ui.list import list_commands
+            list_commands(_get_app(), prefix_filter=prefix_filter)
 
-        config = get_config()
-        command_path = shutil.which(sys.argv[0]) or sys.argv[0]
-        _console().print(
-            f"[bold {theme.SECONDARY}]{config.get('title')} {service.version}[/bold {theme.SECONDARY}] [{theme.INFO}]({command_path})[/{theme.INFO}]"
-        )
-        raise typer.Exit()
-
-    interactive_requested = interactive or _is_interactive_flag_present()
-
-    if interactive_requested:
-        from usecli.cli.commands.defaults.base.internal.fzf_command import (
-            run_interactive,
-        )
-
-        cmd_parts = [ctx.invoked_subcommand] if ctx.invoked_subcommand else None
-        run_interactive(app, cmd_parts=cmd_parts)
-        raise typer.Exit()
-
-    if ctx.invoked_subcommand is None:
-        prefix_filter: str | None = None
-        if ctx.obj and isinstance(ctx.obj, dict):
-            prefix_filter = ctx.obj.get("prefix_filter")
-        from usecli.cli.core.ui.list import list_commands
-
-        list_commands(app, prefix_filter=prefix_filter)
+    return run_app
 
 
 def main() -> None:
     """Run the CLI application with custom error handling."""
+    import typer
+    from click.exceptions import BadParameter, ClickException, Exit, UsageError
+
+    _ensure_cli_initialized()
     _resolve_help()
+
+    from usecli.shared.config.manager import get_config
+
     config = get_config()
     command_name = config._get_command_name()
     if command_name == "usecli" and not config.is_usecli_direct_dependency():
@@ -378,23 +410,24 @@ def main() -> None:
         )
         sys.exit(1)
 
+    # Setup the callback
+    _get_run_app_callback()
+
     try:
-        app()
+        _get_app()()
     except Exit:
         sys.exit(0)
-    except (BadParameter, TyperBadParameter) as e:
+    except BadParameter as e:
         from usecli.cli.core.exceptions import UsecliBadParameter
-
         styled_error = UsecliBadParameter(e.message, ctx=e.ctx, param=e.param)
         styled_error.show()
         sys.exit(styled_error.exit_code)
-    except (UsageError, TyperUsageError) as e:
+    except UsageError as e:
         from usecli.cli.core.exceptions import UsecliUsageError
-
         styled_error = UsecliUsageError(e.message, ctx=e.ctx)
         styled_error.show()
         sys.exit(styled_error.exit_code)
-    except (ClickException, TyperClickException) as e:
+    except ClickException as e:
         if hasattr(e, "show"):
             e.show()
         sys.exit(e.exit_code if hasattr(e, "exit_code") else 1)
