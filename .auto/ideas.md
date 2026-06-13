@@ -1,2 +1,4 @@
-- Cache `get_config()` for unchanged cwd: discarded because primary median barely worsened, but it reduced self startup substantially (~134ms -> ~100ms). Revisit if paired with dependency/config improvements or if self startup becomes primary-weighted.
-- Lazy `usecli.cli.core.__init__` exports could remove ~20ms eager import cost but initial rewrite crashed. Revisit by preserving submodule aliases (`usecli.cli.core.colors/list/title/error_handler`) lazily or checking exact import error first.
+- Cache `get_config()` for unchanged cwd: DONE (fixed invalidation bug by caching on cwd instead of project_root mismatch).
+- Lazy `usecli.cli.core.__init__` exports: DONE (lazy exceptions/__init__.py, lazy title.py, lazy usage.py).
+- Remaining heavy: typer (~8ms) + click (~6ms) framework imports. Can't easily avoid.
+- typing (~4ms) imported by various modules; could try removing `from typing import TYPE_CHECKING` where unused.

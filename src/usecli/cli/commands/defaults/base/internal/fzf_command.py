@@ -12,20 +12,40 @@ from typing import TYPE_CHECKING, Any
 
 import click
 import typer
-from rich.console import Console
-from rich.prompt import Confirm, IntPrompt
 
-from usecli.cli.config.colors import COLOR
 from usecli.cli.core.base_command import BaseCommand
 from usecli.cli.core.error.handler import ErrorHandler
 from usecli.cli.core.exceptions import UsecliError
 from usecli.cli.core.ui import is_click_group
 from usecli.cli.utils.interactive.terminal_menu import terminal_menu
 
-if TYPE_CHECKING:
-    from click.core import Command as ClickCommand
 
-console = Console()
+def _lazy_console():
+    from rich.console import Console
+    return Console()
+
+
+_LAZY_IMPORTS = {
+    "Confirm": "rich.prompt",
+    "IntPrompt": "rich.prompt",
+    "COLOR": "usecli.cli.config.colors",
+}
+
+_console = None
+
+def __getattr__(name: str):
+    global _console
+    if name == "console":
+        if _console is None:
+            _console = _lazy_console()
+        return _console
+    module_name = _LAZY_IMPORTS.get(name)
+    if module_name is not None:
+        from importlib import import_module
+        value = getattr(import_module(module_name), name)
+        globals()[name] = value
+        return value
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 def _get_required_arguments(command: ClickCommand) -> list[tuple[str, str, type]]:

@@ -7,10 +7,7 @@ import sys
 from pathlib import Path
 
 import typer
-from jinja2 import Template
-from rich.console import Console
 
-from usecli.cli.config.colors import COLOR
 from usecli.cli.core.base_command import BaseCommand
 from usecli.shared.config.globals import TEMPLATES_DIR
 from usecli.shared.config.manager import (
@@ -20,7 +17,32 @@ from usecli.shared.config.manager import (
     reset_config,
 )
 
-console = Console()
+
+def _lazy_console():
+    from rich.console import Console
+    return Console()
+
+
+_LAZY_IMPORTS = {
+    "Template": "jinja2",
+    "COLOR": "usecli.cli.config.colors",
+}
+
+_console = None
+
+def __getattr__(name: str):
+    global _console
+    if name == "console":
+        if _console is None:
+            _console = _lazy_console()
+        return _console
+    module_name = _LAZY_IMPORTS.get(name)
+    if module_name is not None:
+        from importlib import import_module
+        value = getattr(import_module(module_name), name)
+        globals()[name] = value
+        return value
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 class MakeThemeCommand(BaseCommand):
