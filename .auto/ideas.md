@@ -1,0 +1,2 @@
+- Cache `get_config()` for unchanged cwd: discarded because primary median barely worsened, but it reduced self startup substantially (~134ms -> ~100ms). Revisit if paired with dependency/config improvements or if self startup becomes primary-weighted.
+- Lazy `usecli.cli.core.__init__` exports could remove ~20ms eager import cost but initial rewrite crashed. Revisit by preserving submodule aliases (`usecli.cli.core.colors/list/title/error_handler`) lazily or checking exact import error first.
