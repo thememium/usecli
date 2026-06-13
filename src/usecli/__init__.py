@@ -80,13 +80,9 @@ def _ensure_cli_initialized() -> None:
 
     # Store exceptions for error handling
     try:
-        from typer._click.exceptions import \
-            BadParameter as TyperBadParameter  # type: ignore[import-untyped]
-        from typer._click.exceptions import \
-            ClickException as \
-            TyperClickException  # type: ignore[import-untyped]
-        from typer._click.exceptions import \
-            UsageError as TyperUsageError  # type: ignore[import-untyped]
+        from typer._click.exceptions import BadParameter as TyperBadParameter  # type: ignore[import-untyped]
+        from typer._click.exceptions import ClickException as TyperClickException  # type: ignore[import-untyped]
+        from typer._click.exceptions import UsageError as TyperUsageError  # type: ignore[import-untyped]
     except ImportError:
         TyperBadParameter = BadParameter
         TyperClickException = ClickException
@@ -120,13 +116,17 @@ def _ensure_cli_initialized() -> None:
                 cmd_name in group_alias_to_primary
                 and group_alias_to_primary[cmd_name] != cmd_name
             ):
-                return TyperGroup.get_command(self, ctx, group_alias_to_primary[cmd_name])
+                return TyperGroup.get_command(
+                    self, ctx, group_alias_to_primary[cmd_name]
+                )
 
             matches = [x for x in self.list_commands(ctx) if x.startswith(cmd_name)]
             group_aliases = [
                 alias for aliases in group_alias_registry.values() for alias in aliases
             ]
-            matches.extend([alias for alias in group_aliases if alias.startswith(cmd_name)])
+            matches.extend(
+                [alias for alias in group_aliases if alias.startswith(cmd_name)]
+            )
             matches = list(dict.fromkeys(matches))
 
             if not matches:
@@ -163,8 +163,7 @@ def _ensure_cli_initialized() -> None:
             )
 
         def invoke(self, ctx):
-            from click.exceptions import (BadParameter, ClickException, Exit,
-                                          UsageError)
+            from click.exceptions import BadParameter, ClickException, Exit, UsageError
 
             try:
                 return super().invoke(ctx)
@@ -323,6 +322,7 @@ class _FilteredListCommand:
 
     def __call__(self, *args, **kwargs):
         from usecli.cli.core.ui.list import list_commands
+
         list_commands(_get_app(), prefix_filter=self.prefix_filter)
 
 
@@ -364,6 +364,7 @@ def _get_run_app_callback():
 
         if help:
             from usecli.cli.core.ui.list import list_commands
+
             list_commands(_get_app())
             raise typer.Exit()
 
@@ -383,8 +384,10 @@ def _get_run_app_callback():
         interactive_requested = interactive or _is_interactive_flag_present()
 
         if interactive_requested:
-            from usecli.cli.commands.defaults.base.internal.fzf_command import \
-                run_interactive
+            from usecli.cli.commands.defaults.base.internal.fzf_command import (
+                run_interactive,
+            )
+
             cmd_parts = [ctx.invoked_subcommand] if ctx.invoked_subcommand else None
             run_interactive(_get_app(), cmd_parts=cmd_parts)
             raise typer.Exit()
@@ -394,6 +397,7 @@ def _get_run_app_callback():
             if ctx.obj and isinstance(ctx.obj, dict):
                 prefix_filter = ctx.obj.get("prefix_filter")
             from usecli.cli.core.ui.list import list_commands
+
             list_commands(_get_app(), prefix_filter=prefix_filter)
 
     globals()["run_app"] = run_app
@@ -429,11 +433,13 @@ def main() -> None:
         sys.exit(0)
     except BadParameter as e:
         from usecli.cli.core.exceptions import UsecliBadParameter
+
         styled_error = UsecliBadParameter(e.message, ctx=e.ctx, param=e.param)
         styled_error.show()
         sys.exit(styled_error.exit_code)
     except UsageError as e:
         from usecli.cli.core.exceptions import UsecliUsageError
+
         styled_error = UsecliUsageError(e.message, ctx=e.ctx)
         styled_error.show()
         sys.exit(styled_error.exit_code)

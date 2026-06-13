@@ -17,8 +17,16 @@ def _assert_resource(relative_path: str) -> None:
 
 def _assert_basic_imports() -> None:
     from usecli import Confirm  # noqa: PLC0415
-    from usecli import (Argument, BaseCommand, Console, Menu, Option, Prompt,
-                        console, main)
+    from usecli import (
+        Argument,
+        BaseCommand,
+        Console,
+        Menu,
+        Option,
+        Prompt,
+        console,
+        main,
+    )
 
     assert BaseCommand is not None
     assert Console is not None

@@ -8,15 +8,20 @@ from __future__ import annotations
 import importlib.util
 import os
 import sys
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from pathlib import Path
 
 # Config file names - inlined to avoid importing globals.py (which pulls in pathlib)
 PYPROJECT_TOML = "pyproject.toml"
 USECLI_CONFIG_TOML = "usecli.config.toml"
 
+
 # Lazy pathlib import - only loaded when actually needed (~5ms)
 def _get_path():
     from pathlib import Path
+
     return Path
 
 
@@ -24,10 +29,13 @@ def _get_path():
 def _get_tomllib():
     if sys.version_info >= (3, 11):
         import tomllib
+
         return tomllib
     else:
         import tomli as tomllib
+
         return tomllib
+
 
 # Depth cap for rglob - prevents scanning massive trees like ~/ghq.
 _MAX_RGLOB_DEPTH = 6
@@ -56,6 +64,7 @@ def _get_high_level_dirs() -> frozenset[str]:
     if _HIGH_LEVEL_DIRS is None:
         _HIGH_LEVEL_DIRS = _HIGH_LEVEL_DIRS_BASE | {str(_get_path().home().resolve())}
     return _HIGH_LEVEL_DIRS
+
 
 # Cache for config search results to avoid repeated expensive searches.
 _config_search_cache: dict[str, Any] = {}

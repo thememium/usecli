@@ -5,9 +5,11 @@ import os
 import pytest
 
 from usecli.cli.core.exceptions import UsecliBadParameter
-from usecli.cli.core.validators.path import (validate_directory_exists,
-                                             validate_file_exists,
-                                             validate_path_exists)
+from usecli.cli.core.validators.path import (
+    validate_directory_exists,
+    validate_file_exists,
+    validate_path_exists,
+)
 
 
 class TestValidatePathExists:

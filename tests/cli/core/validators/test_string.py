@@ -3,8 +3,7 @@
 import pytest
 
 from usecli.cli.core.exceptions import UsecliBadParameter
-from usecli.cli.core.validators.string import (validate_command_name,
-                                               validate_not_empty)
+from usecli.cli.core.validators.string import validate_command_name, validate_not_empty
 
 
 class TestValidateNotEmpty:
