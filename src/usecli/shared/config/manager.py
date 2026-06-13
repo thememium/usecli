@@ -96,6 +96,26 @@ def _get_importlib_metadata():
     return importlib.metadata
 
 
+_distributions_cache: list[Any] | None = None
+
+
+def _get_distributions() -> list[Any]:
+    global _distributions_cache
+    if _distributions_cache is not None:
+        return _distributions_cache
+    try:
+        metadata = _get_importlib_metadata()
+        _distributions_cache = list(metadata.distributions())
+    except Exception:
+        _distributions_cache = []
+    return _distributions_cache
+
+
+def _reset_distributions_cache() -> None:
+    global _distributions_cache
+    _distributions_cache = None
+
+
 def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
     result = base.copy()
     for key, value in override.items():
@@ -441,11 +461,7 @@ class ConfigManager:
         command_name = os.path.basename(sys.argv[0]) if sys.argv else ""
         if not command_name:
             return None
-        try:
-            metadata = _get_importlib_metadata()
-            distributions = metadata.distributions()
-        except Exception:
-            return None
+        distributions = _get_distributions()
         for dist in distributions:
             try:
                 entry_points = dist.entry_points
@@ -546,11 +562,7 @@ class ConfigManager:
         if not command_name:
             return set()
         aliases: set[str] = {command_name}
-        try:
-            metadata = _get_importlib_metadata()
-            distributions = metadata.distributions()
-        except Exception:
-            return aliases
+        distributions = _get_distributions()
         for dist in distributions:
             try:
                 entry_points = dist.entry_points

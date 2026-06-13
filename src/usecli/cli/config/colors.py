@@ -175,17 +175,28 @@ def _get_command_name() -> str | None:
     return command if command else None
 
 
+_distributions_cache: list[Any] | None = None
+
+
+def _get_distributions() -> list[Any]:
+    global _distributions_cache
+    if _distributions_cache is not None:
+        return _distributions_cache
+    try:
+        import importlib.metadata
+
+        _distributions_cache = list(importlib.metadata.distributions())
+    except Exception:
+        _distributions_cache = []
+    return _distributions_cache
+
+
 def _get_console_script_aliases(command_name: str | None) -> set[str]:
     """Get all aliases for a console script from package metadata."""
     if not command_name:
         return set()
     aliases: set[str] = {command_name}
-    try:
-        import importlib.metadata
-
-        distributions = importlib.metadata.distributions()
-    except Exception:
-        return aliases
+    distributions = _get_distributions()
     for dist in distributions:
         try:
             entry_points = dist.entry_points
@@ -304,15 +315,10 @@ def _find_usecli_config_in_named_package(package_name: str) -> Path | None:
 
 
 def _find_usecli_config_for_console_script() -> Path | None:
-    import importlib.metadata
-
     command_name = os.path.basename(sys.argv[0]) if sys.argv else ""
     if not command_name:
         return None
-    try:
-        distributions = importlib.metadata.distributions()
-    except Exception:
-        return None
+    distributions = _get_distributions()
     for dist in distributions:
         try:
             entry_points = dist.entry_points
