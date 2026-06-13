@@ -1,6 +1,22 @@
 # Changelog
 
 
+## v0.1.66
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.65...v0.1.66)
+
+### 🚀 Enhancements
+
+- **config-manager:** Add theme dir support ([0ec639c](https://github.com/thememium/usecli/commit/0ec639c))
+
+### 💅 Refactors
+
+- **make_theme_command:** Simplify theme directory resolution ([688971f](https://github.com/thememium/usecli/commit/688971f))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.65
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.64...v0.1.65)
