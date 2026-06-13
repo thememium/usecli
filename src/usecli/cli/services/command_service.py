@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import importlib.util
 import sys
-from importlib.metadata import PackageNotFoundError
-from importlib.metadata import version as get_version
 from pathlib import Path
 from types import ModuleType
 from typing import TYPE_CHECKING
@@ -18,6 +16,16 @@ from usecli.shared.config.manager import get_config
 
 if TYPE_CHECKING:
     pass
+
+
+def get_version(package_name: str) -> str:
+    from importlib.metadata import version
+
+    return version(package_name)
+
+
+def _is_package_not_found(error: Exception) -> bool:
+    return error.__class__.__name__ == "PackageNotFoundError"
 
 
 class CommandService:
@@ -63,7 +71,9 @@ class CommandService:
             return
         try:
             self.version = get_version("usecli")
-        except PackageNotFoundError:
+        except Exception as error:
+            if not _is_package_not_found(error):
+                raise
             self.version = "0.0.0"
 
     def _load_from_dir(self, directory: Path) -> None:
