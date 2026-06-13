@@ -80,7 +80,9 @@ class CommandService:
             if path.name == "__init__.py":
                 continue
 
-            if path.name == "init_command.py" and Path(sys.argv[0]).name != "usecli":
+            if Path(sys.argv[0]).name != "usecli" and (
+                path.name == "init_command.py" or "make" in path.parts
+            ):
                 continue
 
             if "internal" in path.parts:
