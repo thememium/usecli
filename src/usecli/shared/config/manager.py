@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import importlib.metadata
 import importlib.util
-import json
 import os
 import sys
 from pathlib import Path
@@ -533,6 +532,8 @@ class ConfigManager:
             return None
         if not text:
             return None
+        import json
+
         try:
             data = json.loads(text)
         except (json.JSONDecodeError, TypeError):
