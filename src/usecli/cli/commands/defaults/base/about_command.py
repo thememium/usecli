@@ -4,14 +4,27 @@ import os
 import sys
 from pathlib import Path
 
-from rich.console import Console
-
 from usecli.cli.config.colors import COLOR
 from usecli.cli.core.base_command import BaseCommand
-from usecli.cli.core.ui.title import get_project_name, get_script_command_name
 from usecli.shared.config.manager import get_config
 
-console = Console()
+
+class _LazyConsole:
+    _console = None
+
+    def _get_console(self):
+        if self._console is None:
+            from rich.console import Console
+
+            self._console = Console()
+        return self._console
+
+    def __getattr__(self, name):
+        return getattr(self._get_console(), name)
+
+
+console = _LazyConsole()
+
 
 
 def _load_toml(text: str):
@@ -25,9 +38,9 @@ def _load_toml(text: str):
 
 def _toml_decode_error():
     if sys.version_info >= (3, 11):
-        import tomllib
+        pass
     else:
-        import tomli as tomllib
+        pass
 
     return _toml_decode_error()
 
@@ -108,6 +121,8 @@ def _get_dependencies(config) -> list[tuple[str, str | None]]:
     command_name = os.path.basename(sys.argv[0]) if sys.argv else None
     dist = _get_console_script_distribution(command_name)
     if dist is None:
+        from usecli.cli.core.ui.title import get_script_command_name
+
         primary_command = get_script_command_name(default=None)
         dist = _get_console_script_distribution(primary_command)
     if dist is not None:
@@ -140,6 +155,8 @@ def _get_application_distribution():
     command_name = os.path.basename(sys.argv[0]) if sys.argv else None
     dist = _get_console_script_distribution(command_name)
     if dist is None:
+        from usecli.cli.core.ui.title import get_script_command_name
+
         primary_command = get_script_command_name(default=None)
         dist = _get_console_script_distribution(primary_command)
     return dist
@@ -213,6 +230,8 @@ def _get_installed_script_commands(command_name: str | None) -> list[str]:
 
 
 def _get_script_commands() -> list[str]:
+    from usecli.cli.core.ui.title import get_script_command_name
+
     primary_command = get_script_command_name(default=None)
     command_name = os.path.basename(sys.argv[0]) if sys.argv else primary_command
     installed_commands = _get_installed_script_commands(command_name)
@@ -256,6 +275,8 @@ class AboutCommand(BaseCommand):
     def handle(self) -> None:
         config = get_config()
         version = _get_application_version(config)
+        from usecli.cli.core.ui.title import get_project_name
+
         app_name = get_project_name()
         description = _get_application_description(config)
 

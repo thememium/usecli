@@ -579,7 +579,11 @@ def _load_theme() -> tuple[dict[str, str], dict[str, str], str, Path | None]:
 
     theme_path = _resolve_theme_path(theme_name, project_root, config_values)
     package_default_theme = (THEMES_DIR / f"{DEFAULT_THEME_NAME}.toml").resolve()
-    if theme_name == DEFAULT_THEME_NAME and theme_path and theme_path.resolve() == package_default_theme:
+    if (
+        theme_name == DEFAULT_THEME_NAME
+        and theme_path
+        and theme_path.resolve() == package_default_theme
+    ):
         theme_data = {}
     else:
         theme_data = _load_theme_file(theme_path) if theme_path else {}

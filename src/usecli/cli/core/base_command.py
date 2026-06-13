@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import Any, ClassVar
 
 import typer
+from click.core import Context as ClickContext
 from click.exceptions import Exit
+from click.formatting import HelpFormatter
 from typer.core import TyperArgument, TyperCommand, TyperOption
 
 from usecli.cli.config.colors import COLOR
-from usecli.cli.core.ui.title import get_script_command_name
+
 
 class _LazyConsole:
     _console: Any | None = None
@@ -233,6 +236,8 @@ class CustomHelpCommand(TyperCommand):
         ]
 
         arg_usage = " ".join(rf"\[{name.upper()}]" for name in argument_names)
+        from usecli.cli.core.ui.title import get_script_command_name
+
         command_name = get_script_command_name(default="usecli") or "usecli"
         usage = f"  [bold {COLOR.WARNING}]{command_name} {self.name}[/bold {COLOR.WARNING}] [bold {COLOR.PRIMARY}][OPTIONS]{f' {arg_usage}' if arg_usage else ''}[/bold {COLOR.PRIMARY}]"
 

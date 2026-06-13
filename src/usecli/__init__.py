@@ -23,8 +23,6 @@ except ImportError:
 
 from usecli.cli.config.colors import COLOR
 from usecli.cli.core.base_command import BaseCommand
-from usecli.cli.core.exceptions import UsecliBadParameter, UsecliUsageError
-from usecli.cli.core.ui.list import list_commands
 from usecli.cli.services.command_service import CommandService
 from usecli.shared.config.manager import get_config
 
@@ -228,10 +226,14 @@ class PrefixMatchingGroup(TyperGroup):
         except Exit:
             sys.exit(0)
         except (BadParameter, TyperBadParameter) as e:
+            from usecli.cli.core.exceptions import UsecliBadParameter
+
             styled_error = UsecliBadParameter(e.message, ctx=e.ctx, param=e.param)
             styled_error.show()
             sys.exit(styled_error.exit_code)
         except (UsageError, TyperUsageError) as e:
+            from usecli.cli.core.exceptions import UsecliUsageError
+
             styled_error = UsecliUsageError(e.message, ctx=e.ctx)
             styled_error.show()
             sys.exit(styled_error.exit_code)
@@ -263,6 +265,8 @@ class FilteredListCommand(click.Command):
         Args:
             ctx: The Click context.
         """
+        from usecli.cli.core.ui.list import list_commands
+
         list_commands(app, prefix_filter=self.prefix_filter)
         return None
 
@@ -301,6 +305,8 @@ def run_app(
         help: Flag to show help and exit.
     """
     if help:
+        from usecli.cli.core.ui.list import list_commands
+
         list_commands(app)
         raise typer.Exit()
 
@@ -327,6 +333,8 @@ def run_app(
         prefix_filter: str | None = None
         if ctx.obj and isinstance(ctx.obj, dict):
             prefix_filter = ctx.obj.get("prefix_filter")
+        from usecli.cli.core.ui.list import list_commands
+
         list_commands(app, prefix_filter=prefix_filter)
 
 
@@ -348,10 +356,14 @@ def main() -> None:
     except Exit:
         sys.exit(0)
     except (BadParameter, TyperBadParameter) as e:
+        from usecli.cli.core.exceptions import UsecliBadParameter
+
         styled_error = UsecliBadParameter(e.message, ctx=e.ctx, param=e.param)
         styled_error.show()
         sys.exit(styled_error.exit_code)
     except (UsageError, TyperUsageError) as e:
+        from usecli.cli.core.exceptions import UsecliUsageError
+
         styled_error = UsecliUsageError(e.message, ctx=e.ctx)
         styled_error.show()
         sys.exit(styled_error.exit_code)

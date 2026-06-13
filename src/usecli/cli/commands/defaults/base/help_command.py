@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from usecli.cli.core.base_command import BaseCommand
-from usecli.cli.core.ui.list import list_commands
 
 
 class HelpCommand(BaseCommand):
@@ -19,4 +18,6 @@ class HelpCommand(BaseCommand):
 
     def handle(self) -> None:
         """Handle the command execution."""
+        from usecli.cli.core.ui.list import list_commands
+
         list_commands(self.app)

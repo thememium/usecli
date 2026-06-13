@@ -111,7 +111,9 @@ class CommandService:
 
             if isinstance(module, ModuleType):
                 members = module.__dict__.values()
-                is_command_class = lambda obj: isinstance(obj, type)
+
+                def is_command_class(obj: object) -> bool:
+                    return isinstance(obj, type)
             else:
                 import inspect
 
