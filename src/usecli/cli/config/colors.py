@@ -175,41 +175,21 @@ def _get_command_name() -> str | None:
     return command if command else None
 
 
-_distributions_cache: list[Any] | None = None
-
-
-def _get_distributions() -> list[Any]:
-    global _distributions_cache
-    if _distributions_cache is not None:
-        return _distributions_cache
-    try:
-        import importlib.metadata
-
-        _distributions_cache = list(importlib.metadata.distributions())
-    except Exception:
-        _distributions_cache = []
-    return _distributions_cache
-
-
 def _get_console_script_aliases(command_name: str | None) -> set[str]:
-    """Get all aliases for a console script from package metadata."""
+    from usecli.shared.config.manager import _find_distribution_for_console_script
+
     if not command_name:
         return set()
     aliases: set[str] = {command_name}
-    distributions = _get_distributions()
-    for dist in distributions:
+    dist = _find_distribution_for_console_script(command_name)
+    if dist is not None:
         try:
-            entry_points = dist.entry_points
-        except Exception:
-            continue
-        names = [
-            entry_point.name
-            for entry_point in entry_points
-            if entry_point.group == "console_scripts"
-        ]
-        if command_name in names:
+            names = [
+                ep.name for ep in dist.entry_points if ep.group == "console_scripts"
+            ]
             aliases.update(names)
-            break
+        except Exception:
+            pass
     return aliases
 
 
@@ -315,36 +295,30 @@ def _find_usecli_config_in_named_package(package_name: str) -> Path | None:
 
 
 def _find_usecli_config_for_console_script() -> Path | None:
+    from usecli.shared.config.manager import _find_distribution_for_console_script
+
     command_name = os.path.basename(sys.argv[0]) if sys.argv else ""
     if not command_name:
         return None
-    distributions = _get_distributions()
-    for dist in distributions:
-        try:
-            entry_points = dist.entry_points
-        except Exception:
-            continue
-        for entry_point in entry_points:
-            if entry_point.group != "console_scripts":
-                continue
-            if entry_point.name != command_name:
-                continue
-            metadata = dist.metadata
-            dist_name = ""
-            if "Name" in metadata:
-                dist_name = metadata["Name"]
-            elif "name" in metadata:
-                dist_name = metadata["name"]
-            candidates: list[str] = []
-            if dist_name:
-                candidates.append(dist_name)
-                normalized = dist_name.replace("-", "_")
-                if normalized not in candidates:
-                    candidates.append(normalized)
-            for package_name in candidates:
-                match = _find_usecli_config_in_named_package(package_name)
-                if match:
-                    return match
+    dist = _find_distribution_for_console_script(command_name)
+    if dist is None:
+        return None
+    metadata = dist.metadata
+    dist_name = ""
+    if "Name" in metadata:
+        dist_name = metadata["Name"]
+    elif "name" in metadata:
+        dist_name = metadata["name"]
+    candidates: list[str] = []
+    if dist_name:
+        candidates.append(dist_name)
+        normalized = dist_name.replace("-", "_")
+        if normalized not in candidates:
+            candidates.append(normalized)
+    for package_name in candidates:
+        match = _find_usecli_config_in_named_package(package_name)
+        if match:
+            return match
     return None
 
 
