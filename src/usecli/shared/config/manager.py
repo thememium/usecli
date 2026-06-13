@@ -5,7 +5,6 @@ Handles loading and accessing configuration from project-level files.
 
 from __future__ import annotations
 
-import importlib.metadata
 import importlib.util
 import os
 import sys
@@ -18,6 +17,10 @@ if sys.version_info >= (3, 11):
     import tomllib
 else:
     import tomli as tomllib
+
+def _get_importlib_metadata():
+    import importlib.metadata
+    return importlib.metadata
 
 
 def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
@@ -292,7 +295,8 @@ class ConfigManager:
         command_name = ConfigManager._get_command_name()
 
         try:
-            dist = importlib.metadata.distribution(package_name)
+            metadata = _get_importlib_metadata()
+            dist = metadata.distribution(package_name)
             source_root = ConfigManager._resolve_editable_source_root(dist)
             if source_root:
                 source_config = ConfigManager._search_source_for_config(
@@ -332,7 +336,8 @@ class ConfigManager:
         command_name = cls._get_command_name()
 
         try:
-            dist = importlib.metadata.distribution(package_name)
+            metadata = _get_importlib_metadata()
+            dist = metadata.distribution(package_name)
             source_root = cls._resolve_editable_source_root(dist)
             if source_root:
                 source_config = cls._search_source_for_config(
@@ -367,7 +372,8 @@ class ConfigManager:
         if not command_name:
             return None
         try:
-            distributions = importlib.metadata.distributions()
+            metadata = _get_importlib_metadata()
+            distributions = metadata.distributions()
         except Exception:
             return None
         for dist in distributions:
@@ -471,7 +477,8 @@ class ConfigManager:
             return set()
         aliases: set[str] = {command_name}
         try:
-            distributions = importlib.metadata.distributions()
+            metadata = _get_importlib_metadata()
+            distributions = metadata.distributions()
         except Exception:
             return aliases
         for dist in distributions:
@@ -518,7 +525,7 @@ class ConfigManager:
 
     @staticmethod
     def _resolve_editable_source_root(
-        dist: importlib.metadata.Distribution,
+        dist: Any,
     ) -> Path | None:
         """Resolve the source directory for an editable-installed package.
 

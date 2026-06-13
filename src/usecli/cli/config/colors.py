@@ -11,18 +11,18 @@ Usage:
 
 from __future__ import annotations
 
-import importlib.metadata
-import importlib.util
 import os
 import sys
 import time
 from pathlib import Path
 from typing import Any, Callable, Final, Protocol, cast, final
 
-if sys.version_info >= (3, 11):
-    import tomllib
-else:
-    import tomli as tomllib
+def _import_tomllib():
+    if sys.version_info >= (3, 11):
+        import tomllib
+    else:
+        import tomli as tomllib
+    return tomllib
 
 
 PYPROJECT_TOML = "pyproject.toml"
@@ -114,6 +114,7 @@ def _get_console_script_aliases(command_name: str | None) -> set[str]:
         return set()
     aliases: set[str] = {command_name}
     try:
+        import importlib.metadata
         distributions = importlib.metadata.distributions()
     except Exception:
         return aliases
@@ -139,7 +140,7 @@ def _config_matches_command(path: Path, command_name: str | None) -> bool:
         return True
     try:
         data = _load_usecli_config_file(path)
-    except (tomllib.TOMLDecodeError, OSError):
+    except OSError:
         return True
     config_command = data.get("command_name")
     if not isinstance(config_command, str):
@@ -205,6 +206,7 @@ def _find_usecli_config_path_for_command(
 
 
 def _find_usecli_config_in_package() -> Path | None:
+    import importlib.util
     spec = importlib.util.find_spec(_get_package_name())
     if spec is None or not spec.submodule_search_locations:
         return None
@@ -222,6 +224,7 @@ def _find_usecli_config_in_package() -> Path | None:
 
 
 def _find_usecli_config_in_named_package(package_name: str) -> Path | None:
+    import importlib.util
     if not package_name:
         return None
     spec = importlib.util.find_spec(package_name)
@@ -241,6 +244,7 @@ def _find_usecli_config_in_named_package(package_name: str) -> Path | None:
 
 
 def _find_usecli_config_for_console_script() -> Path | None:
+    import importlib.metadata
     command_name = os.path.basename(sys.argv[0]) if sys.argv else ""
     if not command_name:
         return None
@@ -282,6 +286,7 @@ def _is_preferred_package_path(path: Path) -> bool:
 
 
 def _is_within_usecli_package(start_dir: Path) -> bool:
+    import importlib.util
     spec = importlib.util.find_spec(_get_package_name())
     if spec is None or not spec.submodule_search_locations:
         return False
@@ -365,6 +370,7 @@ def _load_usecli_config(
 
 
 def _load_usecli_config_file(config_path: Path) -> dict[str, Any]:
+    tomllib = _import_tomllib()
     try:
         data = tomllib.loads(config_path.read_text())
     except (tomllib.TOMLDecodeError, OSError):
@@ -556,6 +562,7 @@ def _resolve_theme_path(
 
 
 def _load_theme_file(theme_path: Path) -> dict[str, Any]:
+    tomllib = _import_tomllib()
     try:
         with open(theme_path, "rb") as theme_file:
             data = tomllib.load(theme_file)
