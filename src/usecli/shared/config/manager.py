@@ -8,18 +8,66 @@ from __future__ import annotations
 import importlib.util
 import os
 import sys
-from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from usecli.shared.config.globals import PYPROJECT_TOML, USECLI_CONFIG_TOML
+if TYPE_CHECKING:
+    from pathlib import Path
 
-if sys.version_info >= (3, 11):
-    import tomllib
-else:
-    import tomli as tomllib
+# Config file names - inlined to avoid importing globals.py (which pulls in pathlib)
+PYPROJECT_TOML = "pyproject.toml"
+USECLI_CONFIG_TOML = "usecli.config.toml"
 
-# Depth cap for rglob – prevents scanning massive trees like ~/ghq.
+
+# Lazy pathlib import - only loaded when actually needed (~5ms)
+def _get_path():
+    from pathlib import Path
+
+    return Path
+
+
+# Lazy tomllib import - only loaded when actually needed
+def _get_tomllib():
+    if sys.version_info >= (3, 11):
+        import tomllib
+
+        return tomllib
+    else:
+        import tomli as tomllib
+
+        return tomllib
+
+
+# Depth cap for rglob - prevents scanning massive trees like ~/ghq.
 _MAX_RGLOB_DEPTH = 6
+
+# High-level directories that should never be recursively searched for configs.
+# Searching HOME or filesystem roots is extremely expensive and will never find
+# a project-specific config.
+_HIGH_LEVEL_DIRS_BASE: frozenset[str] = frozenset(
+    {
+        "/",
+        "/Users",
+        "/home",
+        "/root",
+        "/tmp",
+        "/var",
+        "/etc",
+        "/usr",
+    }
+)
+
+_HIGH_LEVEL_DIRS: frozenset[str] | None = None
+
+
+def _get_high_level_dirs() -> frozenset[str]:
+    global _HIGH_LEVEL_DIRS
+    if _HIGH_LEVEL_DIRS is None:
+        _HIGH_LEVEL_DIRS = _HIGH_LEVEL_DIRS_BASE | {str(_get_path().home().resolve())}
+    return _HIGH_LEVEL_DIRS
+
+
+# Cache for config search results to avoid repeated expensive searches.
+_config_search_cache: dict[str, Any] = {}
 
 _WALK_SKIP_ALWAYS: frozenset[str] = frozenset(
     {
@@ -153,6 +201,15 @@ def _dedupe_items(items: list[str]) -> list[str]:
     return result
 
 
+# Cache for parsed TOML files to avoid repeated parsing
+_toml_cache: dict[str, dict[str, Any]] = {}
+
+
+def _reset_toml_cache() -> None:
+    global _toml_cache
+    _toml_cache = {}
+
+
 class ConfigManager:
     """Manages useCli configuration from project-level files."""
 
@@ -195,7 +252,7 @@ class ConfigManager:
                 Defaults to current working directory.
         """
         if start_dir is None:
-            start_dir = Path.cwd()
+            start_dir = _get_path().cwd()
 
         if pyproject_path is None:
             pyproject_path = self._find_pyproject_toml(start_dir) or (
@@ -233,7 +290,7 @@ class ConfigManager:
         self.project_root: Path = (detected_root or start_dir).resolve()
         # Only override project_root for the framework itself (usecli).
         # Downstream packages (usechange, userun, etc.) legitimately live
-        # inside .venv when installed as dependencies — don't break them.
+        # inside .venv when installed as dependencies - don't break them.
         command_name = self._get_command_name()
         is_framework = command_name == "usecli" if command_name else True
         if is_framework and self._is_in_venv(self.project_root):
@@ -253,7 +310,7 @@ class ConfigManager:
                 if usecli_config:
                     self._config = _deep_merge(self._config, usecli_config)
                     self._overrides = _deep_merge(self._overrides, usecli_config)
-            except (tomllib.TOMLDecodeError, OSError) as e:
+            except (_get_tomllib().TOMLDecodeError, OSError) as e:
                 from usecli.cli.core.exceptions.config import UsecliConfigError
 
                 raise UsecliConfigError(
@@ -273,9 +330,9 @@ class ConfigManager:
             return False
         try:
             with open(path, "rb") as f:
-                data = tomllib.load(f)
+                data = _get_tomllib().load(f)
                 return "usecli" in data.get("tool", {})
-        except (tomllib.TOMLDecodeError, OSError):
+        except (_get_tomllib().TOMLDecodeError, OSError):
             return False
 
     @classmethod
@@ -299,11 +356,17 @@ class ConfigManager:
         current = start_dir.resolve()
         command_name = cls._get_command_name()
 
+        # Check cache first to avoid repeated expensive searches.
+        cache_key = str(start_dir.resolve())
+        if cache_key in _config_search_cache:
+            return _config_search_cache[cache_key]
+
         while True:
             config_path = current / USECLI_CONFIG_TOML
             if config_path.exists() and cls._config_matches_command(
                 config_path, command_name
             ):
+                _config_search_cache[cache_key] = config_path
                 return config_path
 
             parent = current.parent
@@ -311,28 +374,47 @@ class ConfigManager:
                 break
             current = parent
 
+        # Early exit: skip expensive lookups when searching from high-level dirs.
+        # Global tools running from HOME or / won't find project configs.
+        resolved_start = str(start_dir.resolve())
+        if resolved_start in _get_high_level_dirs():
+            _config_search_cache[cache_key] = None
+            return None
+
         # Try fast lookups before expensive rglob (perf: global tools).
         console_match = cls._find_usecli_config_for_console_script()
         if console_match:
+            _config_search_cache[cache_key] = console_match
             return console_match
 
         if cls._is_within_usecli_package(start_dir):
             package_match = cls._find_usecli_config_in_package()
             if package_match:
+                _config_search_cache[cache_key] = package_match
                 return package_match
 
             sys_match = cls._find_usecli_config_on_sys_path()
             if sys_match:
+                _config_search_cache[cache_key] = sys_match
                 return sys_match
 
         search_root = find_project_root(start_dir) or start_dir.resolve()
+
+        # Skip expensive recursive search when search root is a high-level directory.
+        # Global tools running from HOME or / will never find a project config this way.
+        if str(search_root) in _get_high_level_dirs():
+            _config_search_cache[cache_key] = None
+            return None
+
         is_framework = command_name == "usecli" if command_name else True
         recursive_match = cls._find_usecli_config_in_tree(
             search_root, start_dir, skip_venv=is_framework
         )
+        _config_search_cache[cache_key] = recursive_match
         if recursive_match:
             return recursive_match
 
+        _config_search_cache[cache_key] = None
         return None
 
     @staticmethod
@@ -398,7 +480,7 @@ class ConfigManager:
             pass
 
         for location in spec.submodule_search_locations:
-            package_root = Path(location)
+            package_root = _get_path()(location)
             if not package_root.exists() or not package_root.is_dir():
                 continue
             candidates = _rglob_limited(
@@ -439,7 +521,7 @@ class ConfigManager:
             pass
 
         for location in spec.submodule_search_locations:
-            package_root = Path(location)
+            package_root = _get_path()(location)
             if not package_root.exists() or not package_root.is_dir():
                 continue
             candidates = _rglob_limited(
@@ -509,7 +591,7 @@ class ConfigManager:
             return False
         start_dir = start_dir.resolve()
         for location in spec.submodule_search_locations:
-            package_root = Path(location)
+            package_root = _get_path()(location)
             try:
                 start_dir.relative_to(package_root)
                 return True
@@ -522,7 +604,7 @@ class ConfigManager:
         for entry in sys.path:
             if not entry:
                 continue
-            path = Path(entry)
+            path = _get_path()(entry)
             if not path.exists() or not path.is_dir():
                 continue
             candidate = path / USECLI_CONFIG_TOML
@@ -535,19 +617,26 @@ class ConfigManager:
 
     @staticmethod
     def _load_usecli_toml(path: Path) -> dict[str, Any]:
+        cache_key = str(path)
+        if cache_key in _toml_cache:
+            return _toml_cache[cache_key]
+
         with open(path, "rb") as f:
-            data = tomllib.load(f)
+            data = _get_tomllib().load(f)
 
         tool_section = data.get("tool", {})
         if isinstance(tool_section, dict) and "usecli" in tool_section:
             usecli_section = tool_section.get("usecli")
             if isinstance(usecli_section, dict):
+                _toml_cache[cache_key] = usecli_section
                 return usecli_section
 
         usecli_section = data.get("usecli", {})
         if isinstance(usecli_section, dict):
+            _toml_cache[cache_key] = usecli_section
             return usecli_section
 
+        _toml_cache[cache_key] = {}
         return {}
 
     @staticmethod
@@ -586,7 +675,7 @@ class ConfigManager:
             return True
         try:
             config = ConfigManager._load_usecli_toml(path)
-        except (tomllib.TOMLDecodeError, OSError):
+        except (_get_tomllib().TOMLDecodeError, OSError):
             return True
         config_command = config.get("command_name")
         if not isinstance(config_command, str):
@@ -637,7 +726,7 @@ class ConfigManager:
         # ``url`` is a ``file://`` URI.
         if url.startswith("file://"):
             url = url[len("file://") :]
-        source = Path(url)
+        source = _get_path()(url)
         if source.exists() and source.is_dir():
             return source.resolve()
         return None
@@ -705,7 +794,7 @@ class ConfigManager:
 
     def get_project_commands_dir(self) -> Path:
         commands_dir = self.get("commands_dir", "cli/commands")
-        commands_path = Path(commands_dir)
+        commands_path = _get_path()(commands_dir)
         if commands_path.is_absolute():
             return commands_path
         # Resolve relative to the config file's directory, not project_root.
@@ -716,7 +805,7 @@ class ConfigManager:
 
     def get_project_templates_dir(self) -> Path:
         templates_dir = self.get("templates_dir", "cli/templates")
-        templates_path = Path(templates_dir)
+        templates_path = _get_path()(templates_dir)
         if templates_path.is_absolute():
             return templates_path
         config_dir = self.usecli_config_path.parent
@@ -728,7 +817,7 @@ class ConfigManager:
         result: list[Path] = []
         config_dir = self.usecli_config_path.parent
         for entry in themes_entries:
-            theme_path = Path(entry)
+            theme_path = _get_path()(entry)
             if not theme_path.is_absolute():
                 theme_path = config_dir / theme_path
             result.append(theme_path.resolve())
@@ -745,8 +834,8 @@ class ConfigManager:
         config_data = self._load_usecli_toml(project_config)
         commands_dir = config_data.get("commands_dir", "cli/commands")
         templates_dir = config_data.get("templates_dir", "cli/templates")
-        commands_path = Path(commands_dir)
-        templates_path = Path(templates_dir)
+        commands_path = _get_path()(commands_dir)
+        templates_path = _get_path()(templates_dir)
         if not commands_path.is_absolute():
             commands_path = config_dir / commands_path
         if not templates_path.is_absolute():
@@ -788,8 +877,8 @@ class ConfigManager:
 
         try:
             with open(self.pyproject_path, "rb") as f:
-                data = tomllib.load(f)
-        except (tomllib.TOMLDecodeError, OSError):
+                data = _get_tomllib().load(f)
+        except (_get_tomllib().TOMLDecodeError, OSError):
             return False
 
         project_name = data.get("project", {}).get("name", "")
@@ -829,8 +918,8 @@ class ConfigManager:
             return None
         try:
             with open(path, "rb") as f:
-                data = tomllib.load(f)
-        except (tomllib.TOMLDecodeError, OSError):
+                data = _get_tomllib().load(f)
+        except (_get_tomllib().TOMLDecodeError, OSError):
             return None
 
         project_version = data.get("project", {}).get("version")
@@ -851,10 +940,10 @@ _config_cwd: Path | None = None
 def get_config() -> ConfigManager:
     """Get the global ConfigManager instance."""
     global _config_manager, _config_cwd
-    cwd = Path.cwd().resolve()
+    cwd = _get_path().cwd().resolve()
     if _config_manager is not None and _config_cwd == cwd:
         return _config_manager
-    _config_manager = ConfigManager(start_dir=Path.cwd())
+    _config_manager = ConfigManager(start_dir=_get_path().cwd())
     _config_cwd = cwd
     return _config_manager
 
@@ -868,7 +957,7 @@ def reset_config() -> None:
 
 def find_project_root(start_dir: Path | None = None) -> Path | None:
     if start_dir is None:
-        start_dir = Path.cwd()
+        start_dir = _get_path().cwd()
 
     current = start_dir.resolve()
 
@@ -893,6 +982,11 @@ def find_project_root(start_dir: Path | None = None) -> Path | None:
         current = parent
 
     search_root = git_root or start_dir.resolve()
+
+    # Skip expensive recursive search when search root is a high-level directory.
+    # Global tools running from HOME or / will never find a project config this way.
+    if str(search_root) in _get_high_level_dirs():
+        return git_root
 
     # Try fast lookups before expensive rglob (perf: global tools).
     console_match = ConfigManager._find_usecli_config_for_console_script()
