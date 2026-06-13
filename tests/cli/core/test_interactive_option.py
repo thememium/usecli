@@ -10,7 +10,8 @@ from click.exceptions import Exit
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
 from usecli import app, run_app
-from usecli.cli.core.base_command import CustomHelpCommand, NestedCommandRegistry
+from usecli.cli.core.base_command import (CustomHelpCommand,
+                                          NestedCommandRegistry)
 
 
 @pytest.fixture

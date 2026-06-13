@@ -4,9 +4,14 @@ from __future__ import annotations
 
 import sys
 from importlib import import_module
-from typing import TYPE_CHECKING, Any, Optional, Sequence
+
+# Avoid importing typing at module level (costs ~6ms)
+# TYPE_CHECKING is False at runtime, so the if-block never executes
+TYPE_CHECKING = False
 
 if TYPE_CHECKING:
+    from typing import Any, Optional, Sequence
+
     import click
     import typer
     from rich.console import Console
@@ -77,9 +82,13 @@ def _ensure_cli_initialized() -> None:
 
     # Store exceptions for error handling
     try:
-        from typer._click.exceptions import BadParameter as TyperBadParameter  # type: ignore[import-untyped]
-        from typer._click.exceptions import ClickException as TyperClickException  # type: ignore[import-untyped]
-        from typer._click.exceptions import UsageError as TyperUsageError  # type: ignore[import-untyped]
+        from typer._click.exceptions import \
+            BadParameter as TyperBadParameter  # type: ignore[import-untyped]
+        from typer._click.exceptions import \
+            ClickException as \
+            TyperClickException  # type: ignore[import-untyped]
+        from typer._click.exceptions import \
+            UsageError as TyperUsageError  # type: ignore[import-untyped]
     except ImportError:
         TyperBadParameter = BadParameter
         TyperClickException = ClickException
@@ -156,7 +165,8 @@ def _ensure_cli_initialized() -> None:
             )
 
         def invoke(self, ctx):
-            from click.exceptions import BadParameter, ClickException, Exit, UsageError
+            from click.exceptions import (BadParameter, ClickException, Exit,
+                                          UsageError)
 
             try:
                 return super().invoke(ctx)
@@ -361,6 +371,7 @@ def _get_run_app_callback():
 
         if version:
             import shutil
+
             from usecli.shared.config.manager import get_config
 
             config = get_config()
@@ -374,9 +385,8 @@ def _get_run_app_callback():
         interactive_requested = interactive or _is_interactive_flag_present()
 
         if interactive_requested:
-            from usecli.cli.commands.defaults.base.internal.fzf_command import (
-                run_interactive,
-            )
+            from usecli.cli.commands.defaults.base.internal.fzf_command import \
+                run_interactive
             cmd_parts = [ctx.invoked_subcommand] if ctx.invoked_subcommand else None
             run_interactive(_get_app(), cmd_parts=cmd_parts)
             raise typer.Exit()

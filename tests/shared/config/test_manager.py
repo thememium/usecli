@@ -12,13 +12,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / "src"))
 
 from usecli.cli.core.exceptions.config import UsecliConfigError
 from usecli.shared.config import manager as config_manager
-from usecli.shared.config.manager import (
-    ConfigManager,
-    _deep_merge,
-    _reset_distributions_cache,
-    get_config,
-    reset_config,
-)
+from usecli.shared.config.manager import (ConfigManager, _deep_merge,
+                                          _reset_distributions_cache,
+                                          get_config, reset_config)
 
 # =============================================================================
 # Fixtures

@@ -5,7 +5,8 @@ from unittest.mock import MagicMock, patch
 from click.exceptions import BadParameter, UsageError
 
 from usecli.cli.config.colors import COLOR
-from usecli.cli.core.exceptions.usage import UsecliBadParameter, UsecliUsageError
+from usecli.cli.core.exceptions.usage import (UsecliBadParameter,
+                                              UsecliUsageError)
 
 
 class TestUsecliUsageError:

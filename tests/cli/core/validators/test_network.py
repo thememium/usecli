@@ -3,11 +3,8 @@
 import pytest
 
 from usecli.cli.core.exceptions import UsecliBadParameter
-from usecli.cli.core.validators.network import (
-    validate_email,
-    validate_port,
-    validate_url,
-)
+from usecli.cli.core.validators.network import (validate_email, validate_port,
+                                                validate_url)
 
 
 class TestValidateEmail:

@@ -13,6 +13,7 @@ from typing import Any
 
 from usecli.shared.config.globals import PYPROJECT_TOML, USECLI_CONFIG_TOML
 
+
 # Lazy tomllib import - only loaded when actually needed
 def _get_tomllib():
     if sys.version_info >= (3, 11):

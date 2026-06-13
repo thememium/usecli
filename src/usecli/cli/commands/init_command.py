@@ -28,7 +28,8 @@ from usecli.cli.core.base_command import BaseCommand
 from usecli.cli.core.exceptions import UsecliBadParameter
 from usecli.cli.core.validators import validate_command_name
 from usecli.cli.utils.interactive.terminal_menu import terminal_menu
-from usecli.shared.config.globals import TEMPLATES_DIR, THEMES_DIR, USECLI_CONFIG_TOML
+from usecli.shared.config.globals import (TEMPLATES_DIR, THEMES_DIR,
+                                          USECLI_CONFIG_TOML)
 from usecli.shared.config.manager import ConfigManager
 
 console = Console()

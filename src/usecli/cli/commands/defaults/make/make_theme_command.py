@@ -13,12 +13,8 @@ from rich.console import Console
 from usecli.cli.config.colors import COLOR
 from usecli.cli.core.base_command import BaseCommand
 from usecli.shared.config.globals import TEMPLATES_DIR
-from usecli.shared.config.manager import (
-    ConfigManager,
-    find_project_root,
-    get_config,
-    reset_config,
-)
+from usecli.shared.config.manager import (ConfigManager, find_project_root,
+                                          get_config, reset_config)
 
 console = Console()
 
