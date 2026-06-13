@@ -8,10 +8,16 @@ from __future__ import annotations
 import importlib.util
 import os
 import sys
-from pathlib import Path
 from typing import Any
 
-from usecli.shared.config.globals import PYPROJECT_TOML, USECLI_CONFIG_TOML
+# Config file names - inlined to avoid importing globals.py (which pulls in pathlib)
+PYPROJECT_TOML = "pyproject.toml"
+USECLI_CONFIG_TOML = "usecli.config.toml"
+
+# Lazy pathlib import - only loaded when actually needed (~5ms)
+def _get_path():
+    from pathlib import Path
+    return Path
 
 
 # Lazy tomllib import - only loaded when actually needed
@@ -23,15 +29,14 @@ def _get_tomllib():
         import tomli as tomllib
         return tomllib
 
-# Depth cap for rglob – prevents scanning massive trees like ~/ghq.
+# Depth cap for rglob - prevents scanning massive trees like ~/ghq.
 _MAX_RGLOB_DEPTH = 6
 
 # High-level directories that should never be recursively searched for configs.
 # Searching HOME or filesystem roots is extremely expensive and will never find
 # a project-specific config.
-HIGH_LEVEL_DIRS: frozenset[str] = frozenset(
+_HIGH_LEVEL_DIRS_BASE: frozenset[str] = frozenset(
     {
-        str(Path.home().resolve()),
         "/",
         "/Users",
         "/home",
@@ -43,8 +48,17 @@ HIGH_LEVEL_DIRS: frozenset[str] = frozenset(
     }
 )
 
+_HIGH_LEVEL_DIRS: frozenset[str] | None = None
+
+
+def _get_high_level_dirs() -> frozenset[str]:
+    global _HIGH_LEVEL_DIRS
+    if _HIGH_LEVEL_DIRS is None:
+        _HIGH_LEVEL_DIRS = _HIGH_LEVEL_DIRS_BASE | {str(_get_path().home().resolve())}
+    return _HIGH_LEVEL_DIRS
+
 # Cache for config search results to avoid repeated expensive searches.
-_config_search_cache: dict[str, Path | None] = {}
+_config_search_cache: dict[str, Any] = {}
 
 _WALK_SKIP_ALWAYS: frozenset[str] = frozenset(
     {
@@ -229,7 +243,7 @@ class ConfigManager:
                 Defaults to current working directory.
         """
         if start_dir is None:
-            start_dir = Path.cwd()
+            start_dir = _get_path().cwd()
 
         if pyproject_path is None:
             pyproject_path = self._find_pyproject_toml(start_dir) or (
@@ -267,7 +281,7 @@ class ConfigManager:
         self.project_root: Path = (detected_root or start_dir).resolve()
         # Only override project_root for the framework itself (usecli).
         # Downstream packages (usechange, userun, etc.) legitimately live
-        # inside .venv when installed as dependencies — don't break them.
+        # inside .venv when installed as dependencies - don't break them.
         command_name = self._get_command_name()
         is_framework = command_name == "usecli" if command_name else True
         if is_framework and self._is_in_venv(self.project_root):
@@ -354,7 +368,7 @@ class ConfigManager:
         # Early exit: skip expensive lookups when searching from high-level dirs.
         # Global tools running from HOME or / won't find project configs.
         resolved_start = str(start_dir.resolve())
-        if resolved_start in HIGH_LEVEL_DIRS:
+        if resolved_start in _get_high_level_dirs():
             _config_search_cache[cache_key] = None
             return None
 
@@ -379,7 +393,7 @@ class ConfigManager:
 
         # Skip expensive recursive search when search root is a high-level directory.
         # Global tools running from HOME or / will never find a project config this way.
-        if str(search_root) in HIGH_LEVEL_DIRS:
+        if str(search_root) in _get_high_level_dirs():
             _config_search_cache[cache_key] = None
             return None
 
@@ -457,7 +471,7 @@ class ConfigManager:
             pass
 
         for location in spec.submodule_search_locations:
-            package_root = Path(location)
+            package_root = _get_path()(location)
             if not package_root.exists() or not package_root.is_dir():
                 continue
             candidates = _rglob_limited(
@@ -498,7 +512,7 @@ class ConfigManager:
             pass
 
         for location in spec.submodule_search_locations:
-            package_root = Path(location)
+            package_root = _get_path()(location)
             if not package_root.exists() or not package_root.is_dir():
                 continue
             candidates = _rglob_limited(
@@ -568,7 +582,7 @@ class ConfigManager:
             return False
         start_dir = start_dir.resolve()
         for location in spec.submodule_search_locations:
-            package_root = Path(location)
+            package_root = _get_path()(location)
             try:
                 start_dir.relative_to(package_root)
                 return True
@@ -581,7 +595,7 @@ class ConfigManager:
         for entry in sys.path:
             if not entry:
                 continue
-            path = Path(entry)
+            path = _get_path()(entry)
             if not path.exists() or not path.is_dir():
                 continue
             candidate = path / USECLI_CONFIG_TOML
@@ -703,7 +717,7 @@ class ConfigManager:
         # ``url`` is a ``file://`` URI.
         if url.startswith("file://"):
             url = url[len("file://") :]
-        source = Path(url)
+        source = _get_path()(url)
         if source.exists() and source.is_dir():
             return source.resolve()
         return None
@@ -771,7 +785,7 @@ class ConfigManager:
 
     def get_project_commands_dir(self) -> Path:
         commands_dir = self.get("commands_dir", "cli/commands")
-        commands_path = Path(commands_dir)
+        commands_path = _get_path()(commands_dir)
         if commands_path.is_absolute():
             return commands_path
         # Resolve relative to the config file's directory, not project_root.
@@ -782,7 +796,7 @@ class ConfigManager:
 
     def get_project_templates_dir(self) -> Path:
         templates_dir = self.get("templates_dir", "cli/templates")
-        templates_path = Path(templates_dir)
+        templates_path = _get_path()(templates_dir)
         if templates_path.is_absolute():
             return templates_path
         config_dir = self.usecli_config_path.parent
@@ -794,7 +808,7 @@ class ConfigManager:
         result: list[Path] = []
         config_dir = self.usecli_config_path.parent
         for entry in themes_entries:
-            theme_path = Path(entry)
+            theme_path = _get_path()(entry)
             if not theme_path.is_absolute():
                 theme_path = config_dir / theme_path
             result.append(theme_path.resolve())
@@ -811,8 +825,8 @@ class ConfigManager:
         config_data = self._load_usecli_toml(project_config)
         commands_dir = config_data.get("commands_dir", "cli/commands")
         templates_dir = config_data.get("templates_dir", "cli/templates")
-        commands_path = Path(commands_dir)
-        templates_path = Path(templates_dir)
+        commands_path = _get_path()(commands_dir)
+        templates_path = _get_path()(templates_dir)
         if not commands_path.is_absolute():
             commands_path = config_dir / commands_path
         if not templates_path.is_absolute():
@@ -917,10 +931,10 @@ _config_cwd: Path | None = None
 def get_config() -> ConfigManager:
     """Get the global ConfigManager instance."""
     global _config_manager, _config_cwd
-    cwd = Path.cwd().resolve()
+    cwd = _get_path().cwd().resolve()
     if _config_manager is not None and _config_cwd == cwd:
         return _config_manager
-    _config_manager = ConfigManager(start_dir=Path.cwd())
+    _config_manager = ConfigManager(start_dir=_get_path().cwd())
     _config_cwd = cwd
     return _config_manager
 
@@ -934,7 +948,7 @@ def reset_config() -> None:
 
 def find_project_root(start_dir: Path | None = None) -> Path | None:
     if start_dir is None:
-        start_dir = Path.cwd()
+        start_dir = _get_path().cwd()
 
     current = start_dir.resolve()
 
@@ -962,7 +976,7 @@ def find_project_root(start_dir: Path | None = None) -> Path | None:
 
     # Skip expensive recursive search when search root is a high-level directory.
     # Global tools running from HOME or / will never find a project config this way.
-    if str(search_root) in HIGH_LEVEL_DIRS:
+    if str(search_root) in _get_high_level_dirs():
         return git_root
 
     # Try fast lookups before expensive rglob (perf: global tools).

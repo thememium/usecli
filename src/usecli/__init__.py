@@ -10,9 +10,8 @@ from importlib import import_module
 TYPE_CHECKING = False
 
 if TYPE_CHECKING:
-    from typing import Any, Optional, Sequence
+    from typing import Any
 
-    import click
     import typer
     from rich.console import Console
 
@@ -71,7 +70,6 @@ def _ensure_cli_initialized() -> None:
 
     global _app, _service
 
-    import click
     import typer
     from click.exceptions import BadParameter, ClickException, Exit, UsageError
     from typer.core import TyperGroup
@@ -351,7 +349,7 @@ def _get_run_app_callback():
     # (required because `from __future__ import annotations` makes them strings)
     globals()["typer"] = typer
 
-    @app.callback()
+    @_app.callback()
     def run_app(
         ctx: typer.Context,
         version: bool = typer.Option(
@@ -404,7 +402,6 @@ def _get_run_app_callback():
 
 def main() -> None:
     """Run the CLI application with custom error handling."""
-    import typer
     from click.exceptions import BadParameter, ClickException, Exit, UsageError
 
     _ensure_cli_initialized()
