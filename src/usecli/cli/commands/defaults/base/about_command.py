@@ -1,30 +1,41 @@
 from __future__ import annotations
 
-import importlib.metadata
 import os
-import platform
-import re
 import sys
-from importlib.metadata import PackageNotFoundError
-from importlib.metadata import version as get_version
 from pathlib import Path
-
-if sys.version_info >= (3, 11):
-    import tomllib
-else:
-    import tomli as tomllib
 
 from rich.console import Console
 
 from usecli.cli.config.colors import COLOR
 from usecli.cli.core.base_command import BaseCommand
 from usecli.cli.core.ui.title import get_project_name, get_script_command_name
-from usecli.shared.config.manager import ConfigManager, get_config
+from usecli.shared.config.manager import get_config
 
 console = Console()
 
 
+def _load_toml(text: str):
+    if sys.version_info >= (3, 11):
+        import tomllib
+    else:
+        import tomli as tomllib
+
+    return tomllib.loads(text)
+
+
+def _toml_decode_error():
+    if sys.version_info >= (3, 11):
+        import tomllib
+    else:
+        import tomli as tomllib
+
+    return _toml_decode_error()
+
+
 def _get_version() -> str:
+    from importlib.metadata import PackageNotFoundError
+    from importlib.metadata import version as get_version
+
     try:
         return get_version("usecli")
     except PackageNotFoundError:
@@ -35,6 +46,8 @@ def _parse_dependency_requirement(req: str) -> tuple[str, str | None]:
     req_core = req.split(";", 1)[0].strip()
     if not req_core:
         return "", None
+
+    import re
 
     match = re.match(r"^([A-Za-z0-9_.-]+)", req_core)
     if not match:
@@ -57,11 +70,11 @@ def _parse_dependency_requirement(req: str) -> tuple[str, str | None]:
     return name, remainder
 
 
-def _get_console_script_distribution(
-    command_name: str | None,
-) -> importlib.metadata.Distribution | None:
+def _get_console_script_distribution(command_name: str | None):
     if not command_name:
         return None
+    import importlib.metadata
+
     try:
         distributions = importlib.metadata.distributions()
     except Exception:
@@ -79,9 +92,7 @@ def _get_console_script_distribution(
     return None
 
 
-def _get_package_dependencies_from_distribution(
-    dist: importlib.metadata.Distribution,
-) -> list[tuple[str, str | None]]:
+def _get_package_dependencies_from_distribution(dist) -> list[tuple[str, str | None]]:
     requires = dist.requires or []
     result: list[tuple[str, str | None]] = []
     for req in requires:
@@ -93,7 +104,7 @@ def _get_package_dependencies_from_distribution(
     return result
 
 
-def _get_dependencies(config: ConfigManager) -> list[tuple[str, str | None]]:
+def _get_dependencies(config) -> list[tuple[str, str | None]]:
     command_name = os.path.basename(sys.argv[0]) if sys.argv else None
     dist = _get_console_script_distribution(command_name)
     if dist is None:
@@ -107,8 +118,8 @@ def _get_dependencies(config: ConfigManager) -> list[tuple[str, str | None]]:
         return []
 
     try:
-        data = tomllib.loads(pyproject_path.read_text())
-    except (tomllib.TOMLDecodeError, OSError):
+        data = _load_toml(pyproject_path.read_text())
+    except (_toml_decode_error(), OSError):
         return []
 
     deps = data.get("project", {}).get("dependencies", [])
@@ -125,7 +136,7 @@ def _get_dependencies(config: ConfigManager) -> list[tuple[str, str | None]]:
     return result
 
 
-def _get_application_distribution() -> importlib.metadata.Distribution | None:
+def _get_application_distribution():
     command_name = os.path.basename(sys.argv[0]) if sys.argv else None
     dist = _get_console_script_distribution(command_name)
     if dist is None:
@@ -134,7 +145,7 @@ def _get_application_distribution() -> importlib.metadata.Distribution | None:
     return dist
 
 
-def _get_application_version(config: ConfigManager) -> str:
+def _get_application_version(config) -> str:
     dist = _get_application_distribution()
     if dist is not None:
         return dist.version
@@ -146,7 +157,7 @@ def _get_application_version(config: ConfigManager) -> str:
     return _get_version()
 
 
-def _get_application_description(config: ConfigManager) -> str:
+def _get_application_description(config) -> str:
     description = config.get("description")
     if (
         config.has_key("description")
@@ -165,14 +176,14 @@ def _get_application_description(config: ConfigManager) -> str:
     )
 
 
-def _get_project_description(config: ConfigManager) -> str | None:
+def _get_project_description(config) -> str | None:
     pyproject_path = config.pyproject_path
     if not pyproject_path.exists():
         return None
 
     try:
-        data = tomllib.loads(pyproject_path.read_text())
-    except (tomllib.TOMLDecodeError, OSError):
+        data = _load_toml(pyproject_path.read_text())
+    except (_toml_decode_error(), OSError):
         return None
 
     description = data.get("project", {}).get("description")
@@ -217,8 +228,8 @@ def _get_script_commands() -> list[str]:
         return []
 
     try:
-        data = tomllib.loads(pyproject_path.read_text())
-    except (tomllib.TOMLDecodeError, OSError):
+        data = _load_toml(pyproject_path.read_text())
+    except (_toml_decode_error(), OSError):
         return []
 
     scripts = data.get("project", {}).get("scripts", {})
@@ -262,6 +273,8 @@ class AboutCommand(BaseCommand):
         version_label = "Cli Version" if dist is not None else "Application Version"
         self._print_row(name_label, app_name)
         self._print_row(version_label, version)
+        import platform
+
         self._print_row("Python Version", platform.python_version())
         self._print_row("Platform", f"[{COLOR.FOREGROUND_MUTED}]{platform.platform()}")
 
@@ -282,6 +295,8 @@ class AboutCommand(BaseCommand):
         if deps:
             for dep_name, spec in deps:
                 try:
+                    from importlib.metadata import version as get_version
+
                     installed_version = get_version(dep_name)
                     self._print_row(dep_name, installed_version)
                 except Exception:
