@@ -244,6 +244,30 @@ class InitCommand(BaseCommand):
             return "themes"
         return str(parent / "themes")
 
+    def _infer_commands_dir(self, project_root: Path) -> str:
+        src_dir = project_root / "src"
+        if src_dir.exists() and src_dir.is_dir():
+            packages = [
+                d
+                for d in src_dir.iterdir()
+                if d.is_dir() and not d.name.startswith((".", "_"))
+            ]
+            if len(packages) == 1:
+                package_name = packages[0].name
+                return f"src/{package_name}/cli/commands"
+        pyproject_path = project_root / "pyproject.toml"
+        if pyproject_path.exists():
+            try:
+                data = tomllib.loads(pyproject_path.read_text())
+                project_name = data.get("project", {}).get("name")
+                if project_name:
+                    package_name = project_name.replace("-", "_").replace(" ", "_")
+                    if (project_root / package_name).is_dir():
+                        return f"{package_name}/cli/commands"
+            except (tomllib.TOMLDecodeError, OSError):
+                pass
+        return "cli/commands"
+
     def _get_existing_usecli_script_name(self, pyproject_path: Path) -> str | None:
         if not pyproject_path.exists():
             return None
@@ -532,9 +556,7 @@ include = ["{root_package}*"]
         description: str = typer.Option(
             "A custom CLI tool", help="Description for your CLI"
         ),
-        commands_dir: str = typer.Option(
-            "cli/commands", help="Directory for custom commands"
-        ),
+        commands_dir: str = typer.Option(None, help="Directory for custom commands"),
         command_name: Annotated[
             str,
             typer.Option(
@@ -553,6 +575,9 @@ include = ["{root_package}*"]
         pyproject_path = self._find_pyproject_path_for_init(cwd) or (
             project_root / "pyproject.toml"
         )
+
+        if commands_dir is None:
+            commands_dir = self._infer_commands_dir(project_root)
 
         console.print()
         existing_command_name = self._get_existing_usecli_script_name(pyproject_path)
