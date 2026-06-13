@@ -13,10 +13,14 @@ from typing import Any
 
 from usecli.shared.config.globals import PYPROJECT_TOML, USECLI_CONFIG_TOML
 
-if sys.version_info >= (3, 11):
-    import tomllib
-else:
-    import tomli as tomllib
+# Lazy tomllib import - only loaded when actually needed
+def _get_tomllib():
+    if sys.version_info >= (3, 11):
+        import tomllib
+        return tomllib
+    else:
+        import tomli as tomllib
+        return tomllib
 
 # Depth cap for rglob – prevents scanning massive trees like ~/ghq.
 _MAX_RGLOB_DEPTH = 6
@@ -273,7 +277,7 @@ class ConfigManager:
                 if usecli_config:
                     self._config = _deep_merge(self._config, usecli_config)
                     self._overrides = _deep_merge(self._overrides, usecli_config)
-            except (tomllib.TOMLDecodeError, OSError) as e:
+            except (_get_tomllib().TOMLDecodeError, OSError) as e:
                 from usecli.cli.core.exceptions.config import UsecliConfigError
 
                 raise UsecliConfigError(
@@ -293,9 +297,9 @@ class ConfigManager:
             return False
         try:
             with open(path, "rb") as f:
-                data = tomllib.load(f)
+                data = _get_tomllib().load(f)
                 return "usecli" in data.get("tool", {})
-        except (tomllib.TOMLDecodeError, OSError):
+        except (_get_tomllib().TOMLDecodeError, OSError):
             return False
 
     @classmethod
@@ -581,7 +585,7 @@ class ConfigManager:
     @staticmethod
     def _load_usecli_toml(path: Path) -> dict[str, Any]:
         with open(path, "rb") as f:
-            data = tomllib.load(f)
+            data = _get_tomllib().load(f)
 
         tool_section = data.get("tool", {})
         if isinstance(tool_section, dict) and "usecli" in tool_section:
@@ -631,7 +635,7 @@ class ConfigManager:
             return True
         try:
             config = ConfigManager._load_usecli_toml(path)
-        except (tomllib.TOMLDecodeError, OSError):
+        except (_get_tomllib().TOMLDecodeError, OSError):
             return True
         config_command = config.get("command_name")
         if not isinstance(config_command, str):
@@ -833,8 +837,8 @@ class ConfigManager:
 
         try:
             with open(self.pyproject_path, "rb") as f:
-                data = tomllib.load(f)
-        except (tomllib.TOMLDecodeError, OSError):
+                data = _get_tomllib().load(f)
+        except (_get_tomllib().TOMLDecodeError, OSError):
             return False
 
         project_name = data.get("project", {}).get("name", "")
@@ -874,8 +878,8 @@ class ConfigManager:
             return None
         try:
             with open(path, "rb") as f:
-                data = tomllib.load(f)
-        except (tomllib.TOMLDecodeError, OSError):
+                data = _get_tomllib().load(f)
+        except (_get_tomllib().TOMLDecodeError, OSError):
             return None
 
         project_version = data.get("project", {}).get("version")
