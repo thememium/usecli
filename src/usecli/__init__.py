@@ -59,9 +59,12 @@ def __getattr__(name: str) -> Any:
 
 def _ensure_cli_initialized() -> None:
     """Lazily initialize the CLI framework components."""
-    global _app, _service
-    if _app is not None:
+    # Use BaseCommand as the guard - it's set last, so if it's present,
+    # initialization completed successfully.
+    if "BaseCommand" in globals():
         return
+
+    global _app, _service
 
     import click
     import typer
