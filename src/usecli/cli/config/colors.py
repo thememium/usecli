@@ -39,6 +39,78 @@ _SKIP_DIRS = {
     "pipx",
     "venvs",
 }
+
+_MAX_RGLOB_DEPTH = 6
+
+_WALK_SKIP_ALWAYS: frozenset[str] = frozenset(
+    {
+        ".git",
+        "__pycache__",
+        "node_modules",
+        ".tox",
+        ".nox",
+        ".mypy_cache",
+        ".pytest_cache",
+        ".ruff_cache",
+        ".auto",
+        ".eggs",
+        "*.egg-info",
+    }
+)
+
+_WALK_SKIP_VENV: frozenset[str] = frozenset(
+    {
+        ".venv",
+        "venv",
+        "site-packages",
+        "dist-packages",
+        "__pypackages__",
+        "pipx",
+        "venvs",
+    }
+)
+
+
+def _walk_for_filename(
+    directory: Path,
+    filename: str,
+    depth: int,
+    max_depth: int,
+    skip_dirs: frozenset[str],
+    results: list[Path],
+) -> None:
+    if depth > max_depth:
+        return
+    try:
+        entries = list(directory.iterdir())
+    except (PermissionError, OSError):
+        return
+    for entry in entries:
+        try:
+            if entry.is_file() and entry.name == filename:
+                results.append(entry)
+            elif entry.is_dir() and entry.name not in skip_dirs:
+                _walk_for_filename(
+                    entry, filename, depth + 1, max_depth, skip_dirs, results
+                )
+        except (PermissionError, OSError):
+            continue
+
+
+def _rglob_limited(
+    root_dir: Path,
+    filename: str,
+    *,
+    skip_venv: bool = True,
+    max_depth: int = _MAX_RGLOB_DEPTH,
+) -> list[Path]:
+    """Depth-bounded recursive filename search that prunes dirs during the walk."""
+    skip_dirs = _WALK_SKIP_ALWAYS | _WALK_SKIP_VENV if skip_venv else _WALK_SKIP_ALWAYS
+    results: list[Path] = []
+    _walk_for_filename(root_dir, filename, 0, max_depth, skip_dirs, results)
+    return results
+
+
 DEFAULT_THEME_COLORS: dict[str, str] = {
     "primary": "#60D7FF",
     "secondary": "#5EFF87",
@@ -68,13 +140,7 @@ def _find_usecli_config_path(
     if not root_dir.exists() or not root_dir.is_dir():
         return None
 
-    candidates = [path for path in root_dir.rglob(USECLI_CONFIG_TOML)]
-    if skip_venv:
-        candidates = [
-            path
-            for path in candidates
-            if not any(part in _SKIP_DIRS for part in path.parts)
-        ]
+    candidates = _rglob_limited(root_dir, USECLI_CONFIG_TOML, skip_venv=skip_venv)
     if not candidates:
         return None
 
@@ -163,13 +229,7 @@ def _find_usecli_config_path_for_command(
     if not root_dir.exists() or not root_dir.is_dir():
         return None
 
-    candidates = [path for path in root_dir.rglob(USECLI_CONFIG_TOML)]
-    if skip_venv:
-        candidates = [
-            path
-            for path in candidates
-            if not any(part in _SKIP_DIRS for part in path.parts)
-        ]
+    candidates = _rglob_limited(root_dir, USECLI_CONFIG_TOML, skip_venv=skip_venv)
     if not candidates:
         return None
 
@@ -217,9 +277,7 @@ def _find_usecli_config_in_package() -> Path | None:
         package_root = Path(location)
         if not package_root.exists() or not package_root.is_dir():
             continue
-        candidates = [
-            path for path in package_root.rglob(USECLI_CONFIG_TOML) if path.exists()
-        ]
+        candidates = _rglob_limited(package_root, USECLI_CONFIG_TOML, skip_venv=False)
         if candidates:
             candidates.sort(key=lambda path: (len(path.parts), str(path)))
             return candidates[0]
@@ -238,9 +296,7 @@ def _find_usecli_config_in_named_package(package_name: str) -> Path | None:
         package_root = Path(location)
         if not package_root.exists() or not package_root.is_dir():
             continue
-        candidates = [
-            path for path in package_root.rglob(USECLI_CONFIG_TOML) if path.exists()
-        ]
+        candidates = _rglob_limited(package_root, USECLI_CONFIG_TOML, skip_venv=False)
         if candidates:
             candidates.sort(key=lambda path: (len(path.parts), str(path)))
             return candidates[0]
@@ -334,10 +390,8 @@ def _find_project_root(start_dir: Path | None = None) -> Path | None:
         current = parent
 
     search_root = git_root or start_dir.resolve()
-    config_match = _find_usecli_config_path(search_root, start_dir, skip_venv=True)
-    if config_match:
-        return config_match.parent
 
+    # Try fast lookups before expensive rglob (perf: global tools).
     console_match = _find_usecli_config_for_console_script()
     if console_match:
         return console_match.parent
@@ -345,6 +399,10 @@ def _find_project_root(start_dir: Path | None = None) -> Path | None:
     package_match = _find_usecli_config_in_package()
     if package_match:
         return package_match.parent
+
+    config_match = _find_usecli_config_path(search_root, start_dir, skip_venv=True)
+    if config_match:
+        return config_match.parent
 
     return git_root
 
@@ -357,18 +415,19 @@ def _load_usecli_config(
 
     config_path = project_root / USECLI_CONFIG_TOML
     if not config_path.exists():
-        config_path = _find_usecli_config_path_for_command(
-            project_root,
-            project_root,
-            skip_venv=True,
-        )
-    if not config_path or not config_path.exists():
+        # Try fast lookups before expensive rglob (perf: global tools).
         console_match = _find_usecli_config_for_console_script()
         if console_match:
             return _load_usecli_config_file(console_match), console_match
         package_match = _find_usecli_config_in_package()
         if package_match:
             config_path = package_match
+    if not config_path or not config_path.exists():
+        config_path = _find_usecli_config_path_for_command(
+            project_root,
+            project_root,
+            skip_venv=True,
+        )
     if not config_path or not config_path.exists():
         return {}, None
 
