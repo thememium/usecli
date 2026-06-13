@@ -1,6 +1,42 @@
 # Changelog
 
 
+## v0.1.59
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.58...v0.1.59)
+
+### 🚀 Enhancements
+
+- **config:** Expose project paths via `get_project_paths` ([9c50c30](https://github.com/thememium/usecli/commit/9c50c30))
+- **init_command:** Add automatic commands directory inference ([ce39e59](https://github.com/thememium/usecli/commit/ce39e59))
+
+### 🩹 Fixes
+
+- **ConfigManager:** Resolve relative paths against config directory ([af78857](https://github.com/thememium/usecli/commit/af78857))
+
+### 💅 Refactors
+
+- **config:** Filter usecli candidates and skip venv configs ([94beac4](https://github.com/thememium/usecli/commit/94beac4))
+- **make_command:** Replace separate getters with project_paths dict ([256df89](https://github.com/thememium/usecli/commit/256df89))
+- **make_theme_command:** Use get_project_paths() for template directory ([465389b](https://github.com/thememium/usecli/commit/465389b))
+- **config:** Remove unused hide_init and hide_make_command keys ([61cf164](https://github.com/thememium/usecli/commit/61cf164))
+- **usecli:cli:** Make command visibility based on executable name ([8277bc9](https://github.com/thememium/usecli/commit/8277bc9))
+- **init-command:** Adjust visibility logic to use command name instead of config flag ([25d183e](https://github.com/thememium/usecli/commit/25d183e))
+- **usecli:** Remove deprecated hide_make_* config options ([7b54b3a](https://github.com/thememium/usecli/commit/7b54b3a))
+- **init command:** Remove obsolete hide flags from tests ([5c0c3b9](https://github.com/thememium/usecli/commit/5c0c3b9))
+
+### 📖 Documentation
+
+- Adjust README for usecli‑only commands and delete hiding config ([558f56c](https://github.com/thememium/usecli/commit/558f56c))
+
+### ✅ Tests
+
+- **shared/config:** Remove outdated assertions for hide_init and hide_make_command defaults ([4440169](https://github.com/thememium/usecli/commit/4440169))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.58
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.57...v0.1.58)
