@@ -1,6 +1,24 @@
 # Changelog
 
 
+## v0.1.60
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.59...v0.1.60)
+
+### 💅 Refactors
+
+- **usecli:** Replace lazy console imports with direct ones ([af82d8c](https://github.com/thememium/usecli/commit/af82d8c))
+- Add TYPE_CHECKING guard to delay opt imports during type check ([938e135](https://github.com/thememium/usecli/commit/938e135))
+
+### 🏡 Chore
+
+- Add .auto to .gitignore ([46f59e2](https://github.com/thememium/usecli/commit/46f59e2))
+- Delete temporary auto‑generated scripts and data ([5bcd8a5](https://github.com/thememium/usecli/commit/5bcd8a5))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.59
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.58...v0.1.59)
