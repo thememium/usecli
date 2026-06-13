@@ -13,7 +13,6 @@ import sys
 from pathlib import Path
 from typing import Any
 
-from usecli.cli.core.exceptions.config import UsecliConfigError
 from usecli.shared.config.globals import PYPROJECT_TOML, USECLI_CONFIG_TOML
 
 if sys.version_info >= (3, 11):
@@ -160,6 +159,8 @@ class ConfigManager:
                     self._config = _deep_merge(self._config, usecli_config)
                     self._overrides = _deep_merge(self._overrides, usecli_config)
             except (tomllib.TOMLDecodeError, OSError) as e:
+                from usecli.cli.core.exceptions.config import UsecliConfigError
+
                 raise UsecliConfigError(
                     f"Failed to load {USECLI_CONFIG_TOML}: {e}",
                     config_file=str(self.usecli_config_path),
