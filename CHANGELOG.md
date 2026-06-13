@@ -1,6 +1,26 @@
 # Changelog
 
 
+## v0.1.61
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.60...v0.1.61)
+
+### 🔥 Performance
+
+- Cache importlib.metadata.distributions calls in config modules ([15c435c](https://github.com/thememium/usecli/commit/15c435c))
+
+### 💅 Refactors
+
+- Implement depth‑bounded rglob for config lookup ([c85cfa4](https://github.com/thememium/usecli/commit/c85cfa4))
+
+### ✅ Tests
+
+- **config:** Reset distributions cache before each importlib metadata test ([f6b5a13](https://github.com/thememium/usecli/commit/f6b5a13))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.60
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.59...v0.1.60)
