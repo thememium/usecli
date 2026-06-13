@@ -164,6 +164,41 @@ def _reset_distributions_cache() -> None:
     _distributions_cache = None
 
 
+def _find_distribution_for_console_script(
+    command_name: str,
+) -> Any | None:
+    """Find the distribution that owns a console_script by name.
+
+    Uses a targeted O(1) lookup when the package is importable, falling back
+    to a full O(N) scan of all distributions only when necessary.
+    """
+    if not command_name:
+        return None
+
+    metadata = _get_importlib_metadata()
+
+    # Fast path: targeted lookup when package is importable
+    package_name = _get_package_name()
+    if package_name:
+        try:
+            dist = metadata.distribution(package_name)
+            for ep in dist.entry_points:
+                if ep.group == "console_scripts" and ep.name == command_name:
+                    return dist
+        except Exception:
+            pass
+
+    # Slow path: scan all distributions
+    for dist in _get_distributions():
+        try:
+            for ep in dist.entry_points:
+                if ep.group == "console_scripts" and ep.name == command_name:
+                    return dist
+        except Exception:
+            continue
+    return None
+
+
 def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
     result = base.copy()
     for key, value in override.items():
@@ -543,41 +578,33 @@ class ConfigManager:
         command_name = os.path.basename(sys.argv[0]) if sys.argv else ""
         if not command_name:
             return None
-        distributions = _get_distributions()
-        for dist in distributions:
-            try:
-                entry_points = dist.entry_points
-            except Exception:
-                continue
-            for entry_point in entry_points:
-                if entry_point.group != "console_scripts":
-                    continue
-                if entry_point.name != command_name:
-                    continue
-                metadata = dist.metadata
-                dist_name = ""
-                if "Name" in metadata:
-                    dist_name = metadata["Name"]
-                elif "name" in metadata:
-                    dist_name = metadata["name"]
-                candidates = []
-                if dist_name:
-                    candidates.append(dist_name)
-                    normalized = dist_name.replace("-", "_")
-                    if normalized not in candidates:
-                        candidates.append(normalized)
-                aliases = cls._get_console_script_aliases(command_name)
-                for package_name in candidates:
-                    source_root = cls._resolve_editable_source_root(dist)
-                    if source_root:
-                        source_config = cls._search_source_for_config(
-                            source_root, command_name, aliases
-                        )
-                        if source_config:
-                            return source_config
-                    match = cls._find_usecli_config_in_named_package(package_name)
-                    if match:
-                        return match
+        dist = _find_distribution_for_console_script(command_name)
+        if dist is None:
+            return None
+        metadata = dist.metadata
+        dist_name = ""
+        if "Name" in metadata:
+            dist_name = metadata["Name"]
+        elif "name" in metadata:
+            dist_name = metadata["name"]
+        candidates = []
+        if dist_name:
+            candidates.append(dist_name)
+            normalized = dist_name.replace("-", "_")
+            if normalized not in candidates:
+                candidates.append(normalized)
+        aliases = cls._get_console_script_aliases(command_name)
+        for package_name in candidates:
+            source_root = cls._resolve_editable_source_root(dist)
+            if source_root:
+                source_config = cls._search_source_for_config(
+                    source_root, command_name, aliases
+                )
+                if source_config:
+                    return source_config
+            match = cls._find_usecli_config_in_named_package(package_name)
+            if match:
+                return match
         return None
 
     @staticmethod
@@ -651,20 +678,15 @@ class ConfigManager:
         if not command_name:
             return set()
         aliases: set[str] = {command_name}
-        distributions = _get_distributions()
-        for dist in distributions:
+        dist = _find_distribution_for_console_script(command_name)
+        if dist is not None:
             try:
-                entry_points = dist.entry_points
-            except Exception:
-                continue
-            names = [
-                entry_point.name
-                for entry_point in entry_points
-                if entry_point.group == "console_scripts"
-            ]
-            if command_name in names:
+                names = [
+                    ep.name for ep in dist.entry_points if ep.group == "console_scripts"
+                ]
                 aliases.update(names)
-                break
+            except Exception:
+                pass
         return aliases
 
     @staticmethod
