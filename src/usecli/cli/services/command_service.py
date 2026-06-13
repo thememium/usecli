@@ -44,15 +44,21 @@ class CommandService:
         self.app = app
         self.commands: list[str] = []
         self.version = "0.0.0"
+        self._skip_usecli_only_commands = False
 
     def load_commands(self) -> None:
         """Load all commands from the commands directory and project directories."""
         self._load_version()
         config = get_config()
 
+        command_name = Path(sys.argv[0]).name if sys.argv else ""
         if config.is_usecli_direct_dependency():
             package_commands_dir = (PACKAGE_ROOT / "cli/commands").resolve()
-            self._load_from_dir(package_commands_dir)
+            self._skip_usecli_only_commands = command_name != "usecli"
+            try:
+                self._load_from_dir(package_commands_dir)
+            finally:
+                self._skip_usecli_only_commands = False
 
         project_commands_dir = config.get_project_commands_dir().resolve()
         package_commands_dir = (PACKAGE_ROOT / "cli/commands").resolve()
@@ -89,7 +95,7 @@ class CommandService:
             if path.name == "__init__.py":
                 continue
 
-            if Path(sys.argv[0]).name != "usecli" and (
+            if self._skip_usecli_only_commands and (
                 path.name == "init_command.py" or "make" in path.parts
             ):
                 continue
