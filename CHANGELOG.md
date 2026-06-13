@@ -1,6 +1,21 @@
 # Changelog
 
 
+## v0.1.64
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.63...v0.1.64)
+
+### 💅 Refactors
+
+- **config/manager.py:** Add helper to find distribution for console script and replace duplicate loops ([a907a74](https://github.com/thememium/usecli/commit/a907a74))
+- **distributions:** Delegate console‑script distribution lookup to shared manager ([820ebdc](https://github.com/thememium/usecli/commit/820ebdc))
+- Use shared helper for console script distribution lookup ([f186cd4](https://github.com/thememium/usecli/commit/f186cd4))
+- **config/manager.py:** Add fast lookup for console script distribution and cache project roots ([2d9caa2](https://github.com/thememium/usecli/commit/2d9caa2))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.63
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.62...v0.1.63)
