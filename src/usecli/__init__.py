@@ -165,25 +165,29 @@ def _ensure_cli_initialized() -> None:
             )
 
         def invoke(self, ctx):
-            from click.exceptions import BadParameter, ClickException, Exit, UsageError
+            from click.exceptions import Exit
+
+            _TyperBadParameter = globals()["_TyperBadParameter"]
+            _TyperUsageError = globals()["_TyperUsageError"]
+            _TyperClickException = globals()["_TyperClickException"]
 
             try:
                 return super().invoke(ctx)
             except Exit:
                 sys.exit(0)
-            except BadParameter as e:
+            except _TyperBadParameter as e:
                 from usecli.cli.core.exceptions import UsecliBadParameter
 
                 styled_error = UsecliBadParameter(e.message, ctx=e.ctx, param=e.param)
                 styled_error.show()
                 sys.exit(styled_error.exit_code)
-            except UsageError as e:
+            except _TyperUsageError as e:
                 from usecli.cli.core.exceptions import UsecliUsageError
 
                 styled_error = UsecliUsageError(e.message, ctx=e.ctx)
                 styled_error.show()
                 sys.exit(styled_error.exit_code)
-            except ClickException as e:
+            except _TyperClickException as e:
                 if hasattr(e, "show"):
                     e.show()
                 sys.exit(e.exit_code if hasattr(e, "exit_code") else 1)
@@ -419,6 +423,12 @@ def main() -> None:
     _ensure_cli_initialized()
     _resolve_help()
 
+    # Use typer's exception classes if available (they're subclasses of click's)
+    # typer raises its own exceptions which may not match click's exactly
+    _TyperBadParameter = globals().get("_TyperBadParameter", BadParameter)
+    _TyperUsageError = globals().get("_TyperUsageError", UsageError)
+    _TyperClickException = globals().get("_TyperClickException", ClickException)
+
     from usecli.shared.config.manager import get_config
 
     config = get_config()
@@ -439,22 +449,28 @@ def main() -> None:
         _get_app()()
     except Exit:
         sys.exit(0)
-    except BadParameter as e:
+    except _TyperBadParameter as e:
         from usecli.cli.core.exceptions import UsecliBadParameter
 
         styled_error = UsecliBadParameter(e.message, ctx=e.ctx, param=e.param)
         styled_error.show()
         sys.exit(styled_error.exit_code)
-    except UsageError as e:
+    except _TyperUsageError as e:
         from usecli.cli.core.exceptions import UsecliUsageError
 
         styled_error = UsecliUsageError(e.message, ctx=e.ctx)
         styled_error.show()
         sys.exit(styled_error.exit_code)
-    except ClickException as e:
+    except _TyperClickException as e:
         if hasattr(e, "show"):
             e.show()
         sys.exit(e.exit_code if hasattr(e, "exit_code") else 1)
+    except Exception as e:
+        from usecli.cli.core.exceptions import UsecliUsageError
+
+        styled_error = UsecliUsageError(str(e))
+        styled_error.show()
+        sys.exit(1)
 
 
 if __name__ == "__main__":
