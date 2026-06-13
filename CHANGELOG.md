@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.65
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.64...v0.1.65)
+
+### 🚀 Enhancements
+
+- **usecli:** Expose COLOR constant for color configuration ([ce72cfe](https://github.com/thememium/usecli/commit/ce72cfe))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.64
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.63...v0.1.64)
