@@ -15,6 +15,7 @@ from usecli.shared.config import manager as config_manager
 from usecli.shared.config.manager import (
     ConfigManager,
     _deep_merge,
+    _reset_distributions_cache,
     get_config,
     reset_config,
 )
@@ -260,6 +261,7 @@ themes_dir = ["custom/themes", "cli/themes", "custom/themes"]
         monkeypatch.setattr(
             config_manager.importlib.util, "find_spec", lambda name: spec
         )
+        _reset_distributions_cache()
         monkeypatch.setattr(
             config_manager.importlib.metadata,
             "distributions",
@@ -305,6 +307,7 @@ command_name = "usecli"
         monkeypatch.setattr(
             config_manager.importlib.util, "find_spec", lambda name: spec
         )
+        _reset_distributions_cache()
         monkeypatch.setattr(
             config_manager.importlib.metadata,
             "distributions",
@@ -344,6 +347,7 @@ command_name = "usecli"
         monkeypatch.setattr(
             config_manager.importlib.util, "find_spec", lambda name: spec
         )
+        _reset_distributions_cache()
         monkeypatch.setattr(
             config_manager.importlib.metadata,
             "distributions",
