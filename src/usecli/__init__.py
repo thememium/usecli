@@ -4,12 +4,21 @@ from __future__ import annotations
 
 import sys
 from importlib import import_module
-from typing import Any, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Optional, Sequence
 
 import click
 import typer
 from click.exceptions import BadParameter, ClickException, Exit, UsageError
 from typer.core import TyperGroup
+
+if TYPE_CHECKING:
+    from rich.console import Console
+
+    from usecli.menu import Menu
+    from usecli.params import Argument, Option
+    from usecli.ui import Confirm, Prompt
+
+    console: Console
 
 try:
     from typer._click.exceptions import BadParameter as TyperBadParameter  # type: ignore[import-untyped]
