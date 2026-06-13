@@ -21,6 +21,26 @@ else:
 # Depth cap for rglob – prevents scanning massive trees like ~/ghq.
 _MAX_RGLOB_DEPTH = 6
 
+# High-level directories that should never be recursively searched for configs.
+# Searching HOME or filesystem roots is extremely expensive and will never find
+# a project-specific config.
+HIGH_LEVEL_DIRS: frozenset[str] = frozenset(
+    {
+        str(Path.home().resolve()),
+        "/",
+        "/Users",
+        "/home",
+        "/root",
+        "/tmp",
+        "/var",
+        "/etc",
+        "/usr",
+    }
+)
+
+# Cache for config search results to avoid repeated expensive searches.
+_config_search_cache: dict[str, Path | None] = {}
+
 _WALK_SKIP_ALWAYS: frozenset[str] = frozenset(
     {
         ".git",
@@ -325,11 +345,24 @@ class ConfigManager:
             if sys_match:
                 return sys_match
 
+        # Check cache first to avoid repeated expensive searches.
+        cache_key = str(start_dir.resolve())
+        if cache_key in _config_search_cache:
+            return _config_search_cache[cache_key]
+
         search_root = find_project_root(start_dir) or start_dir.resolve()
+
+        # Skip expensive recursive search when search root is a high-level directory.
+        # Global tools running from HOME or / will never find a project config this way.
+        if str(search_root) in HIGH_LEVEL_DIRS:
+            _config_search_cache[cache_key] = None
+            return None
+
         is_framework = command_name == "usecli" if command_name else True
         recursive_match = cls._find_usecli_config_in_tree(
             search_root, start_dir, skip_venv=is_framework
         )
+        _config_search_cache[cache_key] = recursive_match
         if recursive_match:
             return recursive_match
 
@@ -893,6 +926,11 @@ def find_project_root(start_dir: Path | None = None) -> Path | None:
         current = parent
 
     search_root = git_root or start_dir.resolve()
+
+    # Skip expensive recursive search when search root is a high-level directory.
+    # Global tools running from HOME or / will never find a project config this way.
+    if str(search_root) in HIGH_LEVEL_DIRS:
+        return git_root
 
     # Try fast lookups before expensive rglob (perf: global tools).
     console_match = ConfigManager._find_usecli_config_for_console_script()
