@@ -11,18 +11,19 @@ Usage:
 
 from __future__ import annotations
 
-import importlib.metadata
-import importlib.util
 import os
 import sys
 import time
 from pathlib import Path
 from typing import Any, Callable, Final, Protocol, cast, final
 
-if sys.version_info >= (3, 11):
-    import tomllib
-else:
-    import tomli as tomllib
+
+def _import_tomllib():
+    if sys.version_info >= (3, 11):
+        import tomllib
+    else:
+        import tomli as tomllib
+    return tomllib
 
 
 PYPROJECT_TOML = "pyproject.toml"
@@ -114,6 +115,8 @@ def _get_console_script_aliases(command_name: str | None) -> set[str]:
         return set()
     aliases: set[str] = {command_name}
     try:
+        import importlib.metadata
+
         distributions = importlib.metadata.distributions()
     except Exception:
         return aliases
@@ -139,7 +142,7 @@ def _config_matches_command(path: Path, command_name: str | None) -> bool:
         return True
     try:
         data = _load_usecli_config_file(path)
-    except (tomllib.TOMLDecodeError, OSError):
+    except OSError:
         return True
     config_command = data.get("command_name")
     if not isinstance(config_command, str):
@@ -205,6 +208,8 @@ def _find_usecli_config_path_for_command(
 
 
 def _find_usecli_config_in_package() -> Path | None:
+    import importlib.util
+
     spec = importlib.util.find_spec(_get_package_name())
     if spec is None or not spec.submodule_search_locations:
         return None
@@ -222,6 +227,8 @@ def _find_usecli_config_in_package() -> Path | None:
 
 
 def _find_usecli_config_in_named_package(package_name: str) -> Path | None:
+    import importlib.util
+
     if not package_name:
         return None
     spec = importlib.util.find_spec(package_name)
@@ -241,6 +248,8 @@ def _find_usecli_config_in_named_package(package_name: str) -> Path | None:
 
 
 def _find_usecli_config_for_console_script() -> Path | None:
+    import importlib.metadata
+
     command_name = os.path.basename(sys.argv[0]) if sys.argv else ""
     if not command_name:
         return None
@@ -282,6 +291,8 @@ def _is_preferred_package_path(path: Path) -> bool:
 
 
 def _is_within_usecli_package(start_dir: Path) -> bool:
+    import importlib.util
+
     spec = importlib.util.find_spec(_get_package_name())
     if spec is None or not spec.submodule_search_locations:
         return False
@@ -365,6 +376,7 @@ def _load_usecli_config(
 
 
 def _load_usecli_config_file(config_path: Path) -> dict[str, Any]:
+    tomllib = _import_tomllib()
     try:
         data = tomllib.loads(config_path.read_text())
     except (tomllib.TOMLDecodeError, OSError):
@@ -556,6 +568,7 @@ def _resolve_theme_path(
 
 
 def _load_theme_file(theme_path: Path) -> dict[str, Any]:
+    tomllib = _import_tomllib()
     try:
         with open(theme_path, "rb") as theme_file:
             data = tomllib.load(theme_file)
@@ -578,7 +591,15 @@ def _load_theme() -> tuple[dict[str, str], dict[str, str], str, Path | None]:
         theme_name = config_theme.strip()
 
     theme_path = _resolve_theme_path(theme_name, project_root, config_values)
-    theme_data = _load_theme_file(theme_path) if theme_path else {}
+    package_default_theme = (THEMES_DIR / f"{DEFAULT_THEME_NAME}.toml").resolve()
+    if (
+        theme_name == DEFAULT_THEME_NAME
+        and theme_path
+        and theme_path.resolve() == package_default_theme
+    ):
+        theme_data = {}
+    else:
+        theme_data = _load_theme_file(theme_path) if theme_path else {}
 
     colors = _merge_theme_values(
         DEFAULT_THEME_COLORS,
@@ -711,19 +732,49 @@ def _apply_theme(
 
 
 def _ensure_theme_loaded(color_class: type[Any]) -> None:
-    global _THEME_CONTEXT
-    context = _theme_context()
-    if context == _THEME_CONTEXT:
-        return
-    colors, ansi, _, _ = _load_theme()
-    _THEME_CONTEXT = context
-    _THEME_COLORS.update(colors)
-    _THEME_ANSI.update(ansi)
+    global _THEME_CONTEXT, _THEME_LOADED
+    if _THEME_LOADED:
+        context = _theme_context()
+        if context == _THEME_CONTEXT:
+            return
+        colors, ansi, _, _ = _load_theme()
+        _THEME_CONTEXT = context
+        _THEME_COLORS.update(colors)
+        _THEME_ANSI.update(ansi)
+    else:
+        colors, ansi, _, _ = _load_theme()
+        _THEME_CONTEXT = _theme_context()
+        _THEME_COLORS.update(colors)
+        _THEME_ANSI.update(ansi)
+        _THEME_LOADED = True
     _apply_theme(cast(_ColorNamespace, color_class), _THEME_COLORS, _THEME_ANSI)
 
 
-_THEME_COLORS, _THEME_ANSI, _THEME_NAME, _THEME_PATH = _load_theme()
-_THEME_CONTEXT: tuple[Path | None, Path | None, str, Path | None] = _theme_context()
+# Deferred: _load_theme() and _theme_context() are called on first COLOR attribute access
+# via _ColorMeta.__getattribute__ -> _ensure_theme_loaded, instead of at import time.
+# This avoids ~50ms of filesystem walking during startup when colors aren't needed yet.
+_THEME_LOADED: bool = False
+_THEME_COLORS: dict[str, str] = DEFAULT_THEME_COLORS.copy()
+_THEME_ANSI: dict[str, str] = {
+    "reset": "\033[0m",
+    "primary": "",
+    "secondary": "",
+    "accent": "",
+    "foreground": "",
+    "foreground_muted": "",
+    "red": "",
+    "green": "",
+    "yellow": "",
+    "blue": "",
+}
+_THEME_NAME: str = DEFAULT_THEME_NAME
+_THEME_PATH: Path | None = None
+_THEME_CONTEXT: tuple[Path | None, Path | None, str, Path | None] = (
+    None,
+    None,
+    DEFAULT_THEME_NAME,
+    None,
+)
 
 
 class _ColorMeta(type):

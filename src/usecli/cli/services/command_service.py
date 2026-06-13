@@ -3,10 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
-import inspect
 import sys
-from importlib.metadata import PackageNotFoundError
-from importlib.metadata import version as get_version
 from pathlib import Path
 from types import ModuleType
 from typing import TYPE_CHECKING
@@ -15,10 +12,26 @@ import typer
 
 from usecli.cli.core.base_command import BaseCommand
 from usecli.shared.config.globals import PACKAGE_ROOT
-from usecli.shared.config.manager import get_config
 
 if TYPE_CHECKING:
     pass
+
+
+def get_config():
+    """Lazy wrapper around manager.get_config for test mocking compatibility."""
+    from usecli.shared.config.manager import get_config as _get_config
+
+    return _get_config()
+
+
+def get_version(package_name: str) -> str:
+    from importlib.metadata import version
+
+    return version(package_name)
+
+
+def _is_package_not_found(error: Exception) -> bool:
+    return error.__class__.__name__ == "PackageNotFoundError"
 
 
 class CommandService:
@@ -37,15 +50,21 @@ class CommandService:
         self.app = app
         self.commands: list[str] = []
         self.version = "0.0.0"
+        self._skip_usecli_only_commands = False
 
     def load_commands(self) -> None:
         """Load all commands from the commands directory and project directories."""
         self._load_version()
         config = get_config()
 
+        command_name = Path(sys.argv[0]).name if sys.argv else ""
         if config.is_usecli_direct_dependency():
             package_commands_dir = (PACKAGE_ROOT / "cli/commands").resolve()
-            self._load_from_dir(package_commands_dir)
+            self._skip_usecli_only_commands = command_name != "usecli"
+            try:
+                self._load_from_dir(package_commands_dir)
+            finally:
+                self._skip_usecli_only_commands = False
 
         project_commands_dir = config.get_project_commands_dir().resolve()
         package_commands_dir = (PACKAGE_ROOT / "cli/commands").resolve()
@@ -64,7 +83,9 @@ class CommandService:
             return
         try:
             self.version = get_version("usecli")
-        except PackageNotFoundError:
+        except Exception as error:
+            if not _is_package_not_found(error):
+                raise
             self.version = "0.0.0"
 
     def _load_from_dir(self, directory: Path) -> None:
@@ -76,20 +97,38 @@ class CommandService:
         if not directory.exists():
             return
 
+        skip_usecli_only = self._skip_usecli_only_commands
+
         for path in directory.rglob("*.py"):
             if path.name == "__init__.py":
+                continue
+
+            if skip_usecli_only and (
+                path.name == "init_command.py" or path.parent.name == "make"
+            ):
                 continue
 
             if "internal" in path.parts:
                 continue
 
             module = self._import_file(path)
-            if not module:
+            if module is None:
                 continue
 
-            for name, obj in inspect.getmembers(module):
+            if isinstance(module, ModuleType):
+                members = module.__dict__.values()
+
+                def is_command_class(obj: object) -> bool:
+                    return isinstance(obj, type)
+            else:
+                import inspect
+
+                members = (obj for _, obj in inspect.getmembers(module))
+                is_command_class = inspect.isclass
+
+            for obj in members:
                 if (
-                    inspect.isclass(obj)
+                    is_command_class(obj)
                     and issubclass(obj, BaseCommand)
                     and obj is not BaseCommand
                 ):
@@ -104,6 +143,7 @@ class CommandService:
         Returns:
             The imported module, or None if import failed.
         """
+
         module_name = path.stem
         spec = importlib.util.spec_from_file_location(module_name, path)
         if spec and spec.loader:

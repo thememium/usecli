@@ -86,7 +86,7 @@ def get_project_name() -> str:
             return "useCli"
 
         return name
-    except PackageNotFoundError:
+    except (PackageNotFoundError, Exception):
         return "useCli"
 
 
@@ -96,7 +96,6 @@ def print_title(title: str | None = None) -> None:
     Args:
         title: Optional custom title text. If not provided, uses ASCII art.
     """
-
     default_title_text = """
                            ▄▄█▀▀▀▄█ ▀██   ██  
  ▄▄▄ ▄▄▄   ▄▄▄▄    ▄▄▄▄  ▄█▀     ▀   ██  ▄▄▄  

@@ -1,24 +1,12 @@
-"""UI helpers for usecli CLI."""
+"""UI helpers for usecli CLI.
+
+Keep package imports light; load rich list/title helpers only when requested.
+"""
 
 from __future__ import annotations
 
-import click
-
-from usecli.cli.config.colors import COLOR, bold, style
-from usecli.cli.core.ui.list import list_commands
-from usecli.cli.core.ui.title import get_project_name, print_title
-
-
-def is_click_group(obj: object) -> bool:
-    """Check if an object is a Click group (has subcommands).
-
-    Works with both standard click.Group and Typer's vendored click
-    (TyperGroup in typer>=0.26 no longer extends click.Group directly).
-    """
-    return isinstance(obj, click.Group) or (
-        hasattr(obj, "commands") and isinstance(getattr(obj, "commands", None), dict)
-    )
-
+from importlib import import_module
+from typing import Any
 
 __all__ = [
     "COLOR",
@@ -29,3 +17,30 @@ __all__ = [
     "get_project_name",
     "style",
 ]
+
+_EXPORT_MODULES = {
+    "COLOR": "usecli.cli.config.colors",
+    "bold": "usecli.cli.config.colors",
+    "style": "usecli.cli.config.colors",
+    "list_commands": "usecli.cli.core.ui.list",
+    "print_title": "usecli.cli.core.ui.title",
+    "get_project_name": "usecli.cli.core.ui.title",
+}
+
+
+def is_click_group(obj: object) -> bool:
+    """Check if an object behaves like a Click group."""
+    import click
+
+    return isinstance(obj, click.Group) or (
+        hasattr(obj, "commands") and isinstance(getattr(obj, "commands", None), dict)
+    )
+
+
+def __getattr__(name: str) -> Any:
+    module_name = _EXPORT_MODULES.get(name)
+    if module_name is None:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    value = getattr(import_module(module_name), name)
+    globals()[name] = value
+    return value

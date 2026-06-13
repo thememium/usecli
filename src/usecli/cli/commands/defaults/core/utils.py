@@ -8,12 +8,25 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from rich.console import Console
-
 if TYPE_CHECKING:
     pass
 
-console = Console()
+
+class _LazyConsole:
+    _console = None
+
+    def _get_console(self):
+        if self._console is None:
+            from rich.console import Console
+
+            self._console = Console()
+        return self._console
+
+    def __getattr__(self, name):
+        return getattr(self._get_console(), name)
+
+
+console = _LazyConsole()
 
 
 def is_interactive() -> bool:

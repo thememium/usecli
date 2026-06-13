@@ -2,15 +2,23 @@
 
 from __future__ import annotations
 
-import shutil
 import sys
 from importlib import import_module
-from typing import Any, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Optional, Sequence
 
 import click
 import typer
 from click.exceptions import BadParameter, ClickException, Exit, UsageError
 from typer.core import TyperGroup
+
+if TYPE_CHECKING:
+    from rich.console import Console
+
+    from usecli.menu import Menu
+    from usecli.params import Argument, Option
+    from usecli.ui import Confirm, Prompt
+
+    console: Console
 
 try:
     from typer._click.exceptions import BadParameter as TyperBadParameter  # type: ignore[import-untyped]
@@ -23,19 +31,35 @@ except ImportError:
 
 from usecli.cli.config.colors import COLOR
 from usecli.cli.core.base_command import BaseCommand
-from usecli.cli.core.exceptions import UsecliBadParameter, UsecliUsageError
-from usecli.cli.core.ui.list import list_commands
 from usecli.cli.services.command_service import CommandService
-from usecli.menu import Menu
-from usecli.params import Argument, Option
 from usecli.shared.config.manager import get_config
-from usecli.ui import Confirm, Console, Prompt, console
 
 colors = import_module("usecli.cli.config.colors")
 theme = COLOR
 
 sys.modules.setdefault(__name__ + ".colors", colors)
 sys.modules.setdefault("colors", colors)
+
+_LAZY_EXPORTS = {
+    "Menu": ("usecli.menu", "Menu"),
+    "Argument": ("usecli.params", "Argument"),
+    "Option": ("usecli.params", "Option"),
+    "Prompt": ("usecli.ui", "Prompt"),
+    "Confirm": ("usecli.ui", "Confirm"),
+    "Console": ("usecli.ui", "Console"),
+    "console": ("usecli.ui", "console"),
+}
+
+
+def __getattr__(name: str) -> Any:
+    export = _LAZY_EXPORTS.get(name)
+    if export is None:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    module_name, attr_name = export
+    value = getattr(import_module(module_name), attr_name)
+    globals()[name] = value
+    return value
+
 
 __all__ = [
     "BaseCommand",
@@ -50,6 +74,10 @@ __all__ = [
     "colors",
     "theme",
 ]
+
+
+def _console():
+    return __getattr__("console")
 
 
 def _is_interactive_flag_present() -> bool:
@@ -206,10 +234,14 @@ class PrefixMatchingGroup(TyperGroup):
         except Exit:
             sys.exit(0)
         except (BadParameter, TyperBadParameter) as e:
+            from usecli.cli.core.exceptions import UsecliBadParameter
+
             styled_error = UsecliBadParameter(e.message, ctx=e.ctx, param=e.param)
             styled_error.show()
             sys.exit(styled_error.exit_code)
         except (UsageError, TyperUsageError) as e:
+            from usecli.cli.core.exceptions import UsecliUsageError
+
             styled_error = UsecliUsageError(e.message, ctx=e.ctx)
             styled_error.show()
             sys.exit(styled_error.exit_code)
@@ -241,17 +273,33 @@ class FilteredListCommand(click.Command):
         Args:
             ctx: The Click context.
         """
+        from usecli.cli.core.ui.list import list_commands
+
         list_commands(app, prefix_filter=self.prefix_filter)
         return None
 
 
+def _get_default_help() -> str:
+    return "Usecli CLI - An elegant CLI framework for Python"
+
+
 app = typer.Typer(
-    help=_get_cli_help_text(),
+    help=_get_default_help(),
     invoke_without_command=True,
     no_args_is_help=False,
     cls=PrefixMatchingGroup,
     pretty_exceptions_enable=False,  # Use custom error styling
 )
+
+_help_resolved = False
+
+
+def _resolve_help():
+    global _help_resolved
+    if not _help_resolved:
+        app.info.help = _get_cli_help_text()
+        _help_resolved = True
+
 
 service = CommandService(app)
 service.load_commands()
@@ -278,14 +326,20 @@ def run_app(
         version: Flag to show version and exit.
         help: Flag to show help and exit.
     """
+    _resolve_help()
+
     if help:
+        from usecli.cli.core.ui.list import list_commands
+
         list_commands(app)
         raise typer.Exit()
 
     if version:
+        import shutil
+
         config = get_config()
         command_path = shutil.which(sys.argv[0]) or sys.argv[0]
-        console.print(
+        _console().print(
             f"[bold {theme.SECONDARY}]{config.get('title')} {service.version}[/bold {theme.SECONDARY}] [{theme.INFO}]({command_path})[/{theme.INFO}]"
         )
         raise typer.Exit()
@@ -305,18 +359,21 @@ def run_app(
         prefix_filter: str | None = None
         if ctx.obj and isinstance(ctx.obj, dict):
             prefix_filter = ctx.obj.get("prefix_filter")
+        from usecli.cli.core.ui.list import list_commands
+
         list_commands(app, prefix_filter=prefix_filter)
 
 
 def main() -> None:
     """Run the CLI application with custom error handling."""
+    _resolve_help()
     config = get_config()
     command_name = config._get_command_name()
     if command_name == "usecli" and not config.is_usecli_direct_dependency():
-        console.print(
+        _console().print(
             "[bold red]Error:[/bold red] usecli is not a direct dependency of this project."
         )
-        console.print(
+        _console().print(
             "Add it to your [cyan]pyproject.toml[/cyan] dependencies or dependency-groups."
         )
         sys.exit(1)
@@ -326,10 +383,14 @@ def main() -> None:
     except Exit:
         sys.exit(0)
     except (BadParameter, TyperBadParameter) as e:
+        from usecli.cli.core.exceptions import UsecliBadParameter
+
         styled_error = UsecliBadParameter(e.message, ctx=e.ctx, param=e.param)
         styled_error.show()
         sys.exit(styled_error.exit_code)
     except (UsageError, TyperUsageError) as e:
+        from usecli.cli.core.exceptions import UsecliUsageError
+
         styled_error = UsecliUsageError(e.message, ctx=e.ctx)
         styled_error.show()
         sys.exit(styled_error.exit_code)

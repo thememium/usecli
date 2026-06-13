@@ -4,14 +4,9 @@ from __future__ import annotations
 
 import random
 
-from rich.console import Console
-from rich.panel import Panel
-
 from usecli.cli.config.colors import COLOR
 from usecli.cli.core.base_command import BaseCommand
 from usecli.shared.config.manager import get_config
-
-console = Console()
 
 
 class InspireCommand(BaseCommand):
@@ -78,7 +73,10 @@ class InspireCommand(BaseCommand):
         selected = random.choice(quotes)
         quote, author = selected.rsplit(" - ", 1)
 
-        console.print(
+        from rich.console import Console
+        from rich.panel import Panel
+
+        Console().print(
             Panel(
                 f"{quote}\n\n[{COLOR.FOREGROUND_MUTED}]— {author}[/{COLOR.FOREGROUND_MUTED}]",
                 border_style=COLOR.PANEL_PRIMARY,
