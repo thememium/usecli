@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import TYPE_CHECKING, Any, ClassVar
 
 import typer
 from click.exceptions import Exit
@@ -11,10 +10,6 @@ from typer.core import TyperArgument, TyperCommand, TyperOption
 
 from usecli.cli.config.colors import COLOR
 from usecli.cli.core.ui.title import get_script_command_name
-
-if TYPE_CHECKING:
-    from click.core import Context as ClickContext
-    from click.formatting import HelpFormatter
 
 class _LazyConsole:
     _console: Any | None = None
