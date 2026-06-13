@@ -85,23 +85,9 @@ def _parse_dependency_requirement(req: str) -> tuple[str, str | None]:
 def _get_console_script_distribution(command_name: str | None):
     if not command_name:
         return None
-    import importlib.metadata
+    from usecli.shared.config.manager import _find_distribution_for_console_script
 
-    try:
-        distributions = importlib.metadata.distributions()
-    except Exception:
-        return None
-    for dist in distributions:
-        try:
-            entry_points = dist.entry_points
-        except Exception:
-            continue
-        for entry_point in entry_points:
-            if entry_point.group != "console_scripts":
-                continue
-            if entry_point.name == command_name:
-                return dist
-    return None
+    return _find_distribution_for_console_script(command_name)
 
 
 def _get_package_dependencies_from_distribution(dist) -> list[tuple[str, str | None]]:
