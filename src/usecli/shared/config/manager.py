@@ -337,6 +337,13 @@ class ConfigManager:
                 break
             current = parent
 
+        # Early exit: skip expensive lookups when searching from high-level dirs.
+        # Global tools running from HOME or / won't find project configs.
+        resolved_start = str(start_dir.resolve())
+        if resolved_start in HIGH_LEVEL_DIRS:
+            _config_search_cache[cache_key] = None
+            return None
+
         # Try fast lookups before expensive rglob (perf: global tools).
         console_match = cls._find_usecli_config_for_console_script()
         if console_match:
