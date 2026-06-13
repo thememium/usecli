@@ -7,7 +7,7 @@ mkdir -p "$TMP_ROOT"
 export USECLI_BENCH_ROOT="$TMP_ROOT"
 export USECLI_REPO_ROOT="$ROOT"
 export PYTHONPATH="$ROOT/src${PYTHONPATH:+:$PYTHONPATH}"
-python - <<'PY'
+uv run python - <<'PY'
 from __future__ import annotations
 
 import os
