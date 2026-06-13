@@ -26,16 +26,34 @@ from usecli.cli.core.base_command import BaseCommand
 from usecli.cli.core.exceptions import UsecliBadParameter, UsecliUsageError
 from usecli.cli.core.ui.list import list_commands
 from usecli.cli.services.command_service import CommandService
-from usecli.menu import Menu
-from usecli.params import Argument, Option
 from usecli.shared.config.manager import get_config
-from usecli.ui import Confirm, Console, Prompt, console
 
 colors = import_module("usecli.cli.config.colors")
 theme = COLOR
 
 sys.modules.setdefault(__name__ + ".colors", colors)
 sys.modules.setdefault("colors", colors)
+
+_LAZY_EXPORTS = {
+    "Menu": ("usecli.menu", "Menu"),
+    "Argument": ("usecli.params", "Argument"),
+    "Option": ("usecli.params", "Option"),
+    "Prompt": ("usecli.ui", "Prompt"),
+    "Confirm": ("usecli.ui", "Confirm"),
+    "Console": ("usecli.ui", "Console"),
+    "console": ("usecli.ui", "console"),
+}
+
+
+def __getattr__(name: str) -> Any:
+    export = _LAZY_EXPORTS.get(name)
+    if export is None:
+        raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+    module_name, attr_name = export
+    value = getattr(import_module(module_name), attr_name)
+    globals()[name] = value
+    return value
+
 
 __all__ = [
     "BaseCommand",
@@ -50,6 +68,10 @@ __all__ = [
     "colors",
     "theme",
 ]
+
+
+def _console():
+    return __getattr__("console")
 
 
 def _is_interactive_flag_present() -> bool:
@@ -285,7 +307,7 @@ def run_app(
     if version:
         config = get_config()
         command_path = shutil.which(sys.argv[0]) or sys.argv[0]
-        console.print(
+        _console().print(
             f"[bold {theme.SECONDARY}]{config.get('title')} {service.version}[/bold {theme.SECONDARY}] [{theme.INFO}]({command_path})[/{theme.INFO}]"
         )
         raise typer.Exit()
@@ -313,10 +335,10 @@ def main() -> None:
     config = get_config()
     command_name = config._get_command_name()
     if command_name == "usecli" and not config.is_usecli_direct_dependency():
-        console.print(
+        _console().print(
             "[bold red]Error:[/bold red] usecli is not a direct dependency of this project."
         )
-        console.print(
+        _console().print(
             "Add it to your [cyan]pyproject.toml[/cyan] dependencies or dependency-groups."
         )
         sys.exit(1)
