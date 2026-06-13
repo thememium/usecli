@@ -169,17 +169,25 @@ def _find_distribution_for_console_script(
 ) -> Any | None:
     """Find the distribution that owns a console_script by name.
 
-    Uses a targeted O(1) lookup when the package is importable, falling back
-    to a full O(N) scan of all distributions only when necessary.
+    Uses targeted O(1) lookups before falling back to a full O(N) scan.
     """
     if not command_name:
         return None
 
     metadata = _get_importlib_metadata()
 
-    # Fast path: targeted lookup when package is importable
+    # Fast path 1: command name directly (e.g. 'gitgepa' → 'git-gepa')
+    try:
+        dist = metadata.distribution(command_name)
+        for ep in dist.entry_points:
+            if ep.group == "console_scripts" and ep.name == command_name:
+                return dist
+    except Exception:
+        pass
+
+    # Fast path 2: current package name (e.g. 'usecli')
     package_name = _get_package_name()
-    if package_name:
+    if package_name and package_name != command_name:
         try:
             dist = metadata.distribution(package_name)
             for ep in dist.entry_points:
@@ -975,11 +983,24 @@ def reset_config() -> None:
     global _config_manager, _config_cwd
     _config_manager = None
     _config_cwd = None
+    _config_search_cache.clear()
+    _project_root_cache.clear()
+
+
+def _reset_project_root_cache() -> None:
+    _project_root_cache.clear()
+
+
+_project_root_cache: dict[str, Path | None] = {}
 
 
 def find_project_root(start_dir: Path | None = None) -> Path | None:
     if start_dir is None:
         start_dir = _get_path().cwd()
+
+    cache_key = str(start_dir.resolve())
+    if cache_key in _project_root_cache:
+        return _project_root_cache[cache_key]
 
     current = start_dir.resolve()
 
@@ -987,10 +1008,12 @@ def find_project_root(start_dir: Path | None = None) -> Path | None:
     while True:
         pyproject_path = current / PYPROJECT_TOML
         if pyproject_path.exists():
+            _project_root_cache[cache_key] = current
             return current
 
         usecli_path = current / USECLI_CONFIG_TOML
         if usecli_path.exists():
+            _project_root_cache[cache_key] = current
             return current
 
         git_dir = current / ".git"
@@ -1008,16 +1031,19 @@ def find_project_root(start_dir: Path | None = None) -> Path | None:
     # Skip expensive recursive search when search root is a high-level directory.
     # Global tools running from HOME or / will never find a project config this way.
     if str(search_root) in _get_high_level_dirs():
+        _project_root_cache[cache_key] = git_root
         return git_root
 
     # Try fast lookups before expensive rglob (perf: global tools).
     console_match = ConfigManager._find_usecli_config_for_console_script()
     if console_match:
+        _project_root_cache[cache_key] = console_match.parent
         return console_match.parent
 
     if ConfigManager._is_within_usecli_package(start_dir):
         package_match = ConfigManager._find_usecli_config_in_package()
         if package_match:
+            _project_root_cache[cache_key] = package_match.parent
             return package_match.parent
 
     config_match = ConfigManager._find_usecli_config_in_tree(
@@ -1026,8 +1052,10 @@ def find_project_root(start_dir: Path | None = None) -> Path | None:
         skip_venv=True,
     )
     if config_match:
+        _project_root_cache[cache_key] = config_match.parent
         return config_match.parent
 
+    _project_root_cache[cache_key] = git_root
     return git_root
 
 
