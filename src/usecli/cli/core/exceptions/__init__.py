@@ -24,6 +24,7 @@ def __getattr__(name: str):
     if module_name is None:
         raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
     from importlib import import_module
+
     value = getattr(import_module(module_name), name)
     globals()[name] = value
     return value

@@ -11,50 +11,27 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
+from jinja2 import Template
+from rich.console import Console
+from rich.panel import Panel
+from rich.prompt import Confirm, Prompt
 
 if sys.version_info >= (3, 11):
     import tomllib
 else:
     import tomli as tomllib
 
+import pyfiglet
+
+from usecli.cli.config.colors import COLOR
 from usecli.cli.core.base_command import BaseCommand
+from usecli.cli.core.exceptions import UsecliBadParameter
+from usecli.cli.core.validators import validate_command_name
+from usecli.cli.utils.interactive.terminal_menu import terminal_menu
 from usecli.shared.config.globals import TEMPLATES_DIR, THEMES_DIR, USECLI_CONFIG_TOML
 from usecli.shared.config.manager import ConfigManager
 
-
-def _lazy_console():
-    from rich.console import Console
-    return Console()
-
-
-_LAZY_IMPORTS = {
-    "Template": "jinja2",
-    "Console": "rich.console",
-    "Panel": "rich.panel",
-    "Confirm": "rich.prompt",
-    "Prompt": "rich.prompt",
-    "pyfiglet": "pyfiglet",
-    "COLOR": "usecli.cli.config.colors",
-    "UsecliBadParameter": "usecli.cli.core.exceptions",
-    "validate_command_name": "usecli.cli.core.validators",
-    "terminal_menu": "usecli.cli.utils.interactive.terminal_menu",
-}
-
-_console = None
-
-def __getattr__(name: str):
-    global _console
-    if name == "console":
-        if _console is None:
-            _console = _lazy_console()
-        return _console
-    module_name = _LAZY_IMPORTS.get(name)
-    if module_name is not None:
-        from importlib import import_module
-        value = getattr(import_module(module_name), name)
-        globals()[name] = value
-        return value
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+console = Console()
 
 
 class InitCommand(BaseCommand):

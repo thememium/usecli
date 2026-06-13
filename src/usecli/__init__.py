@@ -273,6 +273,7 @@ class FilteredListCommand(click.Command):
 def _get_default_help() -> str:
     return "Usecli CLI - An elegant CLI framework for Python"
 
+
 app = typer.Typer(
     help=_get_default_help(),
     invoke_without_command=True,
@@ -282,11 +283,14 @@ app = typer.Typer(
 )
 
 _help_resolved = False
+
+
 def _resolve_help():
     global _help_resolved
     if not _help_resolved:
         app.info.help = _get_cli_help_text()
         _help_resolved = True
+
 
 service = CommandService(app)
 service.load_commands()
