@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import importlib.util
-import inspect
 import sys
 from importlib.metadata import PackageNotFoundError
 from importlib.metadata import version as get_version
@@ -92,9 +91,18 @@ class CommandService:
             if not module:
                 continue
 
-            for name, obj in inspect.getmembers(module):
+            if isinstance(module, ModuleType):
+                members = module.__dict__.values()
+                is_command_class = lambda obj: isinstance(obj, type)
+            else:
+                import inspect
+
+                members = (obj for _, obj in inspect.getmembers(module))
+                is_command_class = inspect.isclass
+
+            for obj in members:
                 if (
-                    inspect.isclass(obj)
+                    is_command_class(obj)
                     and issubclass(obj, BaseCommand)
                     and obj is not BaseCommand
                 ):
