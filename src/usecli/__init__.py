@@ -48,6 +48,12 @@ def __getattr__(name: str) -> Any:
         _ensure_cli_initialized()
         return globals()[name]
 
+    # Handle run_app callback
+    if name == "run_app":
+        _ensure_cli_initialized()
+        _get_run_app_callback()
+        return globals()[name]
+
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
@@ -337,6 +343,9 @@ def _resolve_help():
 
 def _get_run_app_callback():
     """Get the run_app callback function."""
+    if "run_app" in globals():
+        return globals()["run_app"]
+
     import typer
 
     @app.callback()
@@ -386,6 +395,7 @@ def _get_run_app_callback():
             from usecli.cli.core.ui.list import list_commands
             list_commands(_get_app(), prefix_filter=prefix_filter)
 
+    globals()["run_app"] = run_app
     return run_app
 
 
