@@ -773,27 +773,25 @@ class ConfigManager:
 
 
 _config_manager: ConfigManager | None = None
+_config_cwd: Path | None = None
 
 
 def get_config() -> ConfigManager:
     """Get the global ConfigManager instance."""
-    global _config_manager
-    current_root = find_project_root(Path.cwd())
-    if current_root is None:
-        current_root = Path.cwd().resolve()
-    if _config_manager is None:
-        _config_manager = ConfigManager(start_dir=Path.cwd())
-    else:
-        cached_root = _config_manager.project_root.resolve()
-        if cached_root != current_root.resolve():
-            _config_manager = ConfigManager(start_dir=Path.cwd())
+    global _config_manager, _config_cwd
+    cwd = Path.cwd().resolve()
+    if _config_manager is not None and _config_cwd == cwd:
+        return _config_manager
+    _config_manager = ConfigManager(start_dir=Path.cwd())
+    _config_cwd = cwd
     return _config_manager
 
 
 def reset_config() -> None:
     """Reset the global ConfigManager instance."""
-    global _config_manager
+    global _config_manager, _config_cwd
     _config_manager = None
+    _config_cwd = None
 
 
 def find_project_root(start_dir: Path | None = None) -> Path | None:
