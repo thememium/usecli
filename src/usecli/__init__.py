@@ -212,6 +212,10 @@ def _ensure_cli_initialized() -> None:
     _service.load_commands()
     globals()["service"] = _service
 
+    # Register the callback eagerly so --version/--help work
+    # even when the app is accessed directly (e.g. smoke tests).
+    _get_run_app_callback()
+
 
 def _get_app():
     _ensure_cli_initialized()
