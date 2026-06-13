@@ -15,6 +15,8 @@ if TYPE_CHECKING:
     import typer
     from rich.console import Console
 
+    from usecli.cli.config.colors import COLOR
+    from usecli.cli.config.colors import COLOR as theme
     from usecli.cli.core.base_command import BaseCommand
     from usecli.menu import Menu
     from usecli.params import Argument, Option
@@ -48,7 +50,7 @@ def __getattr__(name: str) -> Any:
         return value
 
     # Handle CLI framework components - lazy initialization
-    if name in ("app", "service", "BaseCommand", "colors", "theme"):
+    if name in ("app", "service", "BaseCommand", "colors", "COLOR", "theme"):
         _ensure_cli_initialized()
         return globals()[name]
 
@@ -191,6 +193,7 @@ def _ensure_cli_initialized() -> None:
     # Setup module aliasing
     colors = import_module("usecli.cli.config.colors")
     globals()["colors"] = colors
+    globals()["COLOR"] = COLOR
     globals()["theme"] = COLOR
     sys.modules.setdefault(__name__ + ".colors", colors)
     sys.modules.setdefault("colors", colors)
@@ -229,6 +232,7 @@ def _get_service():
 
 __all__ = [
     "BaseCommand",
+    "COLOR",
     "console",
     "Console",
     "main",
