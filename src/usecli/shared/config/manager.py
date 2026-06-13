@@ -9,10 +9,7 @@ import importlib.util
 import os
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from typing import Any
+from typing import Any
 
 from usecli.shared.config.globals import PYPROJECT_TOML, USECLI_CONFIG_TOML
 
