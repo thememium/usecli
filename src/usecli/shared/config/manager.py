@@ -856,9 +856,13 @@ class ConfigManager:
     def get_project_paths(self) -> dict[str, Path]:
         project_config = self._find_project_config()
         if project_config is None:
+            themes_dirs = self.get_project_themes_dirs()
             return {
                 "commands_dir": self.get_project_commands_dir(),
                 "templates_dir": self.get_project_templates_dir(),
+                "themes_dir": themes_dirs[0]
+                if themes_dirs
+                else self.get_project_root() / "cli" / "themes",
             }
         config_dir = project_config.parent
         config_data = self._load_usecli_toml(project_config)
@@ -870,9 +874,24 @@ class ConfigManager:
             commands_path = config_dir / commands_path
         if not templates_path.is_absolute():
             templates_path = config_dir / templates_path
+
+        themes_entries = _normalize_themes_dir(config_data.get("themes_dir", []))
+        if not themes_entries:
+            themes_entries = _normalize_themes_dir(
+                self.DEFAULT_CONFIG.get("themes_dir", [])
+            )
+        themes_path = (
+            _get_path()(themes_entries[0])
+            if themes_entries
+            else _get_path()("cli/themes")
+        )
+        if not themes_path.is_absolute():
+            themes_path = config_dir / themes_path
+
         return {
             "commands_dir": commands_path.resolve(),
             "templates_dir": templates_path.resolve(),
+            "themes_dir": themes_path.resolve(),
         }
 
     def _find_project_config(self) -> Path | None:
