@@ -20,6 +20,7 @@ if TYPE_CHECKING:
 def get_config():
     """Lazy wrapper around manager.get_config for test mocking compatibility."""
     from usecli.shared.config.manager import get_config as _get_config
+
     return _get_config()
 
 
@@ -142,7 +143,6 @@ class CommandService:
         Returns:
             The imported module, or None if import failed.
         """
-        import importlib.util
 
         module_name = path.stem
         spec = importlib.util.spec_from_file_location(module_name, path)

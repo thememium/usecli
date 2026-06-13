@@ -26,7 +26,6 @@ class _LazyConsole:
 console = _LazyConsole()
 
 
-
 def _load_toml(text: str):
     if sys.version_info >= (3, 11):
         import tomllib

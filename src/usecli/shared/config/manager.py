@@ -18,8 +18,10 @@ if sys.version_info >= (3, 11):
 else:
     import tomli as tomllib
 
+
 def _get_importlib_metadata():
     import importlib.metadata
+
     return importlib.metadata
 
 

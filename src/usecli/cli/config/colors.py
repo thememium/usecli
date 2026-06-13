@@ -17,6 +17,7 @@ import time
 from pathlib import Path
 from typing import Any, Callable, Final, Protocol, cast, final
 
+
 def _import_tomllib():
     if sys.version_info >= (3, 11):
         import tomllib
@@ -115,6 +116,7 @@ def _get_console_script_aliases(command_name: str | None) -> set[str]:
     aliases: set[str] = {command_name}
     try:
         import importlib.metadata
+
         distributions = importlib.metadata.distributions()
     except Exception:
         return aliases
@@ -207,6 +209,7 @@ def _find_usecli_config_path_for_command(
 
 def _find_usecli_config_in_package() -> Path | None:
     import importlib.util
+
     spec = importlib.util.find_spec(_get_package_name())
     if spec is None or not spec.submodule_search_locations:
         return None
@@ -225,6 +228,7 @@ def _find_usecli_config_in_package() -> Path | None:
 
 def _find_usecli_config_in_named_package(package_name: str) -> Path | None:
     import importlib.util
+
     if not package_name:
         return None
     spec = importlib.util.find_spec(package_name)
@@ -245,6 +249,7 @@ def _find_usecli_config_in_named_package(package_name: str) -> Path | None:
 
 def _find_usecli_config_for_console_script() -> Path | None:
     import importlib.metadata
+
     command_name = os.path.basename(sys.argv[0]) if sys.argv else ""
     if not command_name:
         return None
@@ -287,6 +292,7 @@ def _is_preferred_package_path(path: Path) -> bool:
 
 def _is_within_usecli_package(start_dir: Path) -> bool:
     import importlib.util
+
     spec = importlib.util.find_spec(_get_package_name())
     if spec is None or not spec.submodule_search_locations:
         return False
@@ -749,10 +755,26 @@ def _ensure_theme_loaded(color_class: type[Any]) -> None:
 # This avoids ~50ms of filesystem walking during startup when colors aren't needed yet.
 _THEME_LOADED: bool = False
 _THEME_COLORS: dict[str, str] = DEFAULT_THEME_COLORS.copy()
-_THEME_ANSI: dict[str, str] = {"reset": "\033[0m", "primary": "", "secondary": "", "accent": "", "foreground": "", "foreground_muted": "", "red": "", "green": "", "yellow": "", "blue": ""}
+_THEME_ANSI: dict[str, str] = {
+    "reset": "\033[0m",
+    "primary": "",
+    "secondary": "",
+    "accent": "",
+    "foreground": "",
+    "foreground_muted": "",
+    "red": "",
+    "green": "",
+    "yellow": "",
+    "blue": "",
+}
 _THEME_NAME: str = DEFAULT_THEME_NAME
 _THEME_PATH: Path | None = None
-_THEME_CONTEXT: tuple[Path | None, Path | None, str, Path | None] = (None, None, DEFAULT_THEME_NAME, None)
+_THEME_CONTEXT: tuple[Path | None, Path | None, str, Path | None] = (
+    None,
+    None,
+    DEFAULT_THEME_NAME,
+    None,
+)
 
 
 class _ColorMeta(type):

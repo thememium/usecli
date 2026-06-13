@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import shutil
 import sys
 from importlib import import_module
 from typing import Any, Optional, Sequence
@@ -311,6 +310,8 @@ def run_app(
         raise typer.Exit()
 
     if version:
+        import shutil
+
         config = get_config()
         command_path = shutil.which(sys.argv[0]) or sys.argv[0]
         _console().print(
