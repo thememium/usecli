@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.63
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.62...v0.1.63)
+
+### 💅 Refactors
+
+- **usecli:** Register run‑app callback eagerly for CLI directly ([349ddef](https://github.com/thememium/usecli/commit/349ddef))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.62
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.61...v0.1.62)
