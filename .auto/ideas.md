@@ -1,4 +1,0 @@
-- Cache `get_config()` for unchanged cwd: DONE (fixed invalidation bug by caching on cwd instead of project_root mismatch).
-- Lazy `usecli.cli.core.__init__` exports: DONE (lazy exceptions/__init__.py, lazy title.py, lazy usage.py).
-- Remaining heavy: typer (~8ms) + click (~6ms) framework imports. Can't easily avoid.
-- typing (~4ms) imported by various modules; could try removing `from typing import TYPE_CHECKING` where unused.
