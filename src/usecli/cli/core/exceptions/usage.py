@@ -7,15 +7,14 @@ from typing import IO
 
 from click.core import Context as ClickContext
 from click.exceptions import BadParameter, UsageError
-from rich.console import Console
 
-from usecli.cli.config.colors import COLOR
-from usecli.cli.core.ui.title import get_script_command_name
-
-console = Console(stderr=True)
+def _lazy_console():
+    from rich.console import Console
+    return Console(stderr=True)
 
 
 def _get_help_text_with_command_name(ctx: ClickContext) -> str:
+    from usecli.cli.core.ui.title import get_script_command_name
     command_name = get_script_command_name(default=getattr(ctx, "info_name", None))
     if not command_name:
         return ctx.get_help()
@@ -41,6 +40,9 @@ class UsecliUsageError(UsageError):
         Args:
             file: Optional file to write to (defaults to stderr).
         """
+        from usecli.cli.config.colors import COLOR
+        console = _lazy_console()
+
         if file is None:
             file = sys.stderr
 
@@ -67,6 +69,9 @@ class UsecliBadParameter(BadParameter):
         Args:
             file: Optional file to write to (defaults to stderr).
         """
+        from usecli.cli.config.colors import COLOR
+        console = _lazy_console()
+
         if file is None:
             file = sys.stderr
 

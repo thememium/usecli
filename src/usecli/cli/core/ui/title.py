@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import sys
-from importlib.metadata import PackageNotFoundError, metadata
 from pathlib import Path
 
 if sys.version_info >= (3, 11):
@@ -11,12 +10,10 @@ if sys.version_info >= (3, 11):
 else:
     import tomli as tomllib
 
-from rich.console import Console
 
-from usecli.cli.config.colors import COLOR
-from usecli.shared.config.manager import get_config
-
-console = Console()
+def _lazy_console():
+    from rich.console import Console
+    return Console()
 
 
 def _get_script_command_name(start_dir: Path | None = None) -> str | None:
@@ -48,6 +45,7 @@ def _get_script_command_name(start_dir: Path | None = None) -> str | None:
 
 
 def get_script_command_name(default: str | None = None) -> str | None:
+    from usecli.shared.config.manager import get_config
     config = get_config()
     config_command_name = config.get("command_name")
     if config.has_key("command_name") and config_command_name:
@@ -65,6 +63,8 @@ def get_script_command_name(default: str | None = None) -> str | None:
 
 def get_project_name() -> str:
     """Get the project name from config or package metadata."""
+    from usecli.shared.config.manager import get_config
+
     # First, try to get the title from the config
     config = get_config()
     title = config.get("title")
@@ -79,6 +79,8 @@ def get_project_name() -> str:
 
     # Last resort: package metadata
     try:
+        from importlib.metadata import PackageNotFoundError, metadata
+
         meta = metadata("usecli")
         name = meta["Name"] if "Name" in meta else "usecli"
 
@@ -86,7 +88,7 @@ def get_project_name() -> str:
             return "useCli"
 
         return name
-    except PackageNotFoundError:
+    except (PackageNotFoundError, Exception):
         return "useCli"
 
 
@@ -96,6 +98,10 @@ def print_title(title: str | None = None) -> None:
     Args:
         title: Optional custom title text. If not provided, uses ASCII art.
     """
+    from usecli.cli.config.colors import COLOR
+    from usecli.shared.config.manager import get_config
+
+    console = _lazy_console()
 
     default_title_text = """
                            ▄▄█▀▀▀▄█ ▀██   ██  

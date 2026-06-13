@@ -270,13 +270,23 @@ class FilteredListCommand(click.Command):
         return None
 
 
+def _get_default_help() -> str:
+    return "Usecli CLI - An elegant CLI framework for Python"
+
 app = typer.Typer(
-    help=_get_cli_help_text(),
+    help=_get_default_help(),
     invoke_without_command=True,
     no_args_is_help=False,
     cls=PrefixMatchingGroup,
     pretty_exceptions_enable=False,  # Use custom error styling
 )
+
+_help_resolved = False
+def _resolve_help():
+    global _help_resolved
+    if not _help_resolved:
+        app.info.help = _get_cli_help_text()
+        _help_resolved = True
 
 service = CommandService(app)
 service.load_commands()
@@ -303,6 +313,8 @@ def run_app(
         version: Flag to show version and exit.
         help: Flag to show help and exit.
     """
+    _resolve_help()
+
     if help:
         from usecli.cli.core.ui.list import list_commands
 
@@ -341,6 +353,7 @@ def run_app(
 
 def main() -> None:
     """Run the CLI application with custom error handling."""
+    _resolve_help()
     config = get_config()
     command_name = config._get_command_name()
     if command_name == "usecli" and not config.is_usecli_direct_dependency():
