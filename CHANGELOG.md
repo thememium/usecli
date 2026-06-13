@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.67
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.66...v0.1.67)
+
+### 🩹 Fixes
+
+- **cli:** Integrate Typer exception classes for error handling ([e8c343e](https://github.com/thememium/usecli/commit/e8c343e))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.66
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.65...v0.1.66)
