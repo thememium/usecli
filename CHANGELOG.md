@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.68
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.67...v0.1.68)
+
+### 🩹 Fixes
+
+- **config-manager:** Improve detection of usecli project in global tools ([8c4a204](https://github.com/thememium/usecli/commit/8c4a204))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.67
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.66...v0.1.67)
