@@ -417,13 +417,6 @@ class ConfigManager:
                 break
             current = parent
 
-        # Early exit: skip expensive lookups when searching from high-level dirs.
-        # Global tools running from HOME or / won't find project configs.
-        resolved_start = str(start_dir.resolve())
-        if resolved_start in _get_high_level_dirs():
-            _config_search_cache[cache_key] = None
-            return None
-
         # Try fast lookups before expensive rglob (perf: global tools).
         console_match = cls._find_usecli_config_for_console_script()
         if console_match:
@@ -920,33 +913,59 @@ class ConfigManager:
         - The current project IS usecli (name matches)
         - usecli appears in pyproject.toml [project.dependencies]
         - usecli appears in pyproject.toml [dependency-groups]
+        - The running console script's distribution lists usecli as a dependency
+          (fallback for globally installed tools where pyproject.toml is not
+          discoverable from CWD)
         """
-        if not self.pyproject_path.exists():
-            return False
+        if self.pyproject_path.exists():
+            try:
+                with open(self.pyproject_path, "rb") as f:
+                    data = _get_tomllib().load(f)
+            except (_get_tomllib().TOMLDecodeError, OSError):
+                data = None
 
-        try:
-            with open(self.pyproject_path, "rb") as f:
-                data = _get_tomllib().load(f)
-        except (_get_tomllib().TOMLDecodeError, OSError):
-            return False
-
-        project_name = data.get("project", {}).get("name", "")
-        if isinstance(project_name, str) and project_name.strip().lower() == "usecli":
-            return True
-
-        for dep in data.get("project", {}).get("dependencies", []):
-            if isinstance(dep, str) and dep.strip().lower().startswith("usecli"):
-                return True
-
-        for group_deps in data.get("dependency-groups", {}).values():
-            if not isinstance(group_deps, list):
-                continue
-            for dep in group_deps:
-                dep_str = dep if isinstance(dep, str) else dep.get("dependency", "")
-                if isinstance(dep_str, str) and dep_str.strip().lower().startswith(
-                    "usecli"
+            if data is not None:
+                project_name = data.get("project", {}).get("name", "")
+                if (
+                    isinstance(project_name, str)
+                    and project_name.strip().lower() == "usecli"
                 ):
                     return True
+
+                for dep in data.get("project", {}).get("dependencies", []):
+                    if isinstance(dep, str) and dep.strip().lower().startswith(
+                        "usecli"
+                    ):
+                        return True
+
+                for group_deps in data.get("dependency-groups", {}).values():
+                    if not isinstance(group_deps, list):
+                        continue
+                    for dep in group_deps:
+                        dep_str = (
+                            dep if isinstance(dep, str) else dep.get("dependency", "")
+                        )
+                        if isinstance(
+                            dep_str, str
+                        ) and dep_str.strip().lower().startswith("usecli"):
+                            return True
+
+        # Fallback: check the installed distribution's metadata.
+        # This handles globally installed tools (uv tool install, pipx) where
+        # the project's pyproject.toml is not discoverable from CWD.
+        command_name = os.path.basename(sys.argv[0]) if sys.argv else None
+        if command_name:
+            dist = _find_distribution_for_console_script(command_name)
+            if dist is not None:
+                dist_name = dist.metadata.get("Name", "")
+                if dist_name.lower() == "usecli":
+                    return True
+                requires = dist.requires or []
+                for req in requires:
+                    if isinstance(req, str) and req.strip().lower().startswith(
+                        "usecli"
+                    ):
+                        return True
 
         return False
 
@@ -1047,12 +1066,6 @@ def find_project_root(start_dir: Path | None = None) -> Path | None:
 
     search_root = git_root or start_dir.resolve()
 
-    # Skip expensive recursive search when search root is a high-level directory.
-    # Global tools running from HOME or / will never find a project config this way.
-    if str(search_root) in _get_high_level_dirs():
-        _project_root_cache[cache_key] = git_root
-        return git_root
-
     # Try fast lookups before expensive rglob (perf: global tools).
     console_match = ConfigManager._find_usecli_config_for_console_script()
     if console_match:
@@ -1064,6 +1077,12 @@ def find_project_root(start_dir: Path | None = None) -> Path | None:
         if package_match:
             _project_root_cache[cache_key] = package_match.parent
             return package_match.parent
+
+    # Skip expensive recursive search when search root is a high-level directory.
+    # Global tools running from HOME or / will never find a project config this way.
+    if str(search_root) in _get_high_level_dirs():
+        _project_root_cache[cache_key] = git_root
+        return git_root
 
     config_match = ConfigManager._find_usecli_config_in_tree(
         search_root,
