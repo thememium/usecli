@@ -1,6 +1,22 @@
 # Changelog
 
 
+## v0.1.69
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.68...v0.1.69)
+
+### 🚀 Enhancements
+
+- **command_service:** Add application‑specific version detection ([cc78eb1](https://github.com/thememium/usecli/commit/cc78eb1))
+
+### ✅ Tests
+
+- **CommandService:** Mock _get_application_version in tests ([95c021e](https://github.com/thememium/usecli/commit/95c021e))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.68
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.67...v0.1.68)
