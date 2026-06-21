@@ -81,12 +81,40 @@ class CommandService:
         if config_version:
             self.version = config_version
             return
+        app_version = self._get_application_version()
+        if app_version:
+            self.version = app_version
+            return
         try:
             self.version = get_version("usecli")
         except Exception as error:
             if not _is_package_not_found(error):
                 raise
             self.version = "0.0.0"
+
+    def _get_application_version(self) -> str | None:
+        """Get the version from the application's own distribution.
+
+        Finds the distribution that registered the current console script
+        (e.g., 'usepr') and returns its version, so user-built CLIs
+        show their own version instead of usecli's.
+        """
+        import os
+
+        from usecli.cli.core.ui.title import get_script_command_name
+        from usecli.shared.config.manager import _find_distribution_for_console_script
+
+        command_name = os.path.basename(sys.argv[0]) if sys.argv else None
+        if command_name:
+            dist = _find_distribution_for_console_script(command_name)
+            if dist is not None:
+                return dist.version
+        primary_command = get_script_command_name(default=None)
+        if primary_command:
+            dist = _find_distribution_for_console_script(primary_command)
+            if dist is not None:
+                return dist.version
+        return None
 
     def _load_from_dir(self, directory: Path) -> None:
         """Load command classes from a directory.
