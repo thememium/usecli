@@ -331,6 +331,32 @@ class _FilteredListCommand:
     def __init__(self, prefix_filter: str) -> None:
         self.prefix_filter = prefix_filter
         self.name = "filtered-list"
+        self.allow_extra_args = True
+        self.allow_interspersed_args = True
+        self.ignore_unknown_options = True
+        self.hidden = False
+        self.deprecated = False
+        self.params = []
+        self.callback = None
+        self.help = None
+        self.epilog = None
+        self.short_help = None
+        self.no_args_is_help = False
+        self.context_settings = {}
+
+    def get_short_help_str(self, limit=45):
+        return ""
+
+    def make_context(self, info_name: str, args: list[str], **kwargs: object):
+        from click import Context
+
+        ctx = Context(self, info_name=info_name, **kwargs)  # type: ignore[arg-type]
+        return ctx
+
+    def invoke(self, ctx):
+        from usecli.cli.core.ui.list import list_commands
+
+        list_commands(_get_app(), prefix_filter=self.prefix_filter)
 
     def __call__(self, *args, **kwargs):
         from usecli.cli.core.ui.list import list_commands
