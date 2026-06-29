@@ -57,7 +57,8 @@ def list_commands(app: typer.Typer, prefix_filter: str | None = None) -> None:
         prefix_filter: Optional prefix to filter commands by name.
     """
     project_name = get_project_name()
-    print_title(title=project_name)
+    if not prefix_filter:
+        print_title(title=project_name)
 
     click_group = typer.main.get_command(app)
 
@@ -122,7 +123,6 @@ def list_commands(app: typer.Typer, prefix_filter: str | None = None) -> None:
             option_flags.append(flags)
 
     help_flags = "--help, -h"
-    all_option_flags = [help_flags] + option_flags
     group_entries: list[CommandEntry] = []
     for group_name, group_help in groups.items():
         aliases = group_alias_registry.get(group_name, list[str]())
@@ -158,31 +158,59 @@ def list_commands(app: typer.Typer, prefix_filter: str | None = None) -> None:
     all_display_names = [cmd["display_name"] for cmd in commands] + [
         entry["display_name"] for entry in group_entries
     ]
-    all_labels = all_display_names + all_option_flags
+    all_labels = all_display_names + [help_flags]
     longest_label_length = max((len(label) for label in all_labels), default=0)
 
-    console.print(f"[bold {COLOR.SECONDARY}]Usage:[/bold {COLOR.SECONDARY}]")
-    console.print(f"  [{COLOR.PRIMARY}]{command_name} [OPTIONS] [ARGUMENTS]")
-    console.print()
+    if prefix_filter:
+        command_name = get_script_command_name(default="usecli")
+        interactive_flags = "--interactive, -i"
+        filtered_labels = (
+            [cmd["display_name"] for cmd in commands]
+            + [entry["display_name"] for entry in group_entries]
+            + [help_flags, interactive_flags]
+        )
+        longest_label_length = max((len(label) for label in filtered_labels), default=0)
+        console.print()
+        console.print(f"[bold {COLOR.SECONDARY}]Usage:[/bold {COLOR.SECONDARY}]")
+        console.print(
+            f"  [{COLOR.PRIMARY}]{command_name} {prefix_filter} [COMMAND] [OPTIONS][/]"
+        )
+        console.print()
+        console.print(f"[bold {COLOR.SECONDARY}]Options:")
+        help_padding = " " * (longest_label_length - len(help_flags) + SPACER_LENGTH)
+        console.print(
+            f"  [{COLOR.OPTION}]{help_flags}[/{COLOR.OPTION}]{help_padding}Show this message and exit."
+        )
+        interactive_padding = " " * (
+            longest_label_length - len(interactive_flags) + SPACER_LENGTH
+        )
+        console.print(
+            f"  [{COLOR.OPTION}]{interactive_flags}[/{COLOR.OPTION}]{interactive_padding}Run in interactive mode."
+        )
+        console.print()
+    else:
+        console.print(f"[bold {COLOR.SECONDARY}]Usage:[/bold {COLOR.SECONDARY}]")
+        console.print(f"  [{COLOR.PRIMARY}]{command_name} [OPTIONS] [ARGUMENTS]")
+        console.print()
 
-    console.print(f"[bold {COLOR.SECONDARY}]Options:")
+        console.print(f"[bold {COLOR.SECONDARY}]Options:")
 
-    help_padding = " " * (longest_label_length - len(help_flags) + SPACER_LENGTH)
-    console.print(
-        f"  [{COLOR.OPTION}]{help_flags}[/{COLOR.OPTION}]{help_padding}Show this message and exit."
-    )
+        help_padding = " " * (longest_label_length - len(help_flags) + SPACER_LENGTH)
+        console.print(
+            f"  [{COLOR.OPTION}]{help_flags}[/{COLOR.OPTION}]{help_padding}Show this message and exit."
+        )
 
-    if display_params:
-        for param in display_params:
-            flags = ", ".join(param.opts)
-            if "--help" in flags:
-                continue
-            description = _get_option_description(param)
-            padding = " " * (longest_label_length - len(flags) + SPACER_LENGTH)
-            console.print(
-                f"  [{COLOR.OPTION}]{flags}[/{COLOR.OPTION}]{padding}{description}"
-            )
-    console.print()
+        if display_params:
+            for param in display_params:
+                flags = ", ".join(param.opts)
+                if "--help" in flags:
+                    continue
+                description = _get_option_description(param)
+                padding = " " * (longest_label_length - len(flags) + SPACER_LENGTH)
+                console.print(
+                    f"  [{COLOR.OPTION}]{flags}[/{COLOR.OPTION}]{padding}{description}"
+                )
+        console.print()
 
     if not prefix_filter:
         console.print(f"[bold {COLOR.SECONDARY}]Available commands:")
