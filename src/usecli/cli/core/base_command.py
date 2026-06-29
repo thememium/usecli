@@ -69,6 +69,7 @@ class NestedCommandRegistry:
                 help=f"Commands for {group_name}",
                 invoke_without_command=True,
                 no_args_is_help=False,
+                add_completion=False,
             )
             self._groups[group_name] = group_app
             self._group_commands[group_name] = []
