@@ -177,6 +177,13 @@ class CommandService:
         if spec and spec.loader:
             module = importlib.util.module_from_spec(spec)
             sys.modules[module_name] = module
+
+            from usecli.shared.config.manager import find_project_root
+
+            project_root = find_project_root(path.parent)
+            if project_root and str(project_root) not in sys.path:
+                sys.path.insert(0, str(project_root))
+
             spec.loader.exec_module(module)
             return module
         return None
