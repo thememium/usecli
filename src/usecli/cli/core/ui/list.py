@@ -179,9 +179,9 @@ def list_commands(app: typer.Typer, prefix_filter: str | None = None) -> None:
             for cmd in commands
         )
         if has_colon_commands:
-            # Colon-separated: use make:COMMAND [OPTIONS]
+            # Colon-separated: use make:[COMMAND] [OPTIONS]
             console.print(
-                f"  [not bold {COLOR.PRIMARY}]{command_name} {prefix_filter}:COMMAND {escape('[OPTIONS]')}[/]"
+                f"  [not bold {COLOR.PRIMARY}]{command_name} {prefix_filter}:{escape('[COMMAND]')} {escape('[OPTIONS]')}[/]"
             )
         else:
             # Space-separated nested groups: use make [COMMAND] [OPTIONS]
@@ -204,7 +204,7 @@ def list_commands(app: typer.Typer, prefix_filter: str | None = None) -> None:
     else:
         console.print(f"[bold {COLOR.SECONDARY}]Usage:[/bold {COLOR.SECONDARY}]")
         console.print(
-            f"  [not bold {COLOR.PRIMARY}]{command_name} {escape('[OPTIONS]')} {escape('[ARGUMENTS]')}[/]"
+            f"  [not bold {COLOR.PRIMARY}]{command_name} {escape('[COMMAND]')} {escape('[OPTIONS]')} {escape('[ARGUMENTS]')}[/]"
         )
         console.print()
 
