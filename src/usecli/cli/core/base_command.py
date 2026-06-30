@@ -42,6 +42,7 @@ class NestedCommandRegistry:
     _instance: ClassVar[NestedCommandRegistry | None] = None
     _groups: dict[str, typer.Typer]
     _group_commands: dict[str, list[dict[str, Any]]]
+    _main_app: typer.Typer | None
 
     def __new__(cls) -> NestedCommandRegistry:
         """Ensure singleton pattern for the registry."""
@@ -49,6 +50,7 @@ class NestedCommandRegistry:
             cls._instance = super().__new__(cls)
             cls._instance._groups = {}
             cls._instance._group_commands = {}
+            cls._instance._main_app = None
         return cls._instance
 
     def get_or_create_group(
@@ -73,6 +75,7 @@ class NestedCommandRegistry:
             )
             self._groups[group_name] = group_app
             self._group_commands[group_name] = []
+            self._main_app = main_app
 
             # Add the group app to main app
             main_app.add_typer(group_app, name=group_name)
@@ -142,7 +145,7 @@ class NestedCommandRegistry:
 
         group_app = self._groups.get(group_name)
         if group_app:
-            list_group_commands(group_app, group_name)
+            list_group_commands(group_app, group_name, self._main_app)
 
     def register_command(
         self,
