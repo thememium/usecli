@@ -1,6 +1,28 @@
 # Changelog
 
 
+## v0.1.71
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.70...v0.1.71)
+
+### 🚀 Enhancements
+
+- **cli:** Preserve original command names with ':' and ' ' when generating files ([11daa80](https://github.com/thememium/usecli/commit/11daa80))
+
+### 💅 Refactors
+
+- **NestedCommandRegistry:** Store main app and pass it to list_group_commands ([7d4a119](https://github.com/thememium/usecli/commit/7d4a119))
+- **cli:** Escape placeholders in command listings ([1eaccad](https://github.com/thememium/usecli/commit/1eaccad))
+- **cli:** Improve help formatting for colon‑separated commands ([ba2a82c](https://github.com/thememium/usecli/commit/ba2a82c))
+
+### ✅ Tests
+
+- **list:** Change assertion to match CLI help output format changes ([d3f9792](https://github.com/thememium/usecli/commit/d3f9792))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.70
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.69...v0.1.70)
