@@ -1,6 +1,25 @@
 # Changelog
 
 
+## v0.1.70
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.69...v0.1.70)
+
+### 🚀 Enhancements
+
+- **cli:list:** Add interactive flag for prefixed commands ([a679ee4](https://github.com/thememium/usecli/commit/a679ee4))
+- Disable autocompletion for nested command groups by default ([37c5144](https://github.com/thememium/usecli/commit/37c5144))
+- **usecli:** Add click‑compatible options to _FilteredListCommand ([ffa5495](https://github.com/thememium/usecli/commit/ffa5495))
+- **cli:** Add support for colon‑separated commands and unbold usage output ([f5cffa3](https://github.com/thememium/usecli/commit/f5cffa3))
+
+### 💅 Refactors
+
+- **command_service:** Add project root to sys.path before module load ([7f0bf45](https://github.com/thememium/usecli/commit/7f0bf45))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.69
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.68...v0.1.69)
