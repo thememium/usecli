@@ -43,9 +43,18 @@ class MakeCommand(BaseCommand):
             name: The name of the command to create.
         """
         clean_name = name.replace("Command", "").replace("command", "")
-        class_name = pascalcase(clean_name.replace(":", "_")) + "Command"
-        command_name = snakecase(clean_name.replace(":", "_"))
-        file_name = f"{snakecase(clean_name.replace(':', '_'))}_command.py"
+        class_name = (
+            pascalcase(clean_name.replace(":", "_").replace(" ", "_")) + "Command"
+        )
+        if ":" in clean_name:
+            command_name = clean_name
+        elif " " in clean_name:
+            command_name = clean_name
+        else:
+            command_name = snakecase(clean_name)
+        file_name = (
+            f"{snakecase(clean_name.replace(':', '_').replace(' ', '_'))}_command.py"
+        )
 
         config = get_config()
         current_root = find_project_root(Path.cwd()) or Path.cwd().resolve()
