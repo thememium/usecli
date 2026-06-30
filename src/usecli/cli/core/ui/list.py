@@ -172,9 +172,21 @@ def list_commands(app: typer.Typer, prefix_filter: str | None = None) -> None:
         longest_label_length = max((len(label) for label in filtered_labels), default=0)
         console.print()
         console.print(f"[bold {COLOR.SECONDARY}]Usage:[/bold {COLOR.SECONDARY}]")
-        console.print(
-            f"  [{COLOR.PRIMARY}]{command_name} {prefix_filter} [COMMAND] [OPTIONS][/]"
+        # Detect colon-separated commands (e.g., "make:command" matching prefix "make")
+        has_colon_commands = any(
+            ":" in cmd["name"] and cmd["name"].startswith(prefix_filter + ":")
+            for cmd in commands
         )
+        if has_colon_commands:
+            # Colon-separated: use make:COMMAND [OPTIONS]
+            console.print(
+                f"  [not bold {COLOR.PRIMARY}]{command_name} {prefix_filter}:COMMAND [OPTIONS][/]"
+            )
+        else:
+            # Space-separated nested groups: use make [COMMAND] [OPTIONS]
+            console.print(
+                f"  [not bold {COLOR.PRIMARY}]{command_name} {prefix_filter} [COMMAND] [OPTIONS][/]"
+            )
         console.print()
         console.print(f"[bold {COLOR.SECONDARY}]Options:")
         help_padding = " " * (longest_label_length - len(help_flags) + SPACER_LENGTH)
@@ -190,7 +202,9 @@ def list_commands(app: typer.Typer, prefix_filter: str | None = None) -> None:
         console.print()
     else:
         console.print(f"[bold {COLOR.SECONDARY}]Usage:[/bold {COLOR.SECONDARY}]")
-        console.print(f"  [{COLOR.PRIMARY}]{command_name} [OPTIONS] [ARGUMENTS]")
+        console.print(
+            f"  [not bold {COLOR.PRIMARY}]{command_name} [OPTIONS] [ARGUMENTS][/]"
+        )
         console.print()
 
         console.print(f"[bold {COLOR.SECONDARY}]Options:")
@@ -269,7 +283,7 @@ def list_group_commands(group_app: typer.Typer, group_name: str) -> None:
 
     console.print(f"[bold {COLOR.SECONDARY}]Usage:[/bold {COLOR.SECONDARY}]")
     console.print(
-        f"  [{COLOR.PRIMARY}]{command_name} {group_name} [COMMAND] [OPTIONS][/]"
+        f"  [not bold {COLOR.PRIMARY}]{command_name} {group_name} [COMMAND] [OPTIONS][/]"
     )
     console.print()
     commands_by_name: dict[str, CommandMeta] = {}
