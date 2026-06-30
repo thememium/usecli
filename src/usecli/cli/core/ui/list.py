@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, TypedDict
 import click
 import typer
 from rich.console import Console
+from rich.markup import escape
 
 from usecli.cli.config.colors import COLOR
 from usecli.cli.core.ui.title import (
@@ -180,12 +181,12 @@ def list_commands(app: typer.Typer, prefix_filter: str | None = None) -> None:
         if has_colon_commands:
             # Colon-separated: use make:COMMAND [OPTIONS]
             console.print(
-                f"  [not bold {COLOR.PRIMARY}]{command_name} {prefix_filter}:COMMAND [OPTIONS][/]"
+                f"  [not bold {COLOR.PRIMARY}]{command_name} {prefix_filter}:COMMAND {escape('[OPTIONS]')}[/]"
             )
         else:
             # Space-separated nested groups: use make [COMMAND] [OPTIONS]
             console.print(
-                f"  [not bold {COLOR.PRIMARY}]{command_name} {prefix_filter} [COMMAND] [OPTIONS][/]"
+                f"  [not bold {COLOR.PRIMARY}]{command_name} {prefix_filter} {escape('[COMMAND]')} {escape('[OPTIONS]')}[/]"
             )
         console.print()
         console.print(f"[bold {COLOR.SECONDARY}]Options:")
@@ -203,7 +204,7 @@ def list_commands(app: typer.Typer, prefix_filter: str | None = None) -> None:
     else:
         console.print(f"[bold {COLOR.SECONDARY}]Usage:[/bold {COLOR.SECONDARY}]")
         console.print(
-            f"  [not bold {COLOR.PRIMARY}]{command_name} [OPTIONS] [ARGUMENTS][/]"
+            f"  [not bold {COLOR.PRIMARY}]{command_name} {escape('[OPTIONS]')} {escape('[ARGUMENTS]')}[/]"
         )
         console.print()
 
@@ -266,7 +267,9 @@ def list_commands(app: typer.Typer, prefix_filter: str | None = None) -> None:
         console.print()
 
 
-def list_group_commands(group_app: typer.Typer, group_name: str) -> None:
+def list_group_commands(
+    group_app: typer.Typer, group_name: str, main_app: typer.Typer | None = None
+) -> None:
     """List all commands within a specific command group.
 
     Displays commands in a formatted list for a nested command group,
@@ -275,16 +278,31 @@ def list_group_commands(group_app: typer.Typer, group_name: str) -> None:
     Args:
         group_app: The Typer sub-app for the command group.
         group_name: The name of the command group.
+        main_app: Optional main app to include colon-separated commands.
     """
     alias_registry = _get_alias_registry(group_app)
     alias_to_primary = _build_alias_to_primary(alias_registry)
 
     command_name = get_script_command_name(default="usecli")
 
-    console.print(f"[bold {COLOR.SECONDARY}]Usage:[/bold {COLOR.SECONDARY}]")
-    console.print(
-        f"  [not bold {COLOR.PRIMARY}]{command_name} {group_name} [COMMAND] [OPTIONS][/]"
+    # Check if group has both colon-separated and space-separated commands
+    has_colon_commands = main_app is not None and any(
+        cmd.name and cmd.name.startswith(f"{group_name}:")
+        for cmd in (main_app.registered_commands or [])
     )
+    has_nested_commands = len(group_app.registered_commands) > 0
+
+    console.print(f"[bold {COLOR.SECONDARY}]Usage:[/bold {COLOR.SECONDARY}]")
+    if has_colon_commands and has_nested_commands:
+        # Both formats exist: usecli [COMMAND] [OPTIONS] [ARGUMENTS]
+        console.print(
+            f"  [not bold {COLOR.PRIMARY}]{command_name} {escape('[COMMAND]')} {escape('[OPTIONS]')} {escape('[ARGUMENTS]')}[/]"
+        )
+    else:
+        # Only space-separated: usecli make [COMMAND] [OPTIONS]
+        console.print(
+            f"  [not bold {COLOR.PRIMARY}]{command_name} {group_name} {escape('[COMMAND]')} {escape('[OPTIONS]')}[/]"
+        )
     console.print()
     commands_by_name: dict[str, CommandMeta] = {}
     for command in group_app.registered_commands:
@@ -301,6 +319,23 @@ def list_group_commands(group_app: typer.Typer, group_name: str) -> None:
             commands_by_name[name] = {
                 "help": help_text,
                 "aliases": alias_registry.get(name, list[str]()),
+            }
+
+    # Include colon-separated commands from main app with matching prefix
+    if main_app is not None:
+        prefix = f"{group_name}:"
+        main_alias_registry = _get_alias_registry(main_app)
+        for command in main_app.registered_commands:
+            cmd_name = command.name or ""
+            if not cmd_name.startswith(prefix):
+                continue
+            if cmd_name in commands_by_name:
+                continue
+            help_text = command.help or ""
+            aliases = main_alias_registry.get(cmd_name, [])
+            commands_by_name[cmd_name] = {
+                "help": help_text,
+                "aliases": aliases,
             }
 
     commands: list[CommandEntry] = []
@@ -355,7 +390,7 @@ def list_group_commands(group_app: typer.Typer, group_name: str) -> None:
         display_name = cmd["display_name"]
         padding = " " * (longest_label_length - len(display_name) + SPACER_LENGTH)
         console.print(
-            f"  [{COLOR.COMMAND}]{display_name}[/{COLOR.COMMAND}]{padding}{cmd['help']}"
+            f"  [{COLOR.COMMAND} not bold]{display_name}[/{COLOR.COMMAND} not bold]{padding}{cmd['help']}"
         )
 
     console.print()
