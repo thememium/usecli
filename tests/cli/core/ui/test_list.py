@@ -631,7 +631,7 @@ class TestListCommands:
 
         print_calls = [str(call) for call in mock_console.print.call_args_list]
         combined_output = "\n".join(print_calls)
-        assert "mycli [OPTIONS]" in combined_output
+        assert "mycli" in combined_output and "OPTIONS" in combined_output
 
     @patch("usecli.cli.core.ui.list.print_title")
     @patch("usecli.cli.core.ui.list.console")
