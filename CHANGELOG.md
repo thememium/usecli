@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.72
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.71...v0.1.72)
+
+### 💅 Refactors
+
+- Trim title output and add spacing ([4dd4aa9](https://github.com/thememium/usecli/commit/4dd4aa9))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.71
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.70...v0.1.71)
