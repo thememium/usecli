@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.73
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.72...v0.1.73)
+
+### 💅 Refactors
+
+- **list.py:** Increase SPACER_LENGTH from 6 to 10 to improve UI alignment ([a0ca3d2](https://github.com/thememium/usecli/commit/a0ca3d2))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.72
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.71...v0.1.72)
