@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 
 console = Console()
 
-SPACER_LENGTH = 10
+SPACER_LENGTH = 14
 
 
 def _is_click_group(obj: object) -> bool:
