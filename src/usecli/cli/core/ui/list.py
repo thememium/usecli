@@ -10,8 +10,11 @@ from rich.console import Console
 from rich.markup import escape
 
 from usecli.cli.config.colors import COLOR
-from usecli.cli.core.ui.title import (get_project_name,
-                                      get_script_command_name, print_title)
+from usecli.cli.core.ui.title import (
+    get_project_name,
+    get_script_command_name,
+    print_title,
+)
 
 if TYPE_CHECKING:
     pass
