@@ -8,6 +8,8 @@ from typing import Any, Callable, TypeVar, cast
 import simple_term_menu
 from simple_term_menu import TerminalMenu
 
+from usecli.cli.core.runtime import NonInteractiveError, is_json_mode
+
 T = TypeVar("T")
 _PATCHED_SEARCH_LEN = False
 _PATCHED_VIM_PAGE_KEYS = False
@@ -108,6 +110,8 @@ def terminal_menu(
         >>> choices = show_menu(["a", "b", "c"], title="Pick many:", multi_select=True)
         >>> print(f"You chose: {choices}")
     """
+    if is_json_mode():
+        raise NonInteractiveError("Interactive menu is unavailable in JSON mode")
     if not options:
         return []
 

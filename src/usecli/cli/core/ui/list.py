@@ -165,10 +165,11 @@ def list_commands(app: typer.Typer, prefix_filter: str | None = None) -> None:
     if prefix_filter:
         command_name = get_script_command_name(default="usecli")
         interactive_flags = "--interactive, -i"
+        json_flags = "--json"
         filtered_labels = (
             [cmd["display_name"] for cmd in commands]
             + [entry["display_name"] for entry in group_entries]
-            + [help_flags, interactive_flags]
+            + [help_flags, interactive_flags, json_flags]
         )
         longest_label_length = max((len(label) for label in filtered_labels), default=0)
         console.print()
@@ -199,6 +200,10 @@ def list_commands(app: typer.Typer, prefix_filter: str | None = None) -> None:
         )
         console.print(
             f"  [{COLOR.OPTION}]{interactive_flags}[/{COLOR.OPTION}]{interactive_padding}Run in interactive mode."
+        )
+        json_padding = " " * (longest_label_length - len(json_flags) + SPACER_LENGTH)
+        console.print(
+            f"  [{COLOR.OPTION}]{json_flags}[/{COLOR.OPTION}]{json_padding}Emit one machine-readable JSON document."
         )
         console.print()
     else:

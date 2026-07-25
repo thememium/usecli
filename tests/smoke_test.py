@@ -23,7 +23,9 @@ def _assert_basic_imports() -> None:
         Console,
         Menu,
         Option,
+        ProgressBar,
         Prompt,
+        Spinner,
         console,
         main,
     )
@@ -35,6 +37,8 @@ def _assert_basic_imports() -> None:
     assert Confirm is not None
     assert Argument is not None
     assert Option is not None
+    assert Spinner is not None
+    assert ProgressBar is not None
     assert console is not None
     assert callable(main)
 

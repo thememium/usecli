@@ -137,7 +137,6 @@ def print_title(title: str | None = None) -> None:
             title_text = title
         console.print()
         console.print(f"[{COLOR.PRIMARY}]{title_text}")
-        console.print()
     except (ImportError, ModuleNotFoundError):
         if title is None or title.lower() == "usecli":
             console.print(f"[{COLOR.PRIMARY}]{default_title_text}")

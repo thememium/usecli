@@ -90,6 +90,8 @@ def _get_optional_options(
             continue
         if "--interactive" in option_names or "-i" in option_names:
             continue
+        if "--json" in option_names:
+            continue
 
         help_text = param.help or ""
         param_name = param.name or ""

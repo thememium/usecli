@@ -105,8 +105,21 @@ class NestedCommandRegistry:
                 "-i",
                 help="Run in interactive mode.",
             ),
+            json_output: bool = typer.Option(
+                False,
+                "--json",
+                help="Emit one machine-readable JSON document.",
+            ),
         ) -> None:
             """Callback for the command group."""
+            if interactive:
+                from usecli.cli.core.runtime import NonInteractiveError, is_json_mode
+
+                if is_json_mode():
+                    raise NonInteractiveError(
+                        "Interactive mode is unavailable in JSON mode"
+                    )
+
             if help_flag:
                 self._show_group_help(group_name)
                 raise typer.Exit()
@@ -199,6 +212,16 @@ class CustomHelpCommand(TyperCommand):
                     help="Run in interactive mode.",
                 )
             )
+            self._usecli_injected_interactive = True
+        if not self._has_json_option():
+            self.params.append(
+                TyperOption(
+                    param_decls=["--json"],
+                    is_flag=True,
+                    help="Emit one machine-readable JSON document.",
+                )
+            )
+            self._usecli_injected_json = True
 
     def _has_interactive_option(self) -> bool:
         return any(
@@ -207,9 +230,27 @@ class CustomHelpCommand(TyperCommand):
             for param in getattr(self, "params", [])
         )
 
+    def _has_json_option(self) -> bool:
+        return any(
+            isinstance(param, TyperOption) and "--json" in param.opts
+            for param in getattr(self, "params", [])
+        )
+
     def invoke(self, ctx: ClickContext) -> Any:
-        interactive = ctx.params.pop("interactive", False)
+        interactive = False
+        if getattr(self, "_usecli_injected_interactive", False):
+            interactive = ctx.params.pop("interactive", False)
+        if getattr(self, "_usecli_injected_json", False):
+            ctx.params.pop("json", False)
+
         if interactive:
+            from usecli.cli.core.runtime import NonInteractiveError, is_json_mode
+
+            if is_json_mode():
+                raise NonInteractiveError(
+                    "Interactive mode is unavailable in JSON mode"
+                )
+
             from usecli import app
             from usecli.cli.commands.defaults.base.internal.fzf_command import (
                 run_interactive,
@@ -323,7 +364,7 @@ class BaseCommand(ABC):
         self.register()
 
     @abstractmethod
-    def handle(self, *args: Any, **kwargs: Any) -> None:
+    def handle(self, *args: Any, **kwargs: Any) -> object:
         """Execute the command.
 
         Args:

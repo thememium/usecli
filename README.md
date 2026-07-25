@@ -138,16 +138,74 @@ def signature(self) -> str:
     return "spec show"   # usecli spec show
 ```
 
+### JSON Output
+
+Every command inherits `--json`; commands do not declare the option themselves. The flag works before or after a command name:
+
+```sh
+usecli --json about
+usecli about --json
+```
+
+A successful invocation writes exactly one JSON document to stdout:
+
+```json
+{"ok":true,"data":null}
+```
+
+A command can return any JSON-serializable value to populate `data`:
+
+```python
+class StatusCommand(BaseCommand):
+    def signature(self) -> str:
+        return "status"
+
+    def description(self) -> str:
+        return "Show service status"
+
+    def handle(self):
+        return {"status": "ready", "workers": 3}
+```
+
+Failures preserve a non-zero exit status and use a stable error envelope:
+
+```json
+{"ok":false,"error":{"type":"UsageError","message":"No such command","code":2}}
+```
+
+In JSON mode, stdout is reserved for that document. Human-facing output, including `console.print()` and ordinary `print()`, is routed to stderr. Prompts and confirmations resolve their declared defaults without reading stdin. A prompt without a default, menus, and `--interactive` fail immediately with a structured `NonInteractiveError` instead of blocking.
+
+The existing fields `ok`, `data`, `error`, `error.type`, `error.message`, and `error.code` keep their names and types across compatible releases. New fields may be added.
+
 ### UI Components
 
 ```python
-from usecli import console, Prompt, Confirm, Menu
+from usecli import Confirm, Menu, Prompt, console
 
 console.print("[green]Done![/green]")
 name = Prompt.ask("Enter name")
 ok = Confirm.ask("Continue?")
-choice = Menu(["A", "B", "C"]).show()
+choice = Menu.select(["A", "B", "C"])
 ```
+
+### Progress Indicators
+
+Use `Spinner` when the amount of work is unknown and `ProgressBar` when a total is known:
+
+```python
+from usecli import ProgressBar, Spinner
+
+with Spinner("Loading records") as spinner:
+    load_records()
+    spinner.update("Indexing records")
+
+with ProgressBar(total=len(items), description="Processing") as progress:
+    for item in items:
+        process(item)
+        progress.advance()
+```
+
+Progress always renders to stderr, uses the active usecli theme, and is suppressed automatically in JSON mode, with `quiet=True`, or when stderr is not attached to a terminal. Calling commands do not need to detect these conditions.
 
 ### Available Commands
 
