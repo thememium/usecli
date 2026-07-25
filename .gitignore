@@ -222,3 +222,9 @@ __marimo__/
 .DS_Store
 .omo
 .auto
+
+# Local agent tooling
+openspec/
+.opencode/
+.codex/
+.claude/
