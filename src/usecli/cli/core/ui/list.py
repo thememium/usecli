@@ -10,11 +10,8 @@ from rich.console import Console
 from rich.markup import escape
 
 from usecli.cli.config.colors import COLOR
-from usecli.cli.core.ui.title import (
-    get_project_name,
-    get_script_command_name,
-    print_title,
-)
+from usecli.cli.core.ui.title import (get_project_name,
+                                      get_script_command_name, print_title)
 
 if TYPE_CHECKING:
     pass
@@ -174,7 +171,6 @@ def list_commands(app: typer.Typer, prefix_filter: str | None = None) -> Command
     data = collect_commands_data(app, prefix_filter)
     commands = data["commands"]
     group_entries = data["groups"]
-    option_flags = data["options"]
 
     if prefix_filter and not commands and not group_entries:
         console.print(f"  [dim]No commands found for '{prefix_filter}'[/dim]")
