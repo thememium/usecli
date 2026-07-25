@@ -510,7 +510,7 @@ def _get_run_app_callback():
             help="Emit one machine-readable JSON document.",
             is_eager=True,
         ),
-    ) -> None:
+    ) -> object:
         _resolve_help()
 
         if help:
