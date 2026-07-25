@@ -5,9 +5,7 @@ from __future__ import annotations
 import click
 from typer.core import TyperOption
 
-from usecli.cli.commands.defaults.base.internal.fzf_command import (
-    _get_optional_options,
-)
+from usecli.cli.commands.defaults.base.internal.fzf_command import _get_optional_options
 
 
 class TestGetOptionalOptions:

@@ -47,28 +47,30 @@ class CommandMeta(TypedDict):
     aliases: list[str]
 
 
-def list_commands(app: typer.Typer, prefix_filter: str | None = None) -> None:
-    """List all available commands with optional filtering.
+class CommandsData(TypedDict):
+    commands: list[CommandEntry]
+    groups: list[CommandEntry]
+    options: list[str]
 
-    Displays commands in a formatted list with sections for grouped commands
-    (those with colons in their names).
+
+def collect_commands_data(
+    app: typer.Typer, prefix_filter: str | None = None
+) -> CommandsData:
+    """Collect command metadata into a JSON-serializable structure.
 
     Args:
         app: The Typer application instance.
         prefix_filter: Optional prefix to filter commands by name.
-    """
-    project_name = get_project_name()
-    if not prefix_filter:
-        print_title(title=project_name)
 
+    Returns:
+        A dict with ``commands``, ``groups``, and ``options`` keys.
+    """
     click_group = typer.main.get_command(app)
 
     alias_registry = _get_alias_registry(app)
     alias_to_primary = _build_alias_to_primary(alias_registry)
     group_alias_registry = _get_group_alias_registry(app)
     group_alias_to_primary = _build_alias_to_primary(group_alias_registry)
-
-    command_name = get_script_command_name(default="usecli")
 
     commands_by_name: dict[str, CommandMeta] = {}
     for command in app.registered_commands:
@@ -123,7 +125,6 @@ def list_commands(app: typer.Typer, prefix_filter: str | None = None) -> None:
                 continue
             option_flags.append(flags)
 
-    help_flags = "--help, -h"
     group_entries: list[CommandEntry] = []
     for group_name, group_help in groups.items():
         aliases = group_alias_registry.get(group_name, list[str]())
@@ -137,25 +138,56 @@ def list_commands(app: typer.Typer, prefix_filter: str | None = None) -> None:
         )
 
     if prefix_filter:
-        filtered = [
+        commands = [
             c
             for c in commands
             if c["name"].startswith(prefix_filter)
             or any(alias.startswith(prefix_filter) for alias in c["aliases"])
         ]
-        filtered_groups = [
+        group_entries = [
             g
             for g in group_entries
             if g["name"].startswith(prefix_filter)
             or any(alias.startswith(prefix_filter) for alias in g["aliases"])
         ]
-        if not filtered and not filtered_groups:
-            console.print(f"  [dim]No commands found for '{prefix_filter}'[/dim]")
-            console.print()
-            return
-        commands = filtered
-        group_entries = filtered_groups
 
+    return {
+        "commands": commands,
+        "groups": group_entries,
+        "options": option_flags,
+    }
+
+
+def list_commands(app: typer.Typer, prefix_filter: str | None = None) -> CommandsData:
+    """List all available commands with optional filtering.
+
+    Displays commands in a formatted list with sections for grouped commands
+    (those with colons in their names). Returns structured data for JSON mode.
+
+    Args:
+        app: The Typer application instance.
+        prefix_filter: Optional prefix to filter commands by name.
+
+    Returns:
+        Structured command data (also rendered to the console as a side effect).
+    """
+    data = collect_commands_data(app, prefix_filter)
+    commands = data["commands"]
+    group_entries = data["groups"]
+    option_flags = data["options"]
+
+    if prefix_filter and not commands and not group_entries:
+        console.print(f"  [dim]No commands found for '{prefix_filter}'[/dim]")
+        console.print()
+        return data
+
+    project_name = get_project_name()
+    if not prefix_filter:
+        print_title(title=project_name)
+
+    command_name = get_script_command_name(default="usecli")
+
+    help_flags = "--help, -h"
     all_display_names = [cmd["display_name"] for cmd in commands] + [
         entry["display_name"] for entry in group_entries
     ]
@@ -163,7 +195,6 @@ def list_commands(app: typer.Typer, prefix_filter: str | None = None) -> None:
     longest_label_length = max((len(label) for label in all_labels), default=0)
 
     if prefix_filter:
-        command_name = get_script_command_name(default="usecli")
         interactive_flags = "--interactive, -i"
         json_flags = "--json"
         filtered_labels = (
@@ -174,18 +205,15 @@ def list_commands(app: typer.Typer, prefix_filter: str | None = None) -> None:
         longest_label_length = max((len(label) for label in filtered_labels), default=0)
         console.print()
         console.print(f"[bold {COLOR.SECONDARY}]Usage:[/bold {COLOR.SECONDARY}]")
-        # Detect colon-separated commands (e.g., "make:command" matching prefix "make")
         has_colon_commands = any(
             ":" in cmd["name"] and cmd["name"].startswith(prefix_filter + ":")
             for cmd in commands
         )
         if has_colon_commands:
-            # Colon-separated: use make:[COMMAND] [OPTIONS]
             console.print(
                 f"  [not bold {COLOR.PRIMARY}]{command_name} {prefix_filter}:{escape('[COMMAND]')} {escape('[OPTIONS]')}[/]"
             )
         else:
-            # Space-separated nested groups: use make [COMMAND] [OPTIONS]
             console.print(
                 f"  [not bold {COLOR.PRIMARY}]{command_name} {prefix_filter} {escape('[COMMAND]')} {escape('[OPTIONS]')}[/]"
             )
@@ -220,6 +248,9 @@ def list_commands(app: typer.Typer, prefix_filter: str | None = None) -> None:
             f"  [{COLOR.OPTION}]{help_flags}[/{COLOR.OPTION}]{help_padding}Show this message and exit."
         )
 
+        display_params = _order_completion_params(
+            typer.main.get_command(app).params or []
+        )
         if display_params:
             for param in display_params:
                 flags = ", ".join(param.opts)
@@ -235,7 +266,12 @@ def list_commands(app: typer.Typer, prefix_filter: str | None = None) -> None:
     if not prefix_filter:
         console.print(f"[bold {COLOR.SECONDARY}]Available commands:")
 
-    group_names = set(groups.keys())
+    click_group = typer.main.get_command(app)
+    group_names = set(
+        getattr(click_group, "commands", {}).keys()
+        if _is_click_group(click_group)
+        else []
+    )
     top_level: list[CommandEntry] = [
         c for c in commands if ":" not in c["name"] and c["name"] not in group_names
     ]
@@ -270,6 +306,8 @@ def list_commands(app: typer.Typer, prefix_filter: str | None = None) -> None:
         for cmd in section_cmds:
             print_command(cmd)
         console.print()
+
+    return data
 
 
 def list_group_commands(

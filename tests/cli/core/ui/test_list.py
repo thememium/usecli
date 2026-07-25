@@ -868,10 +868,10 @@ class TestListCommands:
     @patch("usecli.cli.core.ui.list.print_title")
     @patch("usecli.cli.core.ui.list.console")
     @patch("usecli.cli.core.ui.list.typer.main.get_command")
-    def test_list_commands_returns_none(
+    def test_list_commands_returns_data(
         self, mock_get_command, mock_console, mock_print_title
     ):
-        """Test list_commands() returns None."""
+        """Test list_commands() returns structured CommandsData."""
         app = Mock()
         app.registered_commands = []
 
@@ -881,7 +881,10 @@ class TestListCommands:
 
         result = list_commands(app)
 
-        assert result is None
+        assert result is not None
+        assert "commands" in result
+        assert "groups" in result
+        assert "options" in result
 
     @patch("usecli.cli.core.ui.list.print_title")
     @patch("usecli.cli.core.ui.list.console")

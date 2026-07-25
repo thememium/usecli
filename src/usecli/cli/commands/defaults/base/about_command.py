@@ -257,13 +257,42 @@ class AboutCommand(BaseCommand):
     def description(self) -> str:
         return "Display detailed information about the application"
 
-    def handle(self) -> None:
+    def handle(self) -> dict[str, object]:
+        import platform
+
         config = get_config()
         version = _get_application_version(config)
         from usecli.cli.core.ui.title import get_project_name
 
         app_name = get_project_name()
         description = _get_application_description(config)
+
+        dist = _get_application_distribution()
+        name_label = "Cli Name" if dist is not None else "Application Name"
+        version_label = "Cli Version" if dist is not None else "Application Version"
+
+        script_commands = _get_script_commands() or ["usecli"]
+
+        deps = _get_dependencies(config)
+        dependencies: list[dict[str, str | None]] = []
+        for dep_name, spec in deps:
+            try:
+                from importlib.metadata import version as get_version
+
+                installed_version = get_version(dep_name)
+                dependencies.append({"name": dep_name, "version": installed_version})
+            except Exception:
+                dependencies.append({"name": dep_name, "version": spec})
+
+        data: dict[str, object] = {
+            "name": app_name,
+            "version": version,
+            "description": description,
+            "python_version": platform.python_version(),
+            "platform": platform.platform(),
+            "entry_points": script_commands,
+            "dependencies": dependencies,
+        }
 
         console.print()
         console.print(f"[bold {COLOR.PRIMARY}]Description[/bold {COLOR.PRIMARY}]")
@@ -273,22 +302,14 @@ class AboutCommand(BaseCommand):
         console.print()
         console.print(f"[bold {COLOR.PRIMARY}]Environment[/bold {COLOR.PRIMARY}]")
         console.print(f"[{COLOR.PRIMARY}]─" * 78)
-
-        dist = _get_application_distribution()
-        name_label = "Cli Name" if dist is not None else "Application Name"
-        version_label = "Cli Version" if dist is not None else "Application Version"
         self._print_row(name_label, app_name)
         self._print_row(version_label, version)
-        import platform
-
         self._print_row("Python Version", platform.python_version())
         self._print_row("Platform", f"[{COLOR.FOREGROUND_MUTED}]{platform.platform()}")
 
         console.print()
         console.print(f"[bold {COLOR.PRIMARY}]Entry Points[/bold {COLOR.PRIMARY}]")
         console.print(f"[{COLOR.PRIMARY}]─" * 78)
-
-        script_commands = _get_script_commands() or ["usecli"]
         for index, command in enumerate(script_commands):
             label = "Primary command" if index == 0 else "Command"
             self._print_row(command, label)
@@ -296,8 +317,6 @@ class AboutCommand(BaseCommand):
         console.print()
         console.print(f"[bold {COLOR.PRIMARY}]Dependencies[/bold {COLOR.PRIMARY}]")
         console.print(f"[{COLOR.PRIMARY}]─" * 78)
-
-        deps = _get_dependencies(config)
         if deps:
             for dep_name, spec in deps:
                 try:
@@ -313,16 +332,9 @@ class AboutCommand(BaseCommand):
         else:
             self._print_row("Dependencies", "unable to load")
 
-        # console.print()
-        # console.print(f"[bold {COLOR.PRIMARY}]Features[/bold {COLOR.PRIMARY}]")
-        # console.print(f"[{COLOR.PRIMARY}]─" * 78)
-        #
-        # self._print_row("Prefix Matching", f"[{COLOR.SECONDARY}]ENABLED")
-        # self._print_row("Rich UI", f"[{COLOR.SECONDARY}]ENABLED")
-        # self._print_row("Command Scaffolding", f"[{COLOR.SECONDARY}]ENABLED")
-        # self._print_row("Interactive Menus", f"[{COLOR.SECONDARY}]ENABLED")
-        # self._print_row("Fuzzy Finder", f"[{COLOR.SECONDARY}]ENABLED")
         console.print()
+
+        return data
 
     def _print_row(self, label: str, value: str) -> None:
         visible_value = console.render_str(value).plain

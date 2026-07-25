@@ -463,12 +463,12 @@ class _FilteredListCommand:
     def invoke(self, ctx):
         from usecli.cli.core.ui.list import list_commands
 
-        list_commands(_get_app(), prefix_filter=self.prefix_filter)
+        return list_commands(_get_app(), prefix_filter=self.prefix_filter)
 
     def __call__(self, *args, **kwargs):
         from usecli.cli.core.ui.list import list_commands
 
-        list_commands(_get_app(), prefix_filter=self.prefix_filter)
+        return list_commands(_get_app(), prefix_filter=self.prefix_filter)
 
 
 def _get_default_help() -> str:
@@ -516,7 +516,11 @@ def _get_run_app_callback():
         if help:
             from usecli.cli.core.ui.list import list_commands
 
-            list_commands(_get_app())
+            data = list_commands(_get_app())
+            from usecli.cli.core.runtime import is_json_mode
+
+            if is_json_mode():
+                return data
             raise typer.Exit()
 
         if version:
@@ -556,7 +560,7 @@ def _get_run_app_callback():
                 prefix_filter = ctx.obj.get("prefix_filter")
             from usecli.cli.core.ui.list import list_commands
 
-            list_commands(_get_app(), prefix_filter=prefix_filter)
+            return list_commands(_get_app(), prefix_filter=prefix_filter)
 
     globals()["run_app"] = run_app
     return run_app

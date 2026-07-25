@@ -373,3 +373,58 @@ def test_root_json_rejects_nested_group_interactive_flag(
         message="Interactive mode is unavailable",
     )
     run_interactive.assert_not_called()
+
+
+def test_json_mode_help_returns_command_list(
+    runner: CliRunner,
+    registered_json_commands: None,
+) -> None:
+    result = _invoke_json(runner, ["--json", "--help"])
+
+    assert result.exit_code == 0, result.output
+    document = json.loads(result.stdout)
+    assert document["ok"] is True
+    data = document["data"]
+    assert "commands" in data
+    assert "groups" in data
+    assert "options" in data
+    assert isinstance(data["commands"], list)
+    assert isinstance(data["groups"], list)
+    assert isinstance(data["options"], list)
+
+
+def test_json_mode_no_subcommand_returns_command_list(
+    runner: CliRunner,
+    registered_json_commands: None,
+) -> None:
+    result = _invoke_json(runner, ["--json"])
+
+    assert result.exit_code == 0, result.output
+    document = json.loads(result.stdout)
+    assert document["ok"] is True
+    data = document["data"]
+    assert "commands" in data
+    assert len(data["commands"]) > 0
+    names = [cmd["name"] for cmd in data["commands"]]
+    assert "about" in names
+
+
+def test_json_mode_about_returns_app_metadata(
+    runner: CliRunner,
+    registered_json_commands: None,
+) -> None:
+    result = _invoke_json(runner, ["--json", "about"])
+
+    assert result.exit_code == 0, result.output
+    document = json.loads(result.stdout)
+    assert document["ok"] is True
+    data = document["data"]
+    assert "name" in data
+    assert "version" in data
+    assert "description" in data
+    assert "python_version" in data
+    assert "platform" in data
+    assert "entry_points" in data
+    assert "dependencies" in data
+    assert isinstance(data["entry_points"], list)
+    assert isinstance(data["dependencies"], list)
