@@ -270,12 +270,7 @@ def list_commands(app: typer.Typer, prefix_filter: str | None = None) -> Command
     if not prefix_filter:
         console.print(f"[bold {COLOR.SECONDARY}]Available commands:")
 
-    click_group = typer.main.get_command(app)
-    group_names = set(
-        getattr(click_group, "commands", {}).keys()
-        if _is_click_group(click_group)
-        else []
-    )
+    group_names = {entry["name"] for entry in group_entries}
     top_level: list[CommandEntry] = [
         c for c in commands if ":" not in c["name"] and c["name"] not in group_names
     ]
