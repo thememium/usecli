@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import TypeVar
 
+from usecli.cli.core.runtime import NonInteractiveError, is_json_mode
 from usecli.cli.utils.interactive.terminal_menu import terminal_menu
 
 T = TypeVar("T")
@@ -38,6 +39,8 @@ class Menu:
             >>> if choice:
             ...     print(f"You chose: {choice}")
         """
+        if is_json_mode():
+            raise NonInteractiveError("Interactive menu is unavailable in JSON mode")
         result = terminal_menu(options, title=title, multi_select=False)
         return result[0] if result else None
 
@@ -62,6 +65,8 @@ class Menu:
             ... )
             >>> print(f"You chose: {choices}")
         """
+        if is_json_mode():
+            raise NonInteractiveError("Interactive menu is unavailable in JSON mode")
         return terminal_menu(options, title=title, multi_select=True)
 
 

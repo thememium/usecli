@@ -550,6 +550,170 @@ include = ["{root_package}*"]
 
         pyproject_path.write_text(pyproject_content)
 
+    def _handle_json_mode(
+        self,
+        *,
+        title: str,
+        description: str,
+        commands_dir: str | None,
+        templates_dir: str | None,
+        themes_dir: str | None,
+        config_path: str | None,
+        command_name: str,
+        force: bool,
+        theme: str | None,
+        title_font: str | None,
+    ) -> dict[str, object]:
+        from usecli.cli.core.runtime import NonInteractiveError
+
+        missing: list[str] = []
+        if not command_name or command_name == "usecli":
+            missing.append("--command-name")
+        if not title or title == "Use CLI":
+            missing.append("--title")
+        if not description or description == "A custom CLI tool":
+            missing.append("--description")
+        if not theme:
+            missing.append("--theme")
+        if not title_font:
+            missing.append("--title-font")
+        if missing:
+            raise NonInteractiveError(
+                f"JSON mode requires explicit values: {', '.join(missing)}"
+            )
+
+        try:
+            validate_command_name(command_name)
+        except UsecliBadParameter as error:
+            raise NonInteractiveError(str(error)) from error
+
+        cwd = Path.cwd()
+        project_root = self._find_project_root_for_init(cwd)
+        pyproject_path = self._find_pyproject_path_for_init(cwd) or (
+            project_root / "pyproject.toml"
+        )
+
+        if commands_dir is None:
+            commands_dir = self._infer_commands_dir(project_root)
+
+        commands_path = (
+            Path(commands_dir)
+            if Path(commands_dir).is_absolute()
+            else project_root / commands_dir
+        )
+        if templates_dir is None:
+            templates_dir = self._derive_templates_dir(commands_dir)
+        if themes_dir is None:
+            themes_dir = self._derive_themes_dir(commands_dir)
+        templates_path = (
+            Path(templates_dir)
+            if Path(templates_dir).is_absolute()
+            else project_root / templates_dir
+        )
+        themes_path = (
+            Path(themes_dir)
+            if Path(themes_dir).is_absolute()
+            else project_root / themes_dir
+        )
+
+        commands_path.mkdir(parents=True, exist_ok=True)
+        templates_path.mkdir(parents=True, exist_ok=True)
+        themes_path.mkdir(parents=True, exist_ok=True)
+        self._ensure_package_init_files(commands_path, cwd)
+
+        make_template_path = templates_path / "command.py.j2"
+        if not make_template_path.exists():
+            shutil.copy(TEMPLATES_DIR / "command.py.j2", make_template_path)
+
+        theme_template_path = themes_path / "default.toml"
+        if not theme_template_path.exists() and (THEMES_DIR / "default.toml").exists():
+            shutil.copy(THEMES_DIR / "default.toml", theme_template_path)
+
+        scripts_status: str | None = None
+        usecli_config_status: str | None = None
+
+        if pyproject_path.exists():
+            scripts_status = self._ensure_project_scripts(
+                pyproject_path, command_name, force=True
+            )
+            self._ensure_build_system(pyproject_path)
+            self._add_setuptools_package_discovery(pyproject_path, commands_dir)
+            if scripts_status in {"added", "updated", "unchanged"}:
+                self._sync_environment(project_root, command_name)
+        else:
+            self._create_full_pyproject_toml(
+                pyproject_path,
+                command_name,
+                title,
+                description,
+                commands_dir,
+            )
+            scripts_status = "added"
+            self._sync_environment(project_root, command_name)
+
+        if config_path is not None:
+            resolved_config_path = self._resolve_config_path(config_path, project_root)
+        else:
+            config_root = project_root
+            if commands_path.parent != project_root:
+                config_root = commands_path.parent
+            existing_config = ConfigManager._find_usecli_config_in_tree(
+                project_root,
+                config_root,
+                skip_venv=True,
+            )
+            if existing_config is None or self._should_skip_config_path(
+                existing_config
+            ):
+                existing_config = config_root / USECLI_CONFIG_TOML
+            resolved_config_path = (
+                existing_config
+                if existing_config.exists()
+                else config_root / USECLI_CONFIG_TOML
+            )
+            if self._should_skip_config_path(resolved_config_path):
+                resolved_config_path = config_root / USECLI_CONFIG_TOML
+
+        config_dir = resolved_config_path.parent
+        config_commands_dir = os.path.relpath(commands_path, start=config_dir)
+        config_templates_dir = os.path.relpath(templates_path, start=config_dir)
+        config_themes_dir = os.path.relpath(themes_path, start=config_dir)
+
+        template_path = (
+            Path(__file__).parent.parent / "templates" / "usecli.config.toml.j2"
+        )
+        template_content = template_path.read_text()
+        template = Template(template_content)
+
+        config_content = template.render(
+            title=title,
+            description=description,
+            commands_dir=config_commands_dir,
+            templates_dir=config_templates_dir,
+            themes_dir=config_themes_dir,
+            title_font=title_font,
+            theme=theme,
+            command_name=command_name,
+        )
+
+        usecli_config_status = self._write_usecli_config(
+            resolved_config_path, config_content, force=True
+        )
+
+        return {
+            "command_name": command_name,
+            "title": title,
+            "description": description,
+            "commands_dir": commands_dir,
+            "templates_dir": templates_dir,
+            "themes_dir": themes_dir,
+            "theme": theme,
+            "title_font": title_font,
+            "config_path": str(resolved_config_path),
+            "scripts_status": scripts_status,
+            "config_status": usecli_config_status,
+        }
+
     def handle(
         self,
         title: str = typer.Option("Use CLI", help="Title for your CLI"),
@@ -557,6 +721,15 @@ include = ["{root_package}*"]
             "A custom CLI tool", help="Description for your CLI"
         ),
         commands_dir: str = typer.Option(None, help="Directory for custom commands"),
+        templates_dir: str = typer.Option(
+            None, "--templates-dir", help="Directory for scaffolding templates"
+        ),
+        themes_dir: str = typer.Option(
+            None, "--themes-dir", help="Directory for theme TOML files"
+        ),
+        config_path: str = typer.Option(
+            None, "--config-path", help="Path for usecli.config.toml"
+        ),
         command_name: Annotated[
             str,
             typer.Option(
@@ -569,7 +742,31 @@ include = ["{root_package}*"]
         force: bool = typer.Option(
             False, "--force", "-f", help="Overwrite existing config without prompting"
         ),
-    ) -> None:
+        theme: str = typer.Option(
+            None, "--theme", help="Theme name (JSON mode only, default: 'default')"
+        ),
+        title_font: str = typer.Option(
+            None,
+            "--title-font",
+            help="Figlet font for title (JSON mode only, default: 'big')",
+        ),
+    ) -> dict[str, object] | None:
+        from usecli.cli.core.runtime import is_json_mode
+
+        if is_json_mode():
+            return self._handle_json_mode(
+                title=title,
+                description=description,
+                commands_dir=commands_dir,
+                templates_dir=templates_dir,
+                themes_dir=themes_dir,
+                config_path=config_path,
+                command_name=command_name,
+                force=force,
+                theme=theme,
+                title_font=title_font,
+            )
+
         cwd = Path.cwd()
         project_root = self._find_project_root_for_init(cwd)
         pyproject_path = self._find_pyproject_path_for_init(cwd) or (
@@ -793,10 +990,10 @@ include = ["{root_package}*"]
             " (path or directory)",
             default=str(default_config_path),
         )
-        config_path = self._resolve_config_path(config_location, project_root)
+        resolved_config_path = self._resolve_config_path(config_location, project_root)
         if (
             existing_config.exists()
-            and config_path.resolve() != existing_config.resolve()
+            and resolved_config_path.resolve() != existing_config.resolve()
             and not force
         ):
             replace_existing = Confirm.ask(
@@ -805,9 +1002,9 @@ include = ["{root_package}*"]
                 default=False,
             )
             if replace_existing:
-                config_path = existing_config
+                resolved_config_path = existing_config
 
-        config_dir = config_path.parent
+        config_dir = resolved_config_path.parent
         config_commands_dir = os.path.relpath(commands_path, start=config_dir)
         config_templates_dir = os.path.relpath(templates_path, start=config_dir)
         config_themes_dir = os.path.relpath(themes_path, start=config_dir)
@@ -832,7 +1029,7 @@ include = ["{root_package}*"]
         )
 
         usecli_config_status = self._write_usecli_config(
-            config_path, config_content, force
+            resolved_config_path, config_content, force
         )
         if usecli_config_status == "created":
             console.print(

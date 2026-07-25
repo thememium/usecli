@@ -24,7 +24,7 @@ class InspireCommand(BaseCommand):
         """Return the command description."""
         return "Show a random inspirational quote"
 
-    def handle(self) -> None:
+    def handle(self) -> dict[str, str]:
         """Handle the command execution."""
 
         quotes = [
@@ -73,6 +73,13 @@ class InspireCommand(BaseCommand):
         selected = random.choice(quotes)
         quote, author = selected.rsplit(" - ", 1)
 
+        data = {"quote": quote, "author": author}
+
+        from usecli.cli.core.runtime import is_json_mode
+
+        if is_json_mode():
+            return data
+
         from rich.console import Console
         from rich.panel import Panel
 
@@ -84,3 +91,5 @@ class InspireCommand(BaseCommand):
                 title_align="left",
             )
         )
+
+        return data

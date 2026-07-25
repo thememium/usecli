@@ -354,6 +354,47 @@ class TestCustomHelpCommandFormatHelpColorUsage:
         assert "[bold" in all_calls
 
 
+class TestCustomHelpCommandJsonCompatibility:
+    """Tests for framework --json coexistence with user-declared options."""
+
+    def test_injected_json_option_added_when_absent(self):
+        """A command without its own --json inherits the framework option."""
+        cmd = CustomHelpCommand(name="test")
+        json_params = [
+            p for p in cmd.params if isinstance(p, TyperOption) and "--json" in p.opts
+        ]
+        assert len(json_params) == 1
+
+    def test_user_declared_json_option_is_not_duplicated(self):
+        """A command that already declares --json must not get a second one."""
+        cmd = CustomHelpCommand(name="test")
+        cmd.params = [TyperOption(param_decls=["--json"], is_flag=True)]
+        json_params = [
+            p for p in cmd.params if isinstance(p, TyperOption) and "--json" in p.opts
+        ]
+        assert len(json_params) == 1
+
+    def test_user_declared_json_value_is_preserved(self):
+        """A legacy command declaring --json must still receive its value."""
+        import typer
+        from click.testing import CliRunner
+
+        app = typer.Typer()
+        captured: dict[str, bool] = {}
+
+        def legacy_handler(
+            json_output: bool = typer.Option(False, "--json"),
+        ) -> None:
+            captured["json_output"] = json_output
+
+        app.command(name="legacy", cls=CustomHelpCommand)(legacy_handler)
+        runner = CliRunner()
+        result = runner.invoke(typer.main.get_command(app), ["--json"])
+
+        assert result.exit_code == 0
+        assert captured.get("json_output") is True
+
+
 # =============================================================================
 # BaseCommand Tests
 # =============================================================================
@@ -393,6 +434,11 @@ class AnotherConcreteCommand(BaseCommand):
 
 class TestBaseCommandAbstractMethods:
     """Tests for BaseCommand abstract method enforcement."""
+
+    def test_handle_return_annotation_allows_structured_results(self):
+        """The public command contract permits JSON-serializable return data."""
+        annotation = BaseCommand.handle.__annotations__["return"]
+        assert annotation == "object"
 
     def test_base_command_cannot_be_instantiated(self):
         """Test BaseCommand is abstract and cannot be instantiated directly."""

@@ -20,6 +20,7 @@ if TYPE_CHECKING:
     from usecli.cli.core.base_command import BaseCommand
     from usecli.menu import Menu
     from usecli.params import Argument, Option
+    from usecli.progress import ProgressBar, Spinner
     from usecli.ui import Confirm, Prompt
 
     console: Console
@@ -37,6 +38,8 @@ _LAZY_EXPORTS = {
     "Confirm": ("usecli.ui", "Confirm"),
     "Console": ("usecli.ui", "Console"),
     "console": ("usecli.ui", "console"),
+    "Spinner": ("usecli.progress", "Spinner"),
+    "ProgressBar": ("usecli.progress", "ProgressBar"),
 }
 
 
@@ -155,17 +158,119 @@ def _ensure_cli_initialized() -> None:
             windows_expand_args=True,
             **extra,
         ):
-            return super().main(
-                args=args,
-                prog_name=prog_name,
-                complete_var=complete_var,
-                standalone_mode=False,
-                windows_expand_args=windows_expand_args,
-                **extra,
+            cli_args = list(args) if args is not None else sys.argv[1:]
+            option_args = (
+                cli_args[: cli_args.index("--")] if "--" in cli_args else cli_args
             )
+            if "--json" not in option_args:
+                return super().main(
+                    args=args,
+                    prog_name=prog_name,
+                    complete_var=complete_var,
+                    standalone_mode=False,
+                    windows_expand_args=windows_expand_args,
+                    **extra,
+                )
+
+            from contextlib import redirect_stdout
+
+            from usecli.cli.core.runtime import (
+                InvocationExit,
+                JSONSerializationError,
+                NonInteractiveError,
+                error_document,
+                execution_context,
+                serialize_document,
+                success_document,
+            )
+
+            original_stdout = sys.stdout
+            _TyperBadParameter = globals()["_TyperBadParameter"]
+            _TyperUsageError = globals()["_TyperUsageError"]
+            _TyperClickException = globals()["_TyperClickException"]
+
+            def write_document(document):
+                original_stdout.write(serialize_document(document))
+                original_stdout.flush()
+
+            def fail(error_type: str, message: str, code: int):
+                write_document(
+                    error_document(
+                        error_type=error_type,
+                        message=message,
+                        code=code,
+                    )
+                )
+                raise SystemExit(code)
+
+            with execution_context(json_mode=True):
+                try:
+                    with redirect_stdout(sys.stderr):
+                        result = super().main(
+                            args=args,
+                            prog_name=prog_name,
+                            complete_var=complete_var,
+                            standalone_mode=False,
+                            windows_expand_args=windows_expand_args,
+                            **extra,
+                        )
+                    write_document(success_document(result))
+                    return result
+                except InvocationExit as error:
+                    if error.code == 0:
+                        write_document(success_document())
+                        return None
+                    fail("Exit", str(error), error.code)
+                except Exit as error:
+                    code = error.exit_code
+                    if code == 0:
+                        write_document(success_document())
+                        return None
+                    fail("Exit", f"Command exited with status {code}", code)
+                except JSONSerializationError as error:
+                    print(f"JSONSerializationError: {error}", file=sys.stderr)
+                    fail("JSONSerializationError", str(error), 1)
+                except NonInteractiveError as error:
+                    print(f"NonInteractiveError: {error}", file=sys.stderr)
+                    fail("NonInteractiveError", str(error), error.code)
+                except (_TyperBadParameter, BadParameter) as error:
+                    error.show(file=sys.stderr)
+                    fail("BadParameter", error.format_message(), error.exit_code)
+                except (_TyperUsageError, UsageError) as error:
+                    error.show(file=sys.stderr)
+                    fail("UsageError", error.format_message(), error.exit_code)
+                except (_TyperClickException, ClickException) as error:
+                    error.show(file=sys.stderr)
+                    fail(
+                        error.__class__.__name__,
+                        error.format_message(),
+                        error.exit_code,
+                    )
+                except SystemExit as error:
+                    code = error.code if isinstance(error.code, int) else 1
+                    if code == 0:
+                        write_document(success_document())
+                        return None
+                    fail("Exit", f"Command exited with status {code}", code)
+                except Exception as error:
+                    print(
+                        f"{error.__class__.__name__}: {error}",
+                        file=sys.stderr,
+                    )
+                    fail(error.__class__.__name__, str(error), 1)
 
         def invoke(self, ctx):
             from click.exceptions import Exit
+
+            from usecli.cli.core.runtime import is_json_mode
+
+            if is_json_mode():
+                from usecli.cli.core.runtime import InvocationExit
+
+                try:
+                    return super().invoke(ctx)
+                except Exit as error:
+                    raise InvocationExit(error.exit_code) from error
 
             _TyperBadParameter = globals()["_TyperBadParameter"]
             _TyperUsageError = globals()["_TyperUsageError"]
@@ -245,6 +350,8 @@ __all__ = [
     "Option",
     "Prompt",
     "Confirm",
+    "Spinner",
+    "ProgressBar",
     "colors",
     "theme",
 ]
@@ -356,12 +463,12 @@ class _FilteredListCommand:
     def invoke(self, ctx):
         from usecli.cli.core.ui.list import list_commands
 
-        list_commands(_get_app(), prefix_filter=self.prefix_filter)
+        return list_commands(_get_app(), prefix_filter=self.prefix_filter)
 
     def __call__(self, *args, **kwargs):
         from usecli.cli.core.ui.list import list_commands
 
-        list_commands(_get_app(), prefix_filter=self.prefix_filter)
+        return list_commands(_get_app(), prefix_filter=self.prefix_filter)
 
 
 def _get_default_help() -> str:
@@ -397,13 +504,23 @@ def _get_run_app_callback():
         interactive: bool = typer.Option(
             False, "--interactive", "-i", help="Run in interactive mode.", is_eager=True
         ),
-    ) -> None:
+        json_output: bool = typer.Option(
+            False,
+            "--json",
+            help="Emit one machine-readable JSON document.",
+            is_eager=True,
+        ),
+    ) -> object:
         _resolve_help()
 
         if help:
             from usecli.cli.core.ui.list import list_commands
 
-            list_commands(_get_app())
+            data = list_commands(_get_app())
+            from usecli.cli.core.runtime import is_json_mode
+
+            if is_json_mode():
+                return data
             raise typer.Exit()
 
         if version:
@@ -421,6 +538,13 @@ def _get_run_app_callback():
 
         interactive_requested = interactive or _is_interactive_flag_present()
 
+        from usecli.cli.core.runtime import is_json_mode
+
+        if interactive_requested and is_json_mode():
+            from usecli.cli.core.runtime import NonInteractiveError
+
+            raise NonInteractiveError("Interactive mode is unavailable in JSON mode")
+
         if interactive_requested:
             from usecli.cli.commands.defaults.base.internal.fzf_command import (
                 run_interactive,
@@ -436,7 +560,7 @@ def _get_run_app_callback():
                 prefix_filter = ctx.obj.get("prefix_filter")
             from usecli.cli.core.ui.list import list_commands
 
-            list_commands(_get_app(), prefix_filter=prefix_filter)
+            return list_commands(_get_app(), prefix_filter=prefix_filter)
 
     globals()["run_app"] = run_app
     return run_app

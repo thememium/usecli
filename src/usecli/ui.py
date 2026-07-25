@@ -11,6 +11,7 @@ from rich.table import Table
 from rich.text import Text
 
 from usecli.cli.config.colors import COLOR
+from usecli.cli.core.runtime import NonInteractiveError, is_json_mode
 
 console = Console()
 
@@ -43,6 +44,10 @@ class Prompt:
             >>> name = Prompt.ask("Enter your name")
             >>> choice = Prompt.ask("Pick a color", choices=["red", "green", "blue"])
         """
+        if is_json_mode():
+            if default is not None:
+                return default
+            raise NonInteractiveError("Prompt requires a default value in JSON mode")
         return RichPrompt.ask(
             prompt,
             default=default,
@@ -75,6 +80,8 @@ class Confirm:
             >>> if Confirm.ask("Do you want to continue?"):
             ...     print("Continuing...")
         """
+        if is_json_mode():
+            return default
         return RichConfirm.ask(prompt, default=default, console=console)
 
 

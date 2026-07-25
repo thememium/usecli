@@ -451,6 +451,33 @@ class TestListCommands:
     @patch("usecli.cli.core.ui.list.print_title")
     @patch("usecli.cli.core.ui.list.console")
     @patch("usecli.cli.core.ui.list.typer.main.get_command")
+    def test_list_commands_prefix_filter_shows_json_option(
+        self, mock_get_command, mock_console, mock_print_title
+    ):
+        """A prefix-filtered help list should advertise the global --json flag."""
+        mock_command = Mock()
+        mock_command.name = "make:command"
+        mock_command.callback = Mock(__name__="make_command")
+        mock_command.help = "Create new command"
+
+        app = Mock()
+        app.registered_commands = [mock_command]
+
+        click_group = Mock()
+        click_group.params = []
+        mock_get_command.return_value = click_group
+
+        list_commands(app, prefix_filter="make")
+
+        print_calls = [str(call) for call in mock_console.print.call_args_list]
+        combined_output = "\n".join(print_calls)
+
+        assert "make:command" in combined_output
+        assert "--json" in combined_output
+
+    @patch("usecli.cli.core.ui.list.print_title")
+    @patch("usecli.cli.core.ui.list.console")
+    @patch("usecli.cli.core.ui.list.typer.main.get_command")
     def test_list_commands_with_empty_prefix_filter_result(
         self, mock_get_command, mock_console, mock_print_title
     ):
@@ -841,10 +868,10 @@ class TestListCommands:
     @patch("usecli.cli.core.ui.list.print_title")
     @patch("usecli.cli.core.ui.list.console")
     @patch("usecli.cli.core.ui.list.typer.main.get_command")
-    def test_list_commands_returns_none(
+    def test_list_commands_returns_data(
         self, mock_get_command, mock_console, mock_print_title
     ):
-        """Test list_commands() returns None."""
+        """Test list_commands() returns structured CommandsData."""
         app = Mock()
         app.registered_commands = []
 
@@ -854,7 +881,10 @@ class TestListCommands:
 
         result = list_commands(app)
 
-        assert result is None
+        assert result is not None
+        assert "commands" in result
+        assert "groups" in result
+        assert "options" in result
 
     @patch("usecli.cli.core.ui.list.print_title")
     @patch("usecli.cli.core.ui.list.console")
