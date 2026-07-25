@@ -171,9 +171,14 @@ def list_commands(app: typer.Typer, prefix_filter: str | None = None) -> Command
     Returns:
         Structured command data (also rendered to the console as a side effect).
     """
+    from usecli.cli.core.runtime import is_json_mode
+
     data = collect_commands_data(app, prefix_filter)
     commands = data["commands"]
     group_entries = data["groups"]
+
+    if is_json_mode():
+        return data
 
     if prefix_filter and not commands and not group_entries:
         console.print(f"  [dim]No commands found for '{prefix_filter}'[/dim]")

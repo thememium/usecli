@@ -294,6 +294,11 @@ class AboutCommand(BaseCommand):
             "dependencies": dependencies,
         }
 
+        from usecli.cli.core.runtime import is_json_mode
+
+        if is_json_mode():
+            return data
+
         console.print()
         console.print(f"[bold {COLOR.PRIMARY}]Description[/bold {COLOR.PRIMARY}]")
         console.print(f"[{COLOR.PRIMARY}]─" * 78)
