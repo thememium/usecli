@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.75
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.74...v0.1.75)
+
+### 🚀 Enhancements
+
+- Add framework-wide JSON output mode and progress indicators ([#4](https://github.com/thememium/usecli/pull/4))
+
+### ❤️ Contributors
+
+- Pshokeen <pshokeen@live.com>
+
 ## v0.1.74
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.73...v0.1.74)
