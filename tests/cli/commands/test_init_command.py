@@ -337,6 +337,50 @@ class TestInitCommandPyprojectToml:
         assert 'where = ["."]' in content
         assert 'include = ["cli*"]' in content
 
+    def test_adds_setuptools_package_data_for_existing_pyproject(
+        self, temp_project_dir, init_command
+    ):
+        """usecli.config.toml, and the .j2/.toml files init also scaffolds,
+        are not .py files - setuptools drops them from a built wheel unless
+        package-data says otherwise. Without this, an installed (non-editable)
+        copy of a scaffolded project has no config for command discovery to
+        find, and fails silently rather than with an error."""
+        pyproject = temp_project_dir / "pyproject.toml"
+        pyproject.write_text(
+            "[project]\nname = 'test'\n\n[project.scripts]\nmycli = \"usecli:main\"\n"
+        )
+
+        init_command.handle(
+            DEFAULT_TITLE,
+            DEFAULT_DESCRIPTION,
+            DEFAULT_COMMANDS_DIR,
+            force=True,
+        )
+
+        content = pyproject.read_text()
+        assert "[tool.setuptools.package-data]" in content
+        assert 'cli = ["**/*.toml", "**/*.j2"]' in content
+
+    def test_skips_package_data_when_already_declared(
+        self, temp_project_dir, init_command
+    ):
+        pyproject = temp_project_dir / "pyproject.toml"
+        pyproject.write_text(
+            "[project]\nname = 'test'\n\n[project.scripts]\nmycli = \"usecli:main\"\n"
+            '\n[tool.setuptools.package-data]\ncli = ["*.txt"]\n'
+        )
+
+        init_command.handle(
+            DEFAULT_TITLE,
+            DEFAULT_DESCRIPTION,
+            DEFAULT_COMMANDS_DIR,
+            force=True,
+        )
+
+        content = pyproject.read_text()
+        assert content.count("[tool.setuptools.package-data]") == 1
+        assert 'cli = ["*.txt"]' in content
+
     def test_adds_project_script_entry(self, temp_project_dir, init_command):
         pyproject = temp_project_dir / "pyproject.toml"
         pyproject.write_text("[project]\nname = 'test'\n")
@@ -661,6 +705,8 @@ class TestInitCommandIntegration:
         assert "[project]" in content
         assert "[project.scripts]" in content
         assert "[build-system]" in content
+        assert "[tool.setuptools.package-data]" in content
+        assert 'cli = ["**/*.toml", "**/*.j2"]' in content
 
         config_path = _config_path(temp_project_dir, DEFAULT_COMMANDS_DIR)
         assert config_path.exists()
