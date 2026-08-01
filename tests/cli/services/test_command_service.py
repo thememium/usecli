@@ -555,9 +555,7 @@ class TestCommandServiceLoadFromDir:
             def issubclass_check(obj, parent):
                 if obj is BaseCommand:
                     return True
-                if obj is test_cmd:
-                    return True
-                return False
+                return obj is test_cmd
 
             mock_issubclass.side_effect = issubclass_check
 
@@ -992,13 +990,15 @@ class TestCommandServiceMockingBehavior:
         app = MagicMock()
         service = CommandService(app=app)
 
-        with patch.object(service, "_load_version") as mock_load_version:
-            with patch.object(service, "_load_from_dir") as mock_load_from_dir:
-                service._load_version()
-                service._load_from_dir(Path("."))
+        with (
+            patch.object(service, "_load_version") as mock_load_version,
+            patch.object(service, "_load_from_dir") as mock_load_from_dir,
+        ):
+            service._load_version()
+            service._load_from_dir(Path("."))
 
-                mock_load_version.assert_called_once()
-                mock_load_from_dir.assert_called_once()
+            mock_load_version.assert_called_once()
+            mock_load_from_dir.assert_called_once()
 
 
 # =============================================================================
@@ -1081,13 +1081,15 @@ class TestCommandServiceRealWorldScenarios:
         app = MagicMock()
         service = CommandService(app=app)
 
-        with patch.object(service, "_load_version"):
-            with patch.object(service, "_load_from_dir"):
-                for _ in range(5):
-                    service.load_commands()
+        with (
+            patch.object(service, "_load_version"),
+            patch.object(service, "_load_from_dir"),
+        ):
+            for _ in range(5):
+                service.load_commands()
 
-                assert service.version == "0.0.0"
-                assert service.commands == []
+            assert service.version == "0.0.0"
+            assert service.commands == []
 
     @patch("importlib.util.module_from_spec")
     @patch("importlib.util.spec_from_file_location")
@@ -1122,22 +1124,24 @@ class TestCommandServiceRealWorldScenarios:
 
         def mock_load_version_fail():
             call_log.append("version_called")
-            raise Exception("Version load failed")
+            raise RuntimeError("Version load failed")
 
         def mock_load_from_dir_success(path):
             call_log.append(f"dir_called_{str(path).split('/')[-1]}")
 
-        with patch.object(service, "_load_version", side_effect=mock_load_version_fail):
-            with patch.object(
+        with (
+            patch.object(service, "_load_version", side_effect=mock_load_version_fail),
+            patch.object(
                 service, "_load_from_dir", side_effect=mock_load_from_dir_success
-            ):
-                try:
-                    service.load_commands()
-                except Exception:
-                    pass
+            ),
+        ):
+            try:
+                service.load_commands()
+            except RuntimeError:
+                pass
 
-                # load_version was called first
-                assert "version_called" in call_log
+            # load_version was called first
+            assert "version_called" in call_log
 
     def test_scenario_state_isolation_between_instances(self):
         """Test that different instances don't share state."""
