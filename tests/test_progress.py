@@ -78,10 +78,10 @@ def test_progress_bar_uses_stderr_progress_and_advances_one_task() -> None:
             "Progress",
             return_value=rich_progress,
         ) as progress_type,
+        progress_module.ProgressBar(total=3, description="Processing") as progress,
     ):
-        with progress_module.ProgressBar(total=3, description="Processing") as progress:
-            progress.advance()
-            progress.update(completed=2, description="Almost done")
+        progress.advance()
+        progress.update(completed=2, description="Almost done")
 
     console_type.assert_called_once_with(stderr=True)
     assert progress_type.call_args.kwargs == {
