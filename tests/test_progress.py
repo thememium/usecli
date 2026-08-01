@@ -47,9 +47,9 @@ def test_spinner_uses_stderr_progress_without_stream_redirection() -> None:
             "Progress",
             return_value=rich_progress,
         ) as progress_type,
+        progress_module.Spinner("Loading") as spinner,
     ):
-        with progress_module.Spinner("Loading") as spinner:
-            spinner.update("Still loading")
+        spinner.update("Still loading")
 
     console_type.assert_called_once_with(stderr=True)
     assert progress_type.call_args.kwargs == {
