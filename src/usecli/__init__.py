@@ -340,19 +340,19 @@ def _get_service():
 
 
 __all__ = [
-    "BaseCommand",
     "COLOR",
-    "console",
-    "Console",
-    "main",
-    "Menu",
     "Argument",
-    "Option",
-    "Prompt",
+    "BaseCommand",
     "Confirm",
-    "Spinner",
+    "Console",
+    "Menu",
+    "Option",
     "ProgressBar",
+    "Prompt",
+    "Spinner",
     "colors",
+    "console",
+    "main",
     "theme",
 ]
 
