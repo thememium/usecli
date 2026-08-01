@@ -311,6 +311,7 @@ class TestInitCommandPyprojectToml:
                 capture_output=True,
                 text=True,
                 cwd=temp_project_dir,
+                check=False,
             )
 
     def test_adds_build_system_when_missing(self, temp_project_dir, init_command):
