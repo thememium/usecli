@@ -230,7 +230,6 @@ class TestErrorHandlerHandleException:
         @ErrorHandler.handle_exception
         def test_func():
             """Test function docstring."""
-            pass
 
         assert test_func.__name__ == "test_func"
         doc = test_func.__doc__
@@ -282,7 +281,6 @@ class TestErrorHandlerHandleException:
 
         # Verify display_error was not called (show() is called instead)
         # We need to mock the error's show method
-        pass
 
     @patch("usecli.cli.core.error.handler.ErrorHandler.display_error")
     def test_handle_exception_catches_generic_exception(self, mock_display_error):

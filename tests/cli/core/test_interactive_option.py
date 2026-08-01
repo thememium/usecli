@@ -54,12 +54,14 @@ def test_custom_help_command_invoke_calls_run_interactive():
     ctx.params = {"interactive": True}
     ctx.command_path = "usecli about"
 
-    with patch("usecli.app", app):
-        with patch(
+    with (
+        patch("usecli.app", app),
+        patch(
             "usecli.cli.commands.defaults.base.internal.fzf_command.run_interactive"
-        ) as mock_run:
-            with pytest.raises(Exit):
-                cmd.invoke(ctx)
+        ) as mock_run,
+        pytest.raises(Exit),
+    ):
+        cmd.invoke(ctx)
 
     mock_run.assert_called_once_with(app, cmd_parts=["about"])
     assert "interactive" not in ctx.params
@@ -69,11 +71,13 @@ def test_main_interactive_calls_run_interactive():
     ctx = MagicMock()
     ctx.invoked_subcommand = "about"
 
-    with patch(
-        "usecli.cli.commands.defaults.base.internal.fzf_command.run_interactive"
-    ) as mock_run:
-        with pytest.raises(typer.Exit):
-            run_app(ctx=ctx, version=False, help=False, interactive=True)
+    with (
+        patch(
+            "usecli.cli.commands.defaults.base.internal.fzf_command.run_interactive"
+        ) as mock_run,
+        pytest.raises(typer.Exit),
+    ):
+        run_app(ctx=ctx, version=False, help=False, interactive=True)
 
     mock_run.assert_called_once_with(app, cmd_parts=["about"])
 

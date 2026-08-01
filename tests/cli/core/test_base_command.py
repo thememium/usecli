@@ -405,7 +405,7 @@ class ConcreteCommand(BaseCommand):
 
     def handle(self, *args, **kwargs):
         """Implement abstract handle method."""
-        return None
+        return
 
     def signature(self) -> str:
         """Implement abstract signature method."""
@@ -421,7 +421,7 @@ class AnotherConcreteCommand(BaseCommand):
 
     def handle(self, *args, **kwargs):
         """Implement abstract handle method."""
-        return None
+        return
 
     def signature(self) -> str:
         """Implement abstract signature method."""
@@ -442,7 +442,7 @@ class TestBaseCommandAbstractMethods:
 
     def test_base_command_cannot_be_instantiated(self):
         """Test BaseCommand is abstract and cannot be instantiated directly."""
-        abstract_cls = getattr(base_command, "BaseCommand")
+        abstract_cls = base_command.BaseCommand
         with pytest.raises(TypeError):
             abstract_cls(app=MagicMock())
 
@@ -633,7 +633,7 @@ class TestBaseCommandRegister:
         ]
         assert "alias-cmd" in command_names
         assert "ac" in command_names
-        assert getattr(mock_app, "_usecli_aliases") == {"alias-cmd": ["ac"]}
+        assert mock_app._usecli_aliases == {"alias-cmd": ["ac"]}
 
 
 class TestBaseCommandIntegration:
@@ -886,10 +886,10 @@ class TestNestedCommandRegistration:
         NestedAliasCommand(app=app)
 
         group_app = registry._groups["spec"]
-        alias_registry = getattr(group_app, "_usecli_aliases")
+        alias_registry = group_app._usecli_aliases
         assert alias_registry["show"] == ["s"]
 
-        group_alias_registry = getattr(app, "_usecli_group_aliases")
+        group_alias_registry = app._usecli_group_aliases
         assert group_alias_registry["spec"] == ["sp"]
 
     def test_single_level_command_not_affected(self):
