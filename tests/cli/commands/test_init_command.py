@@ -155,31 +155,31 @@ class TestInitCommandPyprojectToml:
 
         config_default: dict[str, str | None] = {"value": None}
 
-        with patch("usecli.cli.commands.init_command.Prompt.ask") as mock_prompt:
-            with patch(
-                "usecli.cli.commands.init_command.terminal_menu"
-            ) as mock_terminal_menu:
+        with (
+            patch("usecli.cli.commands.init_command.Prompt.ask") as mock_prompt,
+            patch("usecli.cli.commands.init_command.terminal_menu") as mock_terminal_menu,
+        ):
 
-                def _prompt_side_effect(*args, **kwargs):
-                    if args and "Config file location" in args[0]:
-                        config_default["value"] = kwargs.get("default", "")
-                    return kwargs.get("default", "")
+            def _prompt_side_effect(*args, **kwargs):
+                if args and "Config file location" in args[0]:
+                    config_default["value"] = kwargs.get("default", "")
+                return kwargs.get("default", "")
 
-                mock_prompt.side_effect = _prompt_side_effect
+            mock_prompt.side_effect = _prompt_side_effect
 
-                def _menu_side_effect(options, *args, **kwargs):
-                    if isinstance(options, list) and "big" in options:
-                        return ["big"]
-                    return ["default"]
+            def _menu_side_effect(options, *args, **kwargs):
+                if isinstance(options, list) and "big" in options:
+                    return ["big"]
+                return ["default"]
 
-                mock_terminal_menu.side_effect = _menu_side_effect
-                init_command = InitCommand(MagicMock())
-                init_command.handle(
-                    DEFAULT_TITLE,
-                    DEFAULT_DESCRIPTION,
-                    DEFAULT_COMMANDS_DIR,
-                    force=True,
-                )
+            mock_terminal_menu.side_effect = _menu_side_effect
+            init_command = InitCommand(MagicMock())
+            init_command.handle(
+                DEFAULT_TITLE,
+                DEFAULT_DESCRIPTION,
+                DEFAULT_COMMANDS_DIR,
+                force=True,
+            )
 
         assert config_default["value"] == str(
             _config_path(temp_project_dir, DEFAULT_COMMANDS_DIR)
@@ -203,31 +203,31 @@ class TestInitCommandPyprojectToml:
 
     def test_creates_missing_config_directory(self, temp_project_dir):
         config_location = temp_project_dir / "config" / "nested"
-        with patch("usecli.cli.commands.init_command.Prompt.ask") as mock_prompt:
-            with patch(
-                "usecli.cli.commands.init_command.terminal_menu"
-            ) as mock_terminal_menu:
+        with (
+            patch("usecli.cli.commands.init_command.Prompt.ask") as mock_prompt,
+            patch("usecli.cli.commands.init_command.terminal_menu") as mock_terminal_menu,
+        ):
 
-                def _prompt_side_effect(*args, **kwargs):
-                    if args and "Config file location" in args[0]:
-                        return str(config_location)
-                    return kwargs.get("default", "")
+            def _prompt_side_effect(*args, **kwargs):
+                if args and "Config file location" in args[0]:
+                    return str(config_location)
+                return kwargs.get("default", "")
 
-                mock_prompt.side_effect = _prompt_side_effect
+            mock_prompt.side_effect = _prompt_side_effect
 
-                def _menu_side_effect(options, *args, **kwargs):
-                    if isinstance(options, list) and "big" in options:
-                        return ["big"]
-                    return ["default"]
+            def _menu_side_effect(options, *args, **kwargs):
+                if isinstance(options, list) and "big" in options:
+                    return ["big"]
+                return ["default"]
 
-                mock_terminal_menu.side_effect = _menu_side_effect
-                init_command = InitCommand(MagicMock())
-                init_command.handle(
-                    DEFAULT_TITLE,
-                    DEFAULT_DESCRIPTION,
-                    DEFAULT_COMMANDS_DIR,
-                    force=True,
-                )
+            mock_terminal_menu.side_effect = _menu_side_effect
+            init_command = InitCommand(MagicMock())
+            init_command.handle(
+                DEFAULT_TITLE,
+                DEFAULT_DESCRIPTION,
+                DEFAULT_COMMANDS_DIR,
+                force=True,
+            )
 
         expected_path = config_location / "usecli.config.toml"
         assert expected_path.exists()
@@ -239,24 +239,26 @@ class TestInitCommandPyprojectToml:
         )
         (temp_project_dir / ".venv").mkdir()
 
-        with patch("usecli.cli.commands.init_command.shutil.which") as mock_which:
-            with patch("usecli.cli.commands.init_command.subprocess.run") as mock_run:
-                mock_which.return_value = "/usr/bin/uv"
-                mock_run.return_value = MagicMock(returncode=0)
+        with (
+            patch("usecli.cli.commands.init_command.shutil.which") as mock_which,
+            patch("usecli.cli.commands.init_command.subprocess.run") as mock_run,
+        ):
+            mock_which.return_value = "/usr/bin/uv"
+            mock_run.return_value = MagicMock(returncode=0)
 
-                init_command.handle(
-                    DEFAULT_TITLE,
-                    DEFAULT_DESCRIPTION,
-                    DEFAULT_COMMANDS_DIR,
-                    force=True,
-                )
+            init_command.handle(
+                DEFAULT_TITLE,
+                DEFAULT_DESCRIPTION,
+                DEFAULT_COMMANDS_DIR,
+                force=True,
+            )
 
-                mock_run.assert_called_once_with(
-                    ["/usr/bin/uv", "sync"],
-                    capture_output=True,
-                    text=True,
-                    cwd=temp_project_dir,
-                )
+            mock_run.assert_called_once_with(
+                ["/usr/bin/uv", "sync"],
+                capture_output=True,
+                text=True,
+                cwd=temp_project_dir,
+            )
 
     def test_skips_auto_sync_without_venv(self, temp_project_dir, init_command):
         pyproject = temp_project_dir / "pyproject.toml"
@@ -264,18 +266,20 @@ class TestInitCommandPyprojectToml:
             "[project]\nname = 'test'\n\n[project.scripts]\nmycli = \"usecli:main\"\n"
         )
 
-        with patch("usecli.cli.commands.init_command.shutil.which") as mock_which:
-            with patch("usecli.cli.commands.init_command.subprocess.run") as mock_run:
-                mock_which.return_value = "/usr/bin/uv"
+        with (
+            patch("usecli.cli.commands.init_command.shutil.which") as mock_which,
+            patch("usecli.cli.commands.init_command.subprocess.run") as mock_run,
+        ):
+            mock_which.return_value = "/usr/bin/uv"
 
-                init_command.handle(
-                    DEFAULT_TITLE,
-                    DEFAULT_DESCRIPTION,
-                    DEFAULT_COMMANDS_DIR,
-                    force=True,
-                )
+            init_command.handle(
+                DEFAULT_TITLE,
+                DEFAULT_DESCRIPTION,
+                DEFAULT_COMMANDS_DIR,
+                force=True,
+            )
 
-                mock_run.assert_not_called()
+            mock_run.assert_not_called()
 
     def test_installs_with_pip_when_uv_missing(self, temp_project_dir, init_command):
         pyproject = temp_project_dir / "pyproject.toml"
@@ -283,15 +287,17 @@ class TestInitCommandPyprojectToml:
             "[project]\nname = 'test'\n\n[project.scripts]\nmycli = \"usecli:main\"\n"
         )
 
-        with patch("usecli.cli.commands.init_command.shutil.which") as mock_which:
-            with patch("usecli.cli.commands.init_command.subprocess.run") as mock_run:
-                mock_which.return_value = None
-                mock_run.return_value = MagicMock(returncode=0)
+        with (
+            patch("usecli.cli.commands.init_command.shutil.which") as mock_which,
+            patch("usecli.cli.commands.init_command.subprocess.run") as mock_run,
+        ):
+            mock_which.return_value = None
+            mock_run.return_value = MagicMock(returncode=0)
 
-                init_command.handle(
-                    DEFAULT_TITLE,
-                    DEFAULT_DESCRIPTION,
-                    DEFAULT_COMMANDS_DIR,
+            init_command.handle(
+                DEFAULT_TITLE,
+                DEFAULT_DESCRIPTION,
+                DEFAULT_COMMANDS_DIR,
                     force=True,
                 )
 
