@@ -273,6 +273,49 @@ themes_dir = ["custom/themes", "cli/themes", "custom/themes"]
 
         assert manager.get("title") == "Package CLI"
 
+    def test_console_script_finds_config_via_top_level_txt(
+        self, temp_project_dir, monkeypatch
+    ):
+        package_root = temp_project_dir / "site-packages" / "cli"
+        package_root.mkdir(parents=True)
+        package_config = package_root / "usecli.config.toml"
+        package_config.write_text('[usecli]\ntitle = "Scaffolded CLI"')
+
+        class FakeEntryPoint:
+            def __init__(self, name: str) -> None:
+                self.group = "console_scripts"
+                self.name = name
+
+        class FakeDist:
+            def __init__(self, name: str) -> None:
+                self.metadata = {"Name": name}
+                self.entry_points = [FakeEntryPoint("magic")]
+
+            def read_text(self, filename: str) -> str | None:
+                if filename == "top_level.txt":
+                    return "cli"
+                return None
+
+        def fake_find_spec(name: str):
+            if name == "cli":
+                return types.SimpleNamespace(
+                    submodule_search_locations=[str(package_root)]
+                )
+            return None
+
+        monkeypatch.setattr(config_manager.importlib.util, "find_spec", fake_find_spec)
+        _reset_distributions_cache()
+        monkeypatch.setattr(
+            config_manager.importlib.metadata,
+            "distributions",
+            lambda: [FakeDist("2026-07-25-newusecli")],
+        )
+        monkeypatch.setattr(sys, "argv", ["magic"])
+
+        manager = ConfigManager()
+
+        assert manager.get("title") == "Scaffolded CLI"
+
     def test_console_script_ignores_mismatched_project_config(
         self, temp_project_dir, monkeypatch
     ):
