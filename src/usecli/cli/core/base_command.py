@@ -371,7 +371,6 @@ class BaseCommand(ABC):
             *args: Positional arguments.
             **kwargs: Keyword arguments.
         """
-        pass
 
     @abstractmethod
     def signature(self) -> str:
@@ -380,7 +379,6 @@ class BaseCommand(ABC):
         Returns:
             The command signature (e.g., "make:command").
         """
-        pass
 
     @abstractmethod
     def description(self) -> str:
@@ -389,7 +387,6 @@ class BaseCommand(ABC):
         Returns:
             A short description of what the command does.
         """
-        pass
 
     def aliases(self) -> list[str]:
         return []
@@ -484,20 +481,20 @@ class BaseCommand(ABC):
 
     def _get_alias_registry(self, app: typer.Typer) -> dict[str, list[str]]:
         if not hasattr(app, "_usecli_aliases"):
-            setattr(app, "_usecli_aliases", {})
-        registry = getattr(app, "_usecli_aliases")
+            app._usecli_aliases = {}
+        registry = app._usecli_aliases
         if not isinstance(registry, dict):
             registry = {}
-            setattr(app, "_usecli_aliases", registry)
+            app._usecli_aliases = registry
         return registry
 
     def _get_group_alias_registry(self, app: typer.Typer) -> dict[str, list[str]]:
         if not hasattr(app, "_usecli_group_aliases"):
-            setattr(app, "_usecli_group_aliases", {})
-        registry = getattr(app, "_usecli_group_aliases")
+            app._usecli_group_aliases = {}
+        registry = app._usecli_group_aliases
         if not isinstance(registry, dict):
             registry = {}
-            setattr(app, "_usecli_group_aliases", registry)
+            app._usecli_group_aliases = registry
         return registry
 
     def _register_group_aliases(
