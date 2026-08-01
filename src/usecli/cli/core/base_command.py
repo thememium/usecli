@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Self
 
 import typer
 from click.core import Context as ClickContext
@@ -44,7 +44,7 @@ class NestedCommandRegistry:
     _group_commands: dict[str, list[dict[str, Any]]]
     _main_app: typer.Typer | None
 
-    def __new__(cls) -> NestedCommandRegistry:
+    def __new__(cls) -> Self:
         """Ensure singleton pattern for the registry."""
         if cls._instance is None:
             cls._instance = super().__new__(cls)
