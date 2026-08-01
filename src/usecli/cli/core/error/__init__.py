@@ -7,6 +7,6 @@ from usecli.cli.core.error.utils import confirm_or_exit, error_exit
 
 __all__ = [
     "ErrorHandler",
-    "error_exit",
     "confirm_or_exit",
+    "error_exit",
 ]

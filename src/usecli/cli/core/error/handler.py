@@ -7,7 +7,8 @@ matching your existing help and fzf command styling.
 from __future__ import annotations
 
 import functools
-from typing import Callable, TypeVar
+from collections.abc import Callable
+from typing import TypeVar
 
 import typer
 from rich.console import Console
