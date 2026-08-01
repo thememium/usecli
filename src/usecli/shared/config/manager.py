@@ -588,15 +588,23 @@ class ConfigManager:
             dist_name = metadata["Name"]
         elif "name" in metadata:
             dist_name = metadata["name"]
-        candidates = []
+        candidates: list[str] = []
         if dist_name:
             candidates.append(dist_name)
             normalized = dist_name.replace("-", "_")
             if normalized not in candidates:
                 candidates.append(normalized)
+        # Also try the actual importable package names from top_level.txt.
+        # For non-editable installs the distribution name (e.g.
+        # "my-cli") often differs from the importable package
+        # name (e.g. "mycli"), so relying on the distribution name alone fails
+        # to locate the package via importlib.util.find_spec.
+        for top_level in cls._read_top_level_packages(dist):
+            if top_level not in candidates:
+                candidates.append(top_level)
         aliases = cls._get_console_script_aliases(command_name)
+        source_root = cls._resolve_editable_source_root(dist)
         for package_name in candidates:
-            source_root = cls._resolve_editable_source_root(dist)
             if source_root:
                 source_config = cls._search_source_for_config(
                     source_root, command_name, aliases
@@ -607,6 +615,16 @@ class ConfigManager:
             if match:
                 return match
         return None
+
+    @staticmethod
+    def _read_top_level_packages(dist: Any) -> list[str]:
+        try:
+            text = dist.read_text("top_level.txt")
+        except Exception:
+            return []
+        if not text:
+            return []
+        return [line.strip() for line in text.splitlines() if line.strip()]
 
     @staticmethod
     def _is_preferred_package_path(path: Path) -> bool:
