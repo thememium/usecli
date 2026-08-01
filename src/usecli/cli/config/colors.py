@@ -11,12 +11,15 @@ Usage:
 
 from __future__ import annotations
 
+import logging
 import os
 import sys
 import time
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any, Final, Protocol, cast, final
+
+logger = logging.getLogger(__name__)
 
 
 def _import_tomllib():
@@ -189,8 +192,8 @@ def _get_console_script_aliases(command_name: str | None) -> set[str]:
                 ep.name for ep in dist.entry_points if ep.group == "console_scripts"
             ]
             aliases.update(names)
-        except Exception:
-            pass
+        except (AttributeError, OSError):
+            logger.debug("Failed to read entry points for distribution %s", dist)
     return aliases
 
 
