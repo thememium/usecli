@@ -17,7 +17,7 @@ if str(local_usecli_path) not in list(usecli.__path__):
     usecli.__path__ = list(usecli.__path__) + [str(local_usecli_path)]
 importlib.invalidate_caches()
 
-from usecli.cli.commands.init_command import InitCommand  # noqa: E402
+from usecli.cli.commands.init_command import InitCommand
 
 DEFAULT_TITLE = "My CLI"
 DEFAULT_DESCRIPTION = "A custom CLI tool"
@@ -52,20 +52,20 @@ def mock_console():
 
 @pytest.fixture
 def init_command(mock_console):
-    with patch("usecli.cli.commands.init_command.Prompt.ask") as mock_prompt:
-        with patch(
-            "usecli.cli.commands.init_command.terminal_menu"
-        ) as mock_terminal_menu:
-            mock_prompt.side_effect = lambda *args, **kwargs: kwargs.get("default", "")
+    with (
+        patch("usecli.cli.commands.init_command.Prompt.ask") as mock_prompt,
+        patch("usecli.cli.commands.init_command.terminal_menu") as mock_terminal_menu,
+    ):
+        mock_prompt.side_effect = lambda *args, **kwargs: kwargs.get("default", "")
 
-            def _menu_side_effect(options, *args, **kwargs):
-                if isinstance(options, list) and "big" in options:
-                    return ["big"]
-                return ["default"]
+        def _menu_side_effect(options, *args, **kwargs):
+            if isinstance(options, list) and "big" in options:
+                return ["big"]
+            return ["default"]
 
-            mock_terminal_menu.side_effect = _menu_side_effect
-            mock_app = MagicMock()
-            yield InitCommand(mock_app)
+        mock_terminal_menu.side_effect = _menu_side_effect
+        mock_app = MagicMock()
+        yield InitCommand(mock_app)
 
 
 class TestInitCommandDirectoryCreation:
