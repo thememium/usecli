@@ -765,8 +765,7 @@ class ConfigManager:
         if not url:
             return None
         # ``url`` is a ``file://`` URI.
-        if url.startswith("file://"):
-            url = url[len("file://") :]
+        url = url.removeprefix("file://")
         source = _get_path()(url)
         if source.exists() and source.is_dir():
             return source.resolve()
