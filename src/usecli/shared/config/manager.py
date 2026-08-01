@@ -6,12 +6,16 @@ Handles loading and accessing configuration from project-level files.
 from __future__ import annotations
 
 import importlib.util
+import logging
 import os
 import sys
-from typing import TYPE_CHECKING, Any
+from importlib.metadata import PackageNotFoundError
+from typing import TYPE_CHECKING, Any, ClassVar
 
 if TYPE_CHECKING:
     from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 # Config file names - inlined to avoid importing globals.py (which pulls in pathlib)
 PYPROJECT_TOML = "pyproject.toml"
@@ -154,7 +158,8 @@ def _get_distributions() -> list[Any]:
     try:
         metadata = _get_importlib_metadata()
         _distributions_cache = list(metadata.distributions())
-    except Exception:
+    except (OSError, ImportError):
+        logger.debug("Failed to load package distributions")
         _distributions_cache = []
     return _distributions_cache
 
@@ -182,8 +187,8 @@ def _find_distribution_for_console_script(
         for ep in dist.entry_points:
             if ep.group == "console_scripts" and ep.name == command_name:
                 return dist
-    except Exception:
-        pass
+    except (PackageNotFoundError, AttributeError, OSError):
+        logger.debug("Distribution not found for command: %s", command_name)
 
     # Fast path 2: current package name (e.g. 'usecli')
     package_name = _get_package_name()
@@ -193,8 +198,8 @@ def _find_distribution_for_console_script(
             for ep in dist.entry_points:
                 if ep.group == "console_scripts" and ep.name == command_name:
                     return dist
-        except Exception:
-            pass
+        except (PackageNotFoundError, AttributeError, OSError):
+            logger.debug("Distribution not found for package: %s", package_name)
 
     # Slow path: scan all distributions
     for dist in _get_distributions():
@@ -202,7 +207,8 @@ def _find_distribution_for_console_script(
             for ep in dist.entry_points:
                 if ep.group == "console_scripts" and ep.name == command_name:
                     return dist
-        except Exception:
+        except (AttributeError, OSError):
+            logger.debug("Failed to read entry points for distribution: %s", dist)
             continue
     return None
 
@@ -256,7 +262,7 @@ def _reset_toml_cache() -> None:
 class ConfigManager:
     """Manages useCli configuration from project-level files."""
 
-    _SKIP_DIRS = {
+    _SKIP_DIRS: ClassVar[set[str]] = {
         ".venv",
         "venv",
         "site-packages",
@@ -266,7 +272,7 @@ class ConfigManager:
         "venvs",
     }
 
-    DEFAULT_CONFIG: dict[str, Any] = {
+    DEFAULT_CONFIG: ClassVar[dict[str, Any]] = {
         "title": "usecli",
         "title_file": None,
         "description": "A customizable CLI framework",
@@ -512,8 +518,8 @@ class ConfigManager:
                 )
                 if source_config:
                     return source_config
-        except Exception:
-            pass
+        except (PackageNotFoundError, OSError):
+            logger.debug("Distribution not found for package: %s", package_name)
 
         for location in spec.submodule_search_locations:
             package_root = _get_path()(location)
@@ -553,8 +559,8 @@ class ConfigManager:
                 )
                 if source_config:
                     return source_config
-        except Exception:
-            pass
+        except (PackageNotFoundError, OSError):
+            logger.debug("Distribution not found for package: %s", package_name)
 
         for location in spec.submodule_search_locations:
             package_root = _get_path()(location)
@@ -620,7 +626,7 @@ class ConfigManager:
     def _read_top_level_packages(dist: Any) -> list[str]:
         try:
             text = dist.read_text("top_level.txt")
-        except Exception:
+        except (OSError, KeyError):
             return []
         if not text:
             return []
@@ -704,8 +710,8 @@ class ConfigManager:
                     ep.name for ep in dist.entry_points if ep.group == "console_scripts"
                 ]
                 aliases.update(names)
-            except Exception:
-                pass
+            except (AttributeError, OSError):
+                logger.debug("Failed to read entry points for distribution: %s", dist)
         return aliases
 
     @staticmethod
@@ -747,7 +753,7 @@ class ConfigManager:
         """
         try:
             text = dist.read_text("direct_url.json")
-        except Exception:
+        except (OSError, KeyError):
             return None
         if not text:
             return None
