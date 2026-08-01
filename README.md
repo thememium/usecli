@@ -135,7 +135,7 @@ Space-separated signatures create nested subcommands:
 
 ```python
 def signature(self) -> str:
-    return "spec show"   # usecli spec show
+    return "spec show"  # usecli spec show
 ```
 
 ### JSON Output
