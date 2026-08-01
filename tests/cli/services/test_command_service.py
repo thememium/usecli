@@ -68,8 +68,6 @@ class AnotherDummyCommand(BaseCommand):
 class NotACommand:
     """Not a BaseCommand subclass."""
 
-    pass
-
 
 # =============================================================================
 # CommandService.__init__ Tests
