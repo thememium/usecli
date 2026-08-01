@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import shutil
-from typing import Any, Callable, TypeVar, cast
+from collections.abc import Callable
+from typing import Any, TypeVar, cast
 
 import simple_term_menu
 from simple_term_menu import TerminalMenu
@@ -25,10 +26,10 @@ def _apply_safe_search_len_patch() -> None:
         if search_text is None:
             return 0
         width = simple_term_menu.wcswidth(search_text)
-        return width if width >= 0 else 0
+        return max(width, 0)
 
     search_class = cast(Any, TerminalMenu.Search)
-    setattr(search_class, "__len__", _safe_search_len)
+    search_class.__len__ = _safe_search_len
     _PATCHED_SEARCH_LEN = True
 
 
@@ -59,7 +60,7 @@ def _apply_vim_page_keys_patch() -> None:
             return "up"
         return key
 
-    setattr(TerminalMenu, "_read_next_key", _read_next_key_with_vim_page)
+    TerminalMenu._read_next_key = _read_next_key_with_vim_page
     _PATCHED_VIM_PAGE_KEYS = True
 
 
