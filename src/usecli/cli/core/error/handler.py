@@ -108,7 +108,7 @@ class ErrorHandler:
             except UsecliError as e:
                 e.show()
                 raise typer.Exit(code=e.exit_code)
-            except Exception as e:
+            except (OSError, RuntimeError, ValueError, TypeError) as e:
                 ErrorHandler.display_error(
                     f"Unexpected error: {e!s}",
                     suggestion="Run with --verbose for more details",
