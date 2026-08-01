@@ -157,7 +157,9 @@ class TestInitCommandPyprojectToml:
 
         with (
             patch("usecli.cli.commands.init_command.Prompt.ask") as mock_prompt,
-            patch("usecli.cli.commands.init_command.terminal_menu") as mock_terminal_menu,
+            patch(
+                "usecli.cli.commands.init_command.terminal_menu"
+            ) as mock_terminal_menu,
         ):
 
             def _prompt_side_effect(*args, **kwargs):
@@ -205,7 +207,9 @@ class TestInitCommandPyprojectToml:
         config_location = temp_project_dir / "config" / "nested"
         with (
             patch("usecli.cli.commands.init_command.Prompt.ask") as mock_prompt,
-            patch("usecli.cli.commands.init_command.terminal_menu") as mock_terminal_menu,
+            patch(
+                "usecli.cli.commands.init_command.terminal_menu"
+            ) as mock_terminal_menu,
         ):
 
             def _prompt_side_effect(*args, **kwargs):
@@ -258,6 +262,7 @@ class TestInitCommandPyprojectToml:
                 capture_output=True,
                 text=True,
                 cwd=temp_project_dir,
+                check=False,
             )
 
     def test_skips_auto_sync_without_venv(self, temp_project_dir, init_command):
@@ -298,15 +303,15 @@ class TestInitCommandPyprojectToml:
                 DEFAULT_TITLE,
                 DEFAULT_DESCRIPTION,
                 DEFAULT_COMMANDS_DIR,
-                    force=True,
-                )
+                force=True,
+            )
 
-                mock_run.assert_called_once_with(
-                    [sys.executable, "-m", "pip", "install", "-e", "."],
-                    capture_output=True,
-                    text=True,
-                    cwd=temp_project_dir,
-                )
+            mock_run.assert_called_once_with(
+                [sys.executable, "-m", "pip", "install", "-e", "."],
+                capture_output=True,
+                text=True,
+                cwd=temp_project_dir,
+            )
 
     def test_adds_build_system_when_missing(self, temp_project_dir, init_command):
         pyproject = temp_project_dir / "pyproject.toml"
