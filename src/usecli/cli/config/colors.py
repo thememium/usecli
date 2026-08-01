@@ -14,8 +14,9 @@ from __future__ import annotations
 import os
 import sys
 import time
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, Final, Protocol, cast, final
+from typing import Any, Final, Protocol, cast, final
 
 
 def _import_tomllib():
@@ -456,8 +457,7 @@ def _hex_to_rgb(value: str) -> tuple[int, int, int] | None:
     value = value.strip()
     if not value:
         return None
-    if value.startswith("#"):
-        value = value[1:]
+    value = value.removeprefix("#")
     if len(value) == 3:
         value = "".join(ch * 2 for ch in value)
     if len(value) != 6:
