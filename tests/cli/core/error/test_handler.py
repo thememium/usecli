@@ -424,7 +424,7 @@ class TestErrorHandlerHandleException:
 
         @ErrorHandler.handle_exception
         def raise_error():
-            raise Exception("Generic error")
+            raise RuntimeError("Generic error")
 
         with pytest.raises(typer.Exit) as exc_info:
             raise_error()
