@@ -87,6 +87,36 @@ class InitCommand(BaseCommand):
         pyproject_path.write_text(content)
         return True
 
+    def _add_setuptools_package_data(
+        self, pyproject_path: Path, commands_dir: str
+    ) -> bool:
+        if not pyproject_path.exists():
+            return False
+
+        content = pyproject_path.read_text()
+        if "[tool.setuptools.package-data]" in content:
+            return False
+
+        parts = Path(commands_dir).parts
+        if not parts:
+            return False
+
+        # setuptools only ships .py files by default. init scaffolds
+        # usecli.config.toml, a make-command template (.j2), and a default
+        # theme (.toml) inside this package - without this declaration a
+        # non-editable install of the scaffolded project silently drops all
+        # three, and command discovery/theming then fail with no error.
+        root_package = parts[0]
+        package_data_block = (
+            "[tool.setuptools.package-data]\n"
+            f'{root_package} = ["**/*.toml", "**/*.j2"]\n\n'
+        )
+
+        content = content.rstrip() + f"\n\n{package_data_block}"
+
+        pyproject_path.write_text(content)
+        return True
+
     def _write_usecli_config(
         self,
         config_path: Path,
@@ -546,6 +576,9 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["{root_package}*"]
+
+[tool.setuptools.package-data]
+{root_package} = ["**/*.toml", "**/*.j2"]
 '''
 
         pyproject_path.write_text(pyproject_content)
@@ -638,6 +671,7 @@ include = ["{root_package}*"]
             )
             self._ensure_build_system(pyproject_path)
             self._add_setuptools_package_discovery(pyproject_path, commands_dir)
+            self._add_setuptools_package_data(pyproject_path, commands_dir)
             if scripts_status in {"added", "updated", "unchanged"}:
                 self._sync_environment(project_root, command_name)
         else:
@@ -949,6 +983,10 @@ include = ["{root_package}*"]
             if self._add_setuptools_package_discovery(pyproject_path, commands_dir):
                 console.print(
                     f"[{COLOR.SUCCESS}]Added setuptools package discovery to pyproject.toml[/{COLOR.SUCCESS}]"
+                )
+            if self._add_setuptools_package_data(pyproject_path, commands_dir):
+                console.print(
+                    f"[{COLOR.SUCCESS}]Added setuptools package data to pyproject.toml[/{COLOR.SUCCESS}]"
                 )
 
             if scripts_status in {"added", "updated", "unchanged"}:

@@ -77,13 +77,18 @@ class CommandService:
             self._load_from_dir(project_commands_dir)
 
     def _load_version(self) -> None:
-        config_version = get_config().get_project_version()
-        if config_version:
-            self.version = config_version
-            return
+        # Try the installed distribution first, same order as
+        # about_command.py's _get_application_version(). A pyproject.toml
+        # walked up from cwd has no ownership check - it can belong to an
+        # unrelated project the user happens to be standing in - so it's
+        # only a fallback, not the first check.
         app_version = self._get_application_version()
         if app_version:
             self.version = app_version
+            return
+        config_version = get_config().get_project_version()
+        if config_version:
+            self.version = config_version
             return
         try:
             self.version = get_version("usecli")

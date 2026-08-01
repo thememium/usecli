@@ -2,7 +2,8 @@
 
 from unittest.mock import MagicMock, patch
 
-from click.exceptions import BadParameter, UsageError
+import pytest
+from click.exceptions import BadParameter, Exit, UsageError
 
 from usecli.cli.config.colors import COLOR
 from usecli.cli.core.exceptions.usage import UsecliBadParameter, UsecliUsageError
@@ -124,6 +125,33 @@ class TestUsecliUsageError:
 
         # Verify get_help was called
         ctx.get_help.assert_called_once()
+
+    @patch("usecli.cli.core.exceptions.usage.console")
+    def test_show_survives_context_get_help_raising_exit(self, mock_console):
+        """Test show() does not propagate Exit when ctx.get_help() raises it.
+
+        CustomHelpCommand.get_help() (see base_command.py) prints help
+        directly and raises Exit(0) instead of returning a string, so that a
+        bare `--help` invocation exits cleanly. ctx.get_help() delegates to
+        it for any real subcommand. If show() let that Exit(0) escape here,
+        it would unwind past the sys.exit(2) call in the caller and the
+        usage error would be reported as a success (exit 0) instead of a
+        usage error (exit 2).
+        """
+        ctx = MagicMock()
+        ctx.get_help = MagicMock(side_effect=Exit(0))
+
+        with patch("click.Context"):
+            error = UsecliUsageError("Test error", ctx=ctx)
+            # Should not raise - the Exit from get_help() must be contained
+            # here so the caller's sys.exit(error.exit_code) still runs.
+            error.show()
+
+        assert error.exit_code == 2
+        ctx.get_help.assert_called_once()
+        # The error line itself must still have been printed.
+        first_call = mock_console.print.call_args_list[0][0][0]
+        assert "ERROR" in first_call
 
     @patch("usecli.cli.core.exceptions.usage.console")
     def test_show_prints_help_after_blank_line_when_context(self, mock_console):
@@ -311,6 +339,29 @@ class TestUsecliBadParameter:
         ctx.get_help.assert_called_once()
 
     @patch("usecli.cli.core.exceptions.usage.console")
+    def test_show_survives_context_get_help_raising_exit(self, mock_console):
+        """Test show() does not propagate Exit when ctx.get_help() raises it.
+
+        Same scenario as UsecliUsageError: ctx.get_help() delegates to
+        CustomHelpCommand.get_help(), which raises Exit(0) after printing
+        help instead of returning a string. show() must contain that Exit
+        so the caller's sys.exit(error.exit_code) still runs with the
+        parameter error's real exit code.
+        """
+        ctx = MagicMock()
+        ctx.get_help = MagicMock(side_effect=Exit(0))
+
+        with patch("click.Context"):
+            error = UsecliBadParameter("Invalid value", ctx=ctx)
+            # Should not raise - the Exit from get_help() must be contained
+            # here so the caller's sys.exit(error.exit_code) still runs.
+            error.show()
+
+        assert error.exit_code == 2
+        ctx.get_help.assert_called_once()
+        assert mock_console.print.called
+
+    @patch("usecli.cli.core.exceptions.usage.console")
     def test_show_prints_help_when_context(self, mock_console):
         """Test show() prints help when context exists."""
         ctx = MagicMock()
@@ -372,3 +423,89 @@ class TestUsecliBadParameter:
             error.show()
 
         assert mock_console.print.called
+
+
+class TestSubcommandUsageErrorExitCode:
+    """Integration tests: rejecting a subcommand's own args must exit 2.
+
+    Regression coverage for a bug where CustomHelpCommand.get_help()
+    raising Exit(0) (see base_command.py) escaped through
+    _get_help_text_with_command_name() and UsecliUsageError.show(),
+    causing usecli's own except handlers to report a subcommand parse
+    rejection as a clean exit instead of a usage error.
+    """
+
+    @pytest.fixture
+    def runner(self):
+        from click.testing import CliRunner
+
+        return CliRunner()
+
+    @pytest.fixture
+    def registered_leaf_command(self):
+        """Register a deterministic no-argument leaf command on usecli.app."""
+        import usecli
+        from usecli import BaseCommand
+
+        class UsageErrorExitCodeLeafCommand(BaseCommand):
+            def handle(self) -> None:
+                return None
+
+            def signature(self) -> str:
+                return "usage-error-exit-code-leaf"
+
+            def description(self) -> str:
+                return "Exercise subcommand usage-error exit codes"
+
+        existing_names = {command.name for command in usecli.app.registered_commands}
+        if "usage-error-exit-code-leaf" not in existing_names:
+            UsageErrorExitCodeLeafCommand(usecli.app)
+
+        return "usage-error-exit-code-leaf"
+
+    def _invoke(self, runner, arguments: list[str]):
+        from typer.main import get_command
+
+        import usecli
+
+        return runner.invoke(get_command(usecli.app), arguments)
+
+    def test_unknown_option_on_subcommand_exits_2(
+        self, runner, registered_leaf_command
+    ):
+        """An unrecognized option for a subcommand's own args exits 2."""
+        result = self._invoke(runner, [registered_leaf_command, "--bogus-flag", "x"])
+
+        assert result.exit_code == 2, result.output
+        assert "No such option" in result.output
+
+    def test_extra_positional_argument_on_subcommand_exits_2(
+        self, runner, registered_leaf_command
+    ):
+        """An unexpected extra positional argument exits 2."""
+        result = self._invoke(runner, [registered_leaf_command, "extra_positional_arg"])
+
+        assert result.exit_code == 2, result.output
+
+    def test_unknown_option_before_subcommand_still_exits_2(self, monkeypatch):
+        """Regression guard: top-level parsing keeps its correct exit code.
+
+        Unlike a subcommand's own args, a top-level option is rejected by
+        make_context() before PrefixMatchingGroup.invoke() (and therefore
+        any CustomHelpCommand) is ever reached; standalone_mode=False then
+        re-raises it out of PrefixMatchingGroup.main() entirely, and only
+        usecli.main()'s own outer handler catches it. CliRunner invoking
+        get_command(usecli.app) directly bypasses that outer handler, so
+        this goes through the real entry point (usecli.main()) instead to
+        faithfully exercise the path a real invocation takes.
+        """
+        import sys
+
+        import usecli
+
+        monkeypatch.setattr(sys, "argv", ["usecli", "--bogus-flag"])
+
+        with pytest.raises(SystemExit) as exc_info:
+            usecli.main()
+
+        assert exc_info.value.code == 2

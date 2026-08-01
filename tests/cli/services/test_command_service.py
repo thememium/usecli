@@ -374,6 +374,28 @@ class TestCommandServiceLoadVersion:
 
         assert service.version == "0.1.4"
 
+    @patch.object(CommandService, "_get_application_version", return_value="0.1.4")
+    @patch("usecli.cli.services.command_service.get_config")
+    def test_load_version_prefers_application_distribution_over_project_config(
+        self, mock_get_config, mock_app_version
+    ):
+        """The installed distribution wins even when a project config also
+        reports a (different) version.
+
+        get_project_version() walks up from cwd for the nearest
+        pyproject.toml with no check that it belongs to the running tool,
+        so an unrelated project's pyproject.toml sitting above cwd must not
+        be able to override the version of the distribution that actually
+        registered the running console script.
+        """
+        mock_get_config.return_value = _mock_config_version("9.9.9")
+
+        app = MagicMock()
+        service = CommandService(app=app)
+        service._load_version()
+
+        assert service.version == "0.1.4"
+
 
 # =============================================================================
 # CommandService._load_from_dir Tests
@@ -1148,11 +1170,16 @@ class TestCommandServiceRealWorldScenarios:
             mock_spec_from_file.assert_called_once_with("example_module", path)
             assert result is None
 
+    @patch.object(CommandService, "_get_application_version", return_value=None)
     @patch("usecli.cli.services.command_service.get_version")
     @patch("usecli.cli.services.command_service.get_config")
-    def test_load_version_prefers_project_config(
-        self, mock_get_config, mock_get_version
+    def test_load_version_falls_back_to_project_config_without_application_version(
+        self, mock_get_config, mock_get_version, mock_app_version
     ):
+        """Project-config version is only used when no application
+        distribution version is available (see
+        test_load_version_prefers_application_distribution_over_project_config
+        for the case where both are present)."""
         mock_get_config.return_value = _mock_config_version("9.9.9")
 
         app = MagicMock()

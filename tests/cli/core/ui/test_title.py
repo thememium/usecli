@@ -136,9 +136,9 @@ class TestPrintTitle:
         print_title()
         print_title("Title 3")
 
-        # Verify console.print was called four times (1 + 1 + 2)
-        # Custom titles print an empty line plus the title
-        assert mock_console.print.call_count == 4
+        # Verify console.print was called five times (1 + 1 + 3)
+        # Custom titles via pyfiglet print empty line + title + trailing empty line
+        assert mock_console.print.call_count == 5
 
     @patch("usecli.cli.core.ui.title.console")
     def test_print_title_no_return_value(self, mock_console):

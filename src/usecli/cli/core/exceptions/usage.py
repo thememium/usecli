@@ -6,7 +6,7 @@ import sys
 from typing import IO
 
 from click.core import Context as ClickContext
-from click.exceptions import BadParameter, UsageError
+from click.exceptions import BadParameter, Exit, UsageError
 from rich.console import Console
 
 from usecli.cli.config.colors import COLOR
@@ -16,14 +16,30 @@ console = Console(stderr=True)
 
 
 def _get_help_text_with_command_name(ctx: ClickContext) -> str:
+    # ctx.get_help() delegates to ctx.command.get_help(ctx). Commands built
+    # from BaseCommand use CustomHelpCommand, whose get_help() prints the
+    # help directly and raises Exit(0) instead of returning a string (see
+    # base_command.py) so that a bare `--help` exits cleanly. That contract
+    # break means this call can raise instead of returning text whenever
+    # ctx.command is a CustomHelpCommand (i.e. any real subcommand). Left
+    # uncaught, the Exit(0) propagates out of show() and is interpreted by
+    # click/typer as "the command exited 0", clobbering the exit code this
+    # usage error was about to set. The help has already been printed as a
+    # side effect by that point, so it's safe to treat this as "no
+    # additional help text to append" and let the caller continue.
     command_name = get_script_command_name(default=getattr(ctx, "info_name", None))
     if not command_name:
-        return ctx.get_help()
+        try:
+            return ctx.get_help()
+        except Exit:
+            return ""
 
     original_info_name = getattr(ctx, "info_name", None)
     try:
         ctx.info_name = command_name
         return ctx.get_help()
+    except Exit:
+        return ""
     finally:
         ctx.info_name = original_info_name
 
