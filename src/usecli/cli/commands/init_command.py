@@ -393,8 +393,7 @@ class InitCommand(BaseCommand):
         value = value.strip()
         if not value:
             return None
-        if value.startswith("#"):
-            value = value[1:]
+        value = value.removeprefix("#")
         if len(value) == 3:
             value = "".join(ch * 2 for ch in value)
         if len(value) != 6:

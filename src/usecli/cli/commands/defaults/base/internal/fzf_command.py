@@ -41,9 +41,11 @@ def _get_required_arguments(command: ClickCommand) -> list[tuple[str, str, type]
 
         is_required = False
 
-        if param.default is inspect.Parameter.empty:
-            is_required = True
-        elif hasattr(param.default, "default") and param.default.default is ...:
+        if (
+            param.default is inspect.Parameter.empty
+            or hasattr(param.default, "default")
+            and param.default.default is ...
+        ):
             is_required = True
 
         if is_required:

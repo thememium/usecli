@@ -48,8 +48,7 @@ class MakeThemeCommand(BaseCommand):
         themes_dir.mkdir(parents=True, exist_ok=True)
 
         base_name = Path(clean_name).name
-        if base_name.endswith(".toml"):
-            base_name = base_name[: -len(".toml")]
+        base_name = base_name.removesuffix(".toml")
         if not base_name:
             console.print(
                 f"[{COLOR.ERROR}]Error: Theme name cannot be empty.[/{COLOR.ERROR}]"
