@@ -243,9 +243,7 @@ def _get_script_commands() -> list[str]:
             return [primary_command]
         return []
 
-    script_names = [
-        name for name in scripts if isinstance(name, str) and name.strip()
-    ]
+    script_names = [name for name in scripts if isinstance(name, str) and name.strip()]
     if primary_command and primary_command not in script_names:
         return [primary_command, *script_names]
     return script_names
