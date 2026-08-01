@@ -166,4 +166,4 @@ class ProgressBar:
             )
 
 
-__all__ = ["Spinner", "ProgressBar"]
+__all__ = ["ProgressBar", "Spinner"]
