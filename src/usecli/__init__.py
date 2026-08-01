@@ -85,9 +85,15 @@ def _ensure_cli_initialized() -> None:
 
     # Store exceptions for error handling
     try:
-        from typer._click.exceptions import BadParameter as TyperBadParameter  # type: ignore[import-untyped]
-        from typer._click.exceptions import ClickException as TyperClickException  # type: ignore[import-untyped]
-        from typer._click.exceptions import UsageError as TyperUsageError  # type: ignore[import-untyped]
+        from typer._click.exceptions import (
+            BadParameter as TyperBadParameter,  # type: ignore[import-untyped]
+        )
+        from typer._click.exceptions import (
+            ClickException as TyperClickException,  # type: ignore[import-untyped]
+        )
+        from typer._click.exceptions import (
+            UsageError as TyperUsageError,  # type: ignore[import-untyped]
+        )
     except ImportError:
         TyperBadParameter = BadParameter
         TyperClickException = ClickException
@@ -252,7 +258,14 @@ def _ensure_cli_initialized() -> None:
                         write_document(success_document())
                         return None
                     fail("Exit", f"Command exited with status {code}", code)
-                except Exception as error:
+                except (
+                    OSError,
+                    RuntimeError,
+                    ValueError,
+                    TypeError,
+                    AttributeError,
+                    KeyError,
+                ) as error:
                     print(
                         f"{error.__class__.__name__}: {error}",
                         file=sys.stderr,
@@ -615,7 +628,14 @@ def main() -> None:
         if hasattr(e, "show"):
             e.show()
         sys.exit(e.exit_code if hasattr(e, "exit_code") else 1)
-    except Exception as e:
+    except (
+        OSError,
+        RuntimeError,
+        ValueError,
+        TypeError,
+        AttributeError,
+        KeyError,
+    ) as e:
         from usecli.cli.core.exceptions import UsecliUsageError
 
         styled_error = UsecliUsageError(str(e))
