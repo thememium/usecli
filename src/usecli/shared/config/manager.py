@@ -626,7 +626,7 @@ class ConfigManager:
     def _read_top_level_packages(dist: Any) -> list[str]:
         try:
             text = dist.read_text("top_level.txt")
-        except (OSError, KeyError):
+        except (AttributeError, OSError, KeyError):
             return []
         if not text:
             return []
@@ -753,7 +753,7 @@ class ConfigManager:
         """
         try:
             text = dist.read_text("direct_url.json")
-        except (OSError, KeyError):
+        except (AttributeError, OSError, KeyError):
             return None
         if not text:
             return None
