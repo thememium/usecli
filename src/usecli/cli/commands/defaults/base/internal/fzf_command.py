@@ -139,6 +139,7 @@ def _run_fzf_menu(
             input=input_data,
             capture_output=True,
             text=True,
+            check=False,
         )
 
         if result.returncode == 130 or not result.stdout.strip():
@@ -348,6 +349,7 @@ def run_interactive(
             capture_output=True,
             text=True,
             env={**os.environ, "FORCE_COLOR": "1", "CLICOLOR_FORCE": "1"},
+            check=False,
         )
         sys.stdout.write(help_result.stdout)
 
@@ -453,7 +455,7 @@ def run_interactive(
             for selected_option in selected_options:
                 idx = menu_options.index(selected_option)
                 (
-                    param_name,
+                    _param_name,
                     option_names,
                     help_text,
                     opt_type,
@@ -522,13 +524,12 @@ def run_interactive(
     console.print(f"[bold {COLOR.WARNING}]{full_cmd}")
     console.print()
 
-    subprocess.run(full_cmd, shell=True)
+    subprocess.run(full_cmd, shell=True, check=False)
 
-    try:
-        pass
-    except KeyboardInterrupt:
-        ErrorHandler.display_warning("Cancelled by user")
-        raise typer.Exit(code=0)
+
+_EXTRA_ARGS_DEFAULT = typer.Argument(
+    None, help="Additional arguments to pass to the selected command"
+)
 
 
 class FzfCommand(BaseCommand):
@@ -544,9 +545,7 @@ class FzfCommand(BaseCommand):
 
     def handle(
         self,
-        extra_args: list[str] = typer.Argument(
-            None, help="Additional arguments to pass to the selected command"
-        ),
+        extra_args: list[str] = _EXTRA_ARGS_DEFAULT,
     ) -> None:
         """Handle the fzf command execution.
 
