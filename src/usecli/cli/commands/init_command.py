@@ -328,6 +328,7 @@ class InitCommand(BaseCommand):
                 capture_output=True,
                 text=True,
                 cwd=cwd,
+                check=False,
             )
             if result.returncode == 0:
                 console.print(
@@ -344,6 +345,7 @@ class InitCommand(BaseCommand):
             capture_output=True,
             text=True,
             cwd=cwd,
+            check=False,
         )
         if result.returncode == 0:
             console.print(
