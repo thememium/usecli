@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.76
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.75...v0.1.76)
+
+### 🩹 Fixes
+
+- Subcommand exit codes, scaffold packaging, --version resolution (fix #5,#6,#7) ([#8](https://github.com/thememium/usecli/pull/8), [#5](https://github.com/thememium/usecli/issues/5), [#6](https://github.com/thememium/usecli/issues/6), [#7](https://github.com/thememium/usecli/issues/7))
+
+### ❤️ Contributors
+
+- Pshokeen <pshokeen@live.com>
+
 ## v0.1.75
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.74...v0.1.75)
