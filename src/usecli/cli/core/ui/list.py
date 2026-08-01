@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, TypedDict
+from typing import TypedDict
 
 import click
 import typer
@@ -15,9 +15,6 @@ from usecli.cli.core.ui.title import (
     get_script_command_name,
     print_title,
 )
-
-if TYPE_CHECKING:
-    pass
 
 console = Console()
 
