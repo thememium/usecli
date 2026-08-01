@@ -96,12 +96,13 @@ def Option(
             if ctx.resilient_parsing:
                 return value
             source = ctx.get_parameter_source(name)
-            if source == click.core.ParameterSource.DEFAULT:
-                if ctx.info_name is not None and ctx.find_root().params.get(
-                    "interactive"
-                ):
-                    prompt_text = f"Enable {name.replace('_', ' ')}?"
-                    value = Confirm.ask(prompt_text, default=bool(default))
+            if (
+                source == click.core.ParameterSource.DEFAULT
+                and ctx.info_name is not None
+                and ctx.find_root().params.get("interactive")
+            ):
+                prompt_text = f"Enable {name.replace('_', ' ')}?"
+                value = Confirm.ask(prompt_text, default=bool(default))
         if user_callback is not None:
             return user_callback(ctx, param, value)
         return value
