@@ -127,3 +127,31 @@ class TestCommandService:
         service._skip_usecli_only_commands = True
         service._load_from_dir(tmp_path)
         assert service.commands == []
+
+    @patch("usecli.shared.config.manager._find_distribution_for_console_script")
+    @patch("usecli.cli.core.ui.title.get_script_command_name")
+    def test_get_application_version_from_primary_command(self, mock_name, mock_find):
+        mock_name.return_value = "mycli"
+        mock_dist = MagicMock()
+        mock_dist.version = "2.0.0"
+        mock_find.return_value = mock_dist
+
+        service = self._make_service()
+        with patch("usecli.cli.services.command_service.sys") as mock_sys:
+            mock_sys.argv = [""]
+            result = service._get_application_version()
+
+        assert result == "2.0.0"
+
+    @patch("usecli.shared.config.manager._find_distribution_for_console_script")
+    @patch("usecli.cli.core.ui.title.get_script_command_name")
+    def test_get_application_version_returns_none_when_no_dist(self, mock_name, mock_find):
+        mock_name.return_value = "mycli"
+        mock_find.return_value = None
+
+        service = self._make_service()
+        with patch("usecli.cli.services.command_service.sys") as mock_sys:
+            mock_sys.argv = [""]
+            result = service._get_application_version()
+
+        assert result is None
