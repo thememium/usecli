@@ -281,3 +281,15 @@ class TestPrintTitle:
                 sys.modules["pyfiglet"] = saved
             else:
                 sys.modules.pop("pyfiglet", None)
+
+    @patch("usecli.cli.core.ui.title.console")
+    @patch("usecli.cli.core.ui.title.get_config")
+    def test_prints_relative_title_file(self, mock_config, mock_console, tmp_path):
+        title_file = tmp_path / "title.txt"
+        title_file.write_text("Custom Title Art")
+        mock_config.return_value = MagicMock(
+            get=MagicMock(return_value=str(title_file)),
+            get_project_root=MagicMock(return_value=tmp_path),
+        )
+        print_title()
+        assert mock_console.print.called
