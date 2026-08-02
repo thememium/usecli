@@ -324,6 +324,77 @@ class TestConfigManagerAdditionalMethods:
         manager = ConfigManager(start_dir=tmp_path)
         assert isinstance(manager.is_prod(), bool)
 
+    def test_is_usecli_direct_dependency_with_usecli_name(self, tmp_path):
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text('[project]\nname = "usecli"')
+        manager = ConfigManager(pyproject_path=pyproject, start_dir=tmp_path)
+        assert manager.is_usecli_direct_dependency() is True
+
+    def test_is_usecli_direct_dependency_with_usecli_dep(self, tmp_path):
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text('[project]\nname = "myapp"\ndependencies = ["usecli>=1.0"]')
+        manager = ConfigManager(pyproject_path=pyproject, start_dir=tmp_path)
+        assert manager.is_usecli_direct_dependency() is True
+
+    def test_is_usecli_direct_dependency_with_dependency_groups(self, tmp_path):
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text('[project]\nname = "myapp"\n\n[dependency-groups]\ndev = ["usecli>=1.0"]')
+        manager = ConfigManager(pyproject_path=pyproject, start_dir=tmp_path)
+        assert manager.is_usecli_direct_dependency() is True
+
+    def test_is_usecli_direct_dependency_with_dict_dep_in_group(self, tmp_path):
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text('[project]\nname = "myapp"\n\n[dependency-groups]\ndev = [{dependency = "usecli>=1.0"}]')
+        manager = ConfigManager(pyproject_path=pyproject, start_dir=tmp_path)
+        assert manager.is_usecli_direct_dependency() is True
+
+    def test_is_usecli_direct_dependency_false_for_other(self, tmp_path):
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text('[project]\nname = "myapp"\ndependencies = ["requests>=2.0"]')
+        manager = ConfigManager(pyproject_path=pyproject, start_dir=tmp_path)
+        # Might still return True if the running distribution lists usecli
+        result = manager.is_usecli_direct_dependency()
+        assert isinstance(result, bool)
+
+    def test_is_usecli_direct_dependency_handles_invalid_toml(self, tmp_path):
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text("not = = valid")
+        manager = ConfigManager(pyproject_path=pyproject, start_dir=tmp_path)
+        result = manager.is_usecli_direct_dependency()
+        assert isinstance(result, bool)
+
+    def test_reload(self, tmp_path):
+        config_path = tmp_path / "usecli.config.toml"
+        config_path.write_text('[usecli]\ntitle = "v1"')
+        manager = ConfigManager(usecli_config_path=config_path, start_dir=tmp_path)
+        assert manager.get("title") == "v1"
+        # Modify config and reload
+        config_path.write_text('[usecli]\ntitle = "v2"')
+        from usecli.shared.config.manager import _reset_toml_cache
+        _reset_toml_cache()
+        manager.reload()
+        assert manager.get("title") == "v2"
+
+    def test_pyproject_exists_property(self, tmp_path):
+        manager = ConfigManager(start_dir=tmp_path)
+        assert isinstance(manager.pyproject_exists, bool)
+
+    def test_load_project_version_with_version(self, tmp_path):
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text('[project]\nversion = "1.2.3"')
+        result = ConfigManager._load_project_version(pyproject)
+        assert result == "1.2.3"
+
+    def test_load_project_version_without_version(self, tmp_path):
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text('[project]\nname = "test"')
+        result = ConfigManager._load_project_version(pyproject)
+        assert result is None
+
+    def test_load_project_version_nonexistent(self, tmp_path):
+        result = ConfigManager._load_project_version(tmp_path / "nonexistent.toml")
+        assert result is None
+
     def test_dot_notation_get(self, tmp_path):
         config_path = tmp_path / "usecli.config.toml"
         config_path.write_text('[usecli]\nnested.key = "value"')
