@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import TypedDict
+from collections.abc import Sequence
+from typing import Any, TypedDict
 
 import click
 import typer
@@ -457,8 +458,8 @@ def _get_option_description(param: click.Parameter) -> str:
 
 
 def _order_completion_params(
-    params: list[click.Parameter],
-) -> list[click.Parameter]:
+    params: Sequence[Any],
+) -> list[Any]:
     ordered = list(params)
     install_index = None
     show_index = None

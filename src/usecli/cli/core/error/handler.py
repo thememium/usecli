@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import functools
 from collections.abc import Callable
-from typing import TypeVar
+from typing import TypeVar, cast
 
 import typer
 from rich.console import Console
@@ -115,4 +115,4 @@ class ErrorHandler:
                 )
                 raise typer.Exit(code=1)
 
-        return wrapper  # type: ignore[return-value]
+        return cast(F, wrapper)

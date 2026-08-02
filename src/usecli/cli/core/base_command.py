@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, ClassVar, Self
+from typing import TYPE_CHECKING, Any, ClassVar
+
+if TYPE_CHECKING:
+    from typing_extensions import Self
 
 import typer
-from click.core import Context as ClickContext
 from click.exceptions import Exit
-from click.formatting import HelpFormatter
+from typer._click.core import Context as ClickContext
+from typer._click.formatting import HelpFormatter
 from typer.core import TyperArgument, TyperCommand, TyperOption
 
 from usecli.cli.config.colors import COLOR
@@ -51,7 +54,7 @@ class NestedCommandRegistry:
             cls._instance._groups = {}
             cls._instance._group_commands = {}
             cls._instance._main_app = None
-        return cls._instance
+        return cls._instance  # ty: ignore[invalid-return-type]
 
     def get_or_create_group(
         self, main_app: typer.Typer, group_name: str
@@ -480,21 +483,17 @@ class BaseCommand(ABC):
             alias_decorator(self.handle)
 
     def _get_alias_registry(self, app: typer.Typer) -> dict[str, list[str]]:
-        if not hasattr(app, "_usecli_aliases"):
-            app._usecli_aliases = {}
-        registry = app._usecli_aliases
+        registry = getattr(app, "_usecli_aliases", None)
         if not isinstance(registry, dict):
             registry = {}
-            app._usecli_aliases = registry
+            app._usecli_aliases = registry  # ty: ignore[unresolved-attribute]
         return registry
 
     def _get_group_alias_registry(self, app: typer.Typer) -> dict[str, list[str]]:
-        if not hasattr(app, "_usecli_group_aliases"):
-            app._usecli_group_aliases = {}
-        registry = app._usecli_group_aliases
+        registry = getattr(app, "_usecli_group_aliases", None)
         if not isinstance(registry, dict):
             registry = {}
-            app._usecli_group_aliases = registry
+            app._usecli_group_aliases = registry  # ty: ignore[unresolved-attribute]
         return registry
 
     def _register_group_aliases(
