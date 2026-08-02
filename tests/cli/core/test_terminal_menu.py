@@ -406,3 +406,102 @@ class TestTerminalMenuIntegration:
         assert result1 == ["A"]
         assert result2 == [2]
         assert mock_menu_class.call_count == 2
+
+    @patch("usecli.cli.utils.interactive.terminal_menu.TerminalMenu")
+    def test_clear_screen_defaults(self, mock_menu_class):
+        """Test clear_screen and clear_menu_on_exit defaults."""
+        mock_menu_instance = Mock()
+        mock_menu_instance.show.return_value = 0
+        mock_menu_class.return_value = mock_menu_instance
+
+        terminal_menu(["A", "B"])
+        call_kwargs = mock_menu_class.call_args.kwargs
+
+        assert call_kwargs["clear_screen"] is False
+        assert call_kwargs["clear_menu_on_exit"] is True
+
+    @patch("usecli.cli.utils.interactive.terminal_menu.TerminalMenu")
+    def test_clear_screen_custom_values(self, mock_menu_class):
+        """Test clear_screen and clear_menu_on_exit custom values."""
+        mock_menu_instance = Mock()
+        mock_menu_instance.show.return_value = 0
+        mock_menu_class.return_value = mock_menu_instance
+
+        terminal_menu(["A", "B"], clear_screen=True, clear_menu_on_exit=False)
+        call_kwargs = mock_menu_class.call_args.kwargs
+
+        assert call_kwargs["clear_screen"] is True
+        assert call_kwargs["clear_menu_on_exit"] is False
+
+    @patch("usecli.cli.utils.interactive.terminal_menu.TerminalMenu")
+    def test_preview_command_with_callable(self, mock_menu_class):
+        """Test preview_command with a callable."""
+        mock_menu_instance = Mock()
+        mock_menu_instance.show.return_value = 0
+        mock_menu_class.return_value = mock_menu_instance
+
+        def preview(value: str) -> str:
+            return f"Preview: {value}"
+
+        with patch("usecli.cli.utils.interactive.terminal_menu.shutil.get_terminal_size") as mock_size:
+            mock_size.return_value = os.terminal_size((80, 40))
+            terminal_menu(["A", "B"], preview_command=preview, preview_size=0.5)
+
+        call_kwargs = mock_menu_class.call_args.kwargs
+        assert call_kwargs["preview_command"] is preview
+
+    @patch("usecli.cli.utils.interactive.terminal_menu.TerminalMenu")
+    def test_preview_command_disabled_when_small_terminal(self, mock_menu_class):
+        """Test preview_command is disabled when terminal is too small."""
+        mock_menu_instance = Mock()
+        mock_menu_instance.show.return_value = 0
+        mock_menu_class.return_value = mock_menu_instance
+
+        def preview(value: str) -> str:
+            return f"Preview: {value}"
+
+        with patch("usecli.cli.utils.interactive.terminal_menu.shutil.get_terminal_size") as mock_size:
+            mock_size.return_value = os.terminal_size((80, 5))
+            terminal_menu(["A", "B"], preview_command=preview)
+
+        call_kwargs = mock_menu_class.call_args.kwargs
+        # Preview should be disabled for small terminals
+        assert call_kwargs["preview_command"] is None
+
+    @patch("usecli.cli.utils.interactive.terminal_menu.TerminalMenu")
+    def test_search_disabled_by_default(self, mock_menu_class):
+        """Test search is disabled by default."""
+        mock_menu_instance = Mock()
+        mock_menu_instance.show.return_value = 0
+        mock_menu_class.return_value = mock_menu_instance
+
+        terminal_menu(["A", "B"])
+        call_kwargs = mock_menu_class.call_args.kwargs
+
+        assert call_kwargs["search_key"] == "/"
+        assert call_kwargs["show_search_hint"] is False
+
+    @patch("usecli.cli.utils.interactive.terminal_menu.TerminalMenu")
+    def test_search_enabled(self, mock_menu_class):
+        """Test search enabled with custom key."""
+        mock_menu_instance = Mock()
+        mock_menu_instance.show.return_value = 0
+        mock_menu_class.return_value = mock_menu_instance
+
+        terminal_menu(["A", "B"], search=True, search_key="?", show_search_hint=True)
+        call_kwargs = mock_menu_class.call_args.kwargs
+
+        assert call_kwargs["search_key"] == "?"
+        assert call_kwargs["show_search_hint"] is True
+
+    @patch("usecli.cli.utils.interactive.terminal_menu.TerminalMenu")
+    def test_search_with_none_key(self, mock_menu_class):
+        """Test search with None key (search on any letter)."""
+        mock_menu_instance = Mock()
+        mock_menu_instance.show.return_value = 0
+        mock_menu_class.return_value = mock_menu_instance
+
+        terminal_menu(["A", "B"], search=True, search_key=None)
+        call_kwargs = mock_menu_class.call_args.kwargs
+
+        assert call_kwargs["search_key"] is None
