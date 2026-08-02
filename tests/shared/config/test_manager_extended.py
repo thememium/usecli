@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 from unittest.mock import patch
 
 from usecli.shared.config.manager import (
@@ -412,6 +413,99 @@ class TestConfigManagerAdditionalMethods:
         pyproject.write_text('[project]\nversion = "  "')
         result = ConfigManager._load_project_version(pyproject)
         assert result is None
+
+    def test_is_in_venv_with_venv_path(self):
+        assert ConfigManager._is_in_venv(Path(".venv/lib/python")) is True
+
+    def test_is_in_venv_with_normal_path(self):
+        assert ConfigManager._is_in_venv(Path("/tmp/project")) is False
+
+    def test_is_in_venv_with_site_packages(self):
+        assert ConfigManager._is_in_venv(Path("/lib/site-packages")) is True
+
+    def test_resolve_editable_source_root_returns_none_for_none(self):
+        result = ConfigManager._resolve_editable_source_root(None)
+        assert result is None
+
+    def test_resolve_editable_source_root_returns_none_for_no_text(self):
+        dist = MagicMock()
+        dist.read_text.return_value = None
+        result = ConfigManager._resolve_editable_source_root(dist)
+        assert result is None
+
+    def test_resolve_editable_source_root_returns_none_for_non_editable(self, tmp_path):
+        dist = MagicMock()
+        dist.read_text.return_value = '{"url": "file:///tmp/test"}'
+        result = ConfigManager._resolve_editable_source_root(dist)
+        assert result is None
+
+    def test_resolve_editable_source_root_returns_none_for_no_url(self, tmp_path):
+        dist = MagicMock()
+        dist.read_text.return_value = '{"dir_info": {"editable": true}}'
+        result = ConfigManager._resolve_editable_source_root(dist)
+        assert result is None
+
+    def test_resolve_editable_source_root_returns_path_for_editable(self, tmp_path):
+        dist = MagicMock()
+        dist.read_text.return_value = f'{{"dir_info": {{"editable": true}}, "url": "file://{tmp_path}"}}'
+        result = ConfigManager._resolve_editable_source_root(dist)
+        assert result == tmp_path.resolve()
+
+    def test_resolve_editable_source_root_returns_none_for_nonexistent(self):
+        dist = MagicMock()
+        dist.read_text.return_value = '{"dir_info": {"editable": true}, "url": "file:///nonexistent/path"}'
+        result = ConfigManager._resolve_editable_source_root(dist)
+        assert result is None
+
+    def test_resolve_editable_source_root_handles_attribute_error(self):
+        dist = MagicMock()
+        dist.read_text.side_effect = AttributeError
+        result = ConfigManager._resolve_editable_source_root(dist)
+        assert result is None
+
+    def test_resolve_editable_source_root_handles_os_error(self):
+        dist = MagicMock()
+        dist.read_text.side_effect = OSError
+        result = ConfigManager._resolve_editable_source_root(dist)
+        assert result is None
+
+    def test_resolve_editable_source_root_handles_json_error(self):
+        dist = MagicMock()
+        dist.read_text.return_value = "not json"
+        result = ConfigManager._resolve_editable_source_root(dist)
+        assert result is None
+
+    def test_search_source_for_config_returns_none_for_nonexistent(self):
+        result = ConfigManager._search_source_for_config(Path("/nonexistent"), None, None)
+        assert result is None
+
+    def test_search_source_for_config_returns_none_when_no_candidates(self, tmp_path):
+        result = ConfigManager._search_source_for_config(tmp_path, "mycli", None)
+        assert result is None
+
+    def test_search_source_for_config_returns_config(self, tmp_path):
+        config = tmp_path / "usecli.config.toml"
+        config.write_text('[usecli]\ntheme = "dark"')
+        result = ConfigManager._search_source_for_config(tmp_path, None, None)
+        assert result == config
+
+    def test_pyproject_has_usecli_with_usecli(self, tmp_path):
+        path = tmp_path / "pyproject.toml"
+        path.write_text('[tool.usecli]\ntheme = "dark"')
+        assert ConfigManager._pyproject_has_usecli(path) is True
+
+    def test_pyproject_has_usecli_without_usecli(self, tmp_path):
+        path = tmp_path / "pyproject.toml"
+        path.write_text('[tool.ruff]\nline-length = 88')
+        assert ConfigManager._pyproject_has_usecli(path) is False
+
+    def test_pyproject_has_usecli_nonexistent(self, tmp_path):
+        assert ConfigManager._pyproject_has_usecli(tmp_path / "nonexistent.toml") is False
+
+    def test_pyproject_has_usecli_invalid_toml(self, tmp_path):
+        path = tmp_path / "pyproject.toml"
+        path.write_text("not = = valid")
+        assert ConfigManager._pyproject_has_usecli(path) is False
 
     def test_dot_notation_get(self, tmp_path):
         config_path = tmp_path / "usecli.config.toml"

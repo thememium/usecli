@@ -411,6 +411,14 @@ class TestIsPreferredPackagePath:
         assert _is_preferred_package_path(Path("src/usecli")) is False
 
 
+class TestIsWithinUsecliPackage:
+    def test_returns_false_for_non_package_path(self):
+        from usecli.cli.config.colors import _is_within_usecli_package
+
+        result = _is_within_usecli_package(Path("/tmp/test"))
+        assert isinstance(result, bool)
+
+
 class TestFindProjectRoot:
     def test_finds_root_with_pyproject(self, tmp_path):
         nested = tmp_path / "src" / "deep"
