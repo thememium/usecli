@@ -557,6 +557,46 @@ class TestGetScriptCommands:
         result = _get_script_commands()
         assert isinstance(result, list)
 
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_installed_script_commands"
+    )
+    @patch("usecli.cli.core.ui.title.get_script_command_name")
+    def test_pyproject_scripts_adds_primary_when_missing(
+        self, mock_name, mock_installed, tmp_path, monkeypatch
+    ):
+        mock_name.return_value = "primary"
+        mock_installed.return_value = []
+
+        monkeypatch.chdir(tmp_path)
+        toml_path = tmp_path / "pyproject.toml"
+        toml_path.write_text(
+            '[project.scripts]\nmycli = "mycli:main"'
+        )
+
+        result = _get_script_commands()
+        assert "primary" in result
+        assert "mycli" in result
+
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_installed_script_commands"
+    )
+    @patch("usecli.cli.core.ui.title.get_script_command_name")
+    def test_pyproject_scripts_returns_all_when_primary_present(
+        self, mock_name, mock_installed, tmp_path, monkeypatch
+    ):
+        mock_name.return_value = "mycli"
+        mock_installed.return_value = []
+
+        monkeypatch.chdir(tmp_path)
+        toml_path = tmp_path / "pyproject.toml"
+        toml_path.write_text(
+            '[project.scripts]\nmycli = "mycli:main"\nother = "other:main"'
+        )
+
+        result = _get_script_commands()
+        assert "mycli" in result
+        assert "other" in result
+
 
 # ---------------------------------------------------------------------------
 # AboutCommand
