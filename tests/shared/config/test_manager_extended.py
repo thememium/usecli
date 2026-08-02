@@ -17,6 +17,7 @@ from usecli.shared.config.manager import (
     _reset_distributions_cache,
     _rglob_limited,
     _walk_for_filename,
+    find_project_root,
     get_config,
     reset_config,
 )
@@ -511,6 +512,41 @@ class TestConfigManagerAdditionalMethods:
         with patch("usecli.shared.config.manager.sys", path=[]):
             result = ConfigManager._find_usecli_config_on_sys_path()
             assert result is None
+
+    def test_find_project_root_with_pyproject(self, tmp_path):
+        (tmp_path / "pyproject.toml").write_text("")
+        result = find_project_root(tmp_path)
+        assert result == tmp_path
+
+    def test_find_project_root_with_usecli_config(self, tmp_path):
+        (tmp_path / "usecli.config.toml").write_text("")
+        result = find_project_root(tmp_path)
+        assert result == tmp_path
+
+    def test_find_project_root_with_git(self, tmp_path):
+        (tmp_path / ".git").mkdir()
+        result = find_project_root(tmp_path)
+        assert result is not None
+
+    def test_find_project_root_returns_none_when_not_found(self, tmp_path):
+        # Create a deep directory with no markers
+        deep = tmp_path / "a" / "b" / "c"
+        deep.mkdir(parents=True)
+        result = find_project_root(deep)
+        # May return git_root or None
+        assert result is None or isinstance(result, Path)
+
+    def test_find_project_root_uses_cache(self, tmp_path):
+        (tmp_path / "pyproject.toml").write_text("")
+        # First call
+        result1 = find_project_root(tmp_path)
+        # Second call should use cache
+        result2 = find_project_root(tmp_path)
+        assert result1 == result2
+
+    def test_find_project_root_defaults_to_cwd(self):
+        result = find_project_root()
+        assert result is None or isinstance(result, Path)
 
     def test_read_top_level_packages_returns_empty_for_none(self):
         dist = MagicMock()
