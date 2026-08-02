@@ -724,3 +724,84 @@ class TestInitCommandIntegration:
         assert config_path.exists()
         config_content = config_path.read_text()
         assert 'title = "Standalone Test CLI"' in config_content
+
+
+class TestInitCommandThemeHelpers:
+    @pytest.fixture
+    def init_cmd(self, mock_typer_app):
+        return InitCommand(app=mock_typer_app)
+
+    def test_hex_to_rgb_valid(self, init_cmd):
+        assert init_cmd._hex_to_rgb("#FF0000") == (255, 0, 0)
+
+    def test_hex_to_rgb_without_hash(self, init_cmd):
+        assert init_cmd._hex_to_rgb("00FF00") == (0, 255, 0)
+
+    def test_hex_to_rgb_three_digit(self, init_cmd):
+        assert init_cmd._hex_to_rgb("#F00") == (255, 0, 0)
+
+    def test_hex_to_rgb_invalid_length(self, init_cmd):
+        assert init_cmd._hex_to_rgb("#FF00") is None
+
+    def test_hex_to_rgb_invalid_chars(self, init_cmd):
+        assert init_cmd._hex_to_rgb("#GGHHII") is None
+
+    def test_hex_to_rgb_non_string(self, init_cmd):
+        assert init_cmd._hex_to_rgb(42) is None
+
+    def test_hex_to_rgb_empty(self, init_cmd):
+        assert init_cmd._hex_to_rgb("") is None
+
+    def test_ansi_from_hex_foreground(self, init_cmd):
+        result = init_cmd._ansi_from_hex("#FF0000")
+        assert result == "\033[38;2;255;0;0m"
+
+    def test_ansi_from_hex_background(self, init_cmd):
+        result = init_cmd._ansi_from_hex("#FF0000", background=True)
+        assert result == "\033[48;2;255;0;0m"
+
+    def test_ansi_from_hex_invalid(self, init_cmd):
+        assert init_cmd._ansi_from_hex("invalid") is None
+
+    def test_load_theme_colors(self, init_cmd, tmp_path):
+        theme_path = tmp_path / "theme.toml"
+        theme_path.write_text('[colors]\nprimary = "#FF0000"\nsecondary = "#00FF00"')
+        result = init_cmd._load_theme_colors(theme_path)
+        assert result["primary"] == "#FF0000"
+        assert result["secondary"] == "#00FF00"
+
+    def test_load_theme_colors_invalid_toml(self, init_cmd, tmp_path):
+        theme_path = tmp_path / "theme.toml"
+        theme_path.write_text("not = = valid")
+        result = init_cmd._load_theme_colors(theme_path)
+        assert result == {}
+
+    def test_load_theme_colors_non_dict(self, init_cmd, tmp_path):
+        theme_path = tmp_path / "theme.toml"
+        theme_path.write_text("= 'value'")
+        result = init_cmd._load_theme_colors(theme_path)
+        assert isinstance(result, dict)
+
+    def test_format_theme_color_line_with_value(self, init_cmd):
+        result = init_cmd._format_theme_color_line("Primary", "#FF0000")
+        assert "Primary" in result
+        assert "#FF0000" in result
+
+    def test_format_theme_color_line_empty_value(self, init_cmd):
+        result = init_cmd._format_theme_color_line("Primary", "")
+        assert "Primary" in result
+        assert "--" in result
+
+    def test_format_theme_color_line_background(self, init_cmd):
+        result = init_cmd._format_theme_color_line("Background", "#000000", background=True)
+        assert "Background" in result
+
+    def test_render_theme_preview_none(self, init_cmd):
+        result = init_cmd._render_theme_preview(None)
+        assert "unavailable" in result.lower()
+
+    def test_render_theme_preview_valid(self, init_cmd, tmp_path):
+        theme_path = tmp_path / "theme.toml"
+        theme_path.write_text('[colors]\nprimary = "#FF0000"')
+        result = init_cmd._render_theme_preview(theme_path)
+        assert "Theme" in result
