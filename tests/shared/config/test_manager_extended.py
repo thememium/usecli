@@ -3,27 +3,22 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import patch
 
 from usecli.shared.config.manager import (
     ConfigManager,
-    _deep_merge,
     _dedupe_items,
+    _deep_merge,
     _find_distribution_for_console_script,
     _get_distributions,
     _get_package_name,
     _normalize_themes_dir,
     _reset_distributions_cache,
-    _reset_toml_cache,
     _rglob_limited,
     _walk_for_filename,
-    find_project_root,
     get_config,
     reset_config,
 )
-
 
 # ---------------------------------------------------------------------------
 # Pure utility functions
@@ -189,7 +184,9 @@ class TestConfigManagerInit:
 
 class TestConfigManagerPyprojectHasUsecli:
     def test_returns_false_for_nonexistent_file(self, tmp_path):
-        assert ConfigManager._pyproject_has_usecli(tmp_path / "nonexistent.toml") is False
+        assert (
+            ConfigManager._pyproject_has_usecli(tmp_path / "nonexistent.toml") is False
+        )
 
     def test_returns_true_when_usecli_in_tool(self, tmp_path):
         path = tmp_path / "pyproject.toml"
@@ -198,7 +195,7 @@ class TestConfigManagerPyprojectHasUsecli:
 
     def test_returns_false_when_no_usecli_in_tool(self, tmp_path):
         path = tmp_path / "pyproject.toml"
-        path.write_text('[tool.ruff]\nline-length = 88')
+        path.write_text("[tool.ruff]\nline-length = 88")
         assert ConfigManager._pyproject_has_usecli(path) is False
 
     def test_returns_false_for_invalid_toml(self, tmp_path):

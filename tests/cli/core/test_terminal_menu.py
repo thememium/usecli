@@ -174,7 +174,9 @@ class TestTerminalMenuMultiSelectMode:
         mock_menu_instance.show.return_value = (0, 1)
         mock_menu_class.return_value = mock_menu_instance
 
-        result = terminal_menu(["A", "B", "C"], title="Select multiple items", multi_select=True)
+        result = terminal_menu(
+            ["A", "B", "C"], title="Select multiple items", multi_select=True
+        )
 
         assert result == ["A", "B"]
         call_kwargs = mock_menu_class.call_args.kwargs
@@ -371,7 +373,11 @@ class TestTerminalMenuIntegration:
         mock_menu_instance.show.return_value = 1
         mock_menu_class.return_value = mock_menu_instance
 
-        result = terminal_menu(["Choice 1", "Choice 2", "Choice 3"], title="Select an option", multi_select=False)
+        result = terminal_menu(
+            ["Choice 1", "Choice 2", "Choice 3"],
+            title="Select an option",
+            multi_select=False,
+        )
         assert result == ["Choice 2"]
         call_kwargs = mock_menu_class.call_args.kwargs
         assert call_kwargs["title"] == "Select an option"
@@ -384,7 +390,11 @@ class TestTerminalMenuIntegration:
         mock_menu_instance.show.return_value = (0, 2)
         mock_menu_class.return_value = mock_menu_instance
 
-        result = terminal_menu(["Option A", "Option B", "Option C"], title="Select multiple options", multi_select=True)
+        result = terminal_menu(
+            ["Option A", "Option B", "Option C"],
+            title="Select multiple options",
+            multi_select=True,
+        )
         assert result == ["Option A", "Option C"]
         call_kwargs = mock_menu_class.call_args.kwargs
         assert call_kwargs["title"] == "Select multiple options"
@@ -443,7 +453,9 @@ class TestTerminalMenuIntegration:
         def preview(value: str) -> str:
             return f"Preview: {value}"
 
-        with patch("usecli.cli.utils.interactive.terminal_menu.shutil.get_terminal_size") as mock_size:
+        with patch(
+            "usecli.cli.utils.interactive.terminal_menu.shutil.get_terminal_size"
+        ) as mock_size:
             mock_size.return_value = os.terminal_size((80, 40))
             terminal_menu(["A", "B"], preview_command=preview, preview_size=0.5)
 
@@ -460,7 +472,9 @@ class TestTerminalMenuIntegration:
         def preview(value: str) -> str:
             return f"Preview: {value}"
 
-        with patch("usecli.cli.utils.interactive.terminal_menu.shutil.get_terminal_size") as mock_size:
+        with patch(
+            "usecli.cli.utils.interactive.terminal_menu.shutil.get_terminal_size"
+        ) as mock_size:
             mock_size.return_value = os.terminal_size((80, 5))
             terminal_menu(["A", "B"], preview_command=preview)
 

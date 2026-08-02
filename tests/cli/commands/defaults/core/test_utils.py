@@ -7,8 +7,6 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
 from usecli.cli.commands.defaults.core.utils import (
     find_usecli_root,
     format_relative_time,
@@ -19,7 +17,6 @@ from usecli.cli.commands.defaults.core.utils import (
     is_interactive,
     validate_change_name,
 )
-
 
 # ---------------------------------------------------------------------------
 # is_interactive

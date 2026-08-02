@@ -6,15 +6,12 @@ from importlib.metadata import PackageNotFoundError
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from usecli.cli.core.ui.title import (
     _get_script_command_name,
     get_project_name,
     get_script_command_name,
     print_title,
 )
-
 
 # ---------------------------------------------------------------------------
 # _get_script_command_name
@@ -152,7 +149,9 @@ class TestGetProjectName:
     @patch("usecli.cli.core.ui.title.metadata")
     @patch("usecli.cli.core.ui.title._get_script_command_name")
     @patch("usecli.cli.core.ui.title.get_config")
-    def test_returns_usecli_for_usecli_metadata(self, mock_config, mock_pyproject, mock_meta):
+    def test_returns_usecli_for_usecli_metadata(
+        self, mock_config, mock_pyproject, mock_meta
+    ):
         mock_config.return_value = MagicMock(
             has_key=MagicMock(return_value=False),
             get=MagicMock(return_value=None),
@@ -162,10 +161,14 @@ class TestGetProjectName:
         result = get_project_name()
         assert result == "useCli"
 
-    @patch("usecli.cli.core.ui.title.metadata", side_effect=PackageNotFoundError("usecli"))
+    @patch(
+        "usecli.cli.core.ui.title.metadata", side_effect=PackageNotFoundError("usecli")
+    )
     @patch("usecli.cli.core.ui.title._get_script_command_name")
     @patch("usecli.cli.core.ui.title.get_config")
-    def test_returns_usecli_when_metadata_not_found(self, mock_config, mock_pyproject, mock_meta):
+    def test_returns_usecli_when_metadata_not_found(
+        self, mock_config, mock_pyproject, mock_meta
+    ):
         mock_config.return_value = MagicMock(
             has_key=MagicMock(return_value=False),
             get=MagicMock(return_value=None),
@@ -203,7 +206,9 @@ class TestPrintTitle:
     @patch("usecli.cli.core.ui.title.get_config")
     def test_prints_custom_title_with_pyfiglet(self, mock_config, mock_console):
         mock_config.return_value = MagicMock(
-            get=MagicMock(side_effect=lambda k, d=None: None if k == "title_file" else d),
+            get=MagicMock(
+                side_effect=lambda k, d=None: None if k == "title_file" else d
+            ),
         )
         print_title("My App")
         assert mock_console.print.called
@@ -235,9 +240,15 @@ class TestPrintTitle:
     def test_handles_font_not_found(self, mock_config, mock_console):
         import pyfiglet as real_pyfiglet
 
-        with patch.object(real_pyfiglet, 'figlet_format', side_effect=real_pyfiglet.FontNotFound("bad font")):
+        with patch.object(
+            real_pyfiglet,
+            "figlet_format",
+            side_effect=real_pyfiglet.FontNotFound("bad font"),
+        ):
             mock_config.return_value = MagicMock(
-                get=MagicMock(side_effect=lambda k, d=None: "big" if k == "title_font" else None),
+                get=MagicMock(
+                    side_effect=lambda k, d=None: "big" if k == "title_font" else None
+                ),
             )
             print_title("My App")
             assert mock_console.print.called

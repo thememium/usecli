@@ -2,29 +2,26 @@
 
 from __future__ import annotations
 
-import sys
 from importlib.metadata import PackageNotFoundError
 from pathlib import Path
-from unittest.mock import MagicMock, PropertyMock, patch, call
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
 
 from usecli.cli.commands.defaults.base.about_command import (
     AboutCommand,
     _get_application_description,
-    _get_application_distribution,
     _get_application_version,
+    _get_console_script_distribution,
     _get_dependencies,
     _get_installed_script_commands,
+    _get_package_dependencies_from_distribution,
+    _get_project_description,
     _get_script_commands,
+    _get_version,
     _load_toml,
     _parse_dependency_requirement,
-    _get_version,
-    _get_project_description,
-    _get_package_dependencies_from_distribution,
-    _get_console_script_distribution,
 )
-
 
 # ---------------------------------------------------------------------------
 # _load_toml
@@ -72,7 +69,9 @@ class TestParseDependencyRequirement:
         assert spec == ">=2.0.0"
 
     def test_package_with_at_spec(self):
-        name, spec = _parse_dependency_requirement("mypackage @ https://example.com/mypackage.tar.gz")
+        name, spec = _parse_dependency_requirement(
+            "mypackage @ https://example.com/mypackage.tar.gz"
+        )
         assert name == "mypackage"
         assert spec == "https://example.com/mypackage.tar.gz"
 
@@ -87,7 +86,9 @@ class TestParseDependencyRequirement:
         assert spec is None
 
     def test_package_with_environment_marker(self):
-        name, spec = _parse_dependency_requirement("requests>=2.0; python_version>='3.8'")
+        name, spec = _parse_dependency_requirement(
+            "requests>=2.0; python_version>='3.8'"
+        )
         assert name == "requests"
         assert spec == ">=2.0"
 
@@ -184,7 +185,9 @@ class TestGetPackageDependenciesFromDistribution:
 
 
 class TestGetApplicationVersion:
-    @patch("usecli.cli.commands.defaults.base.about_command._get_application_distribution")
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_application_distribution"
+    )
     def test_returns_dist_version(self, mock_get_dist):
         mock_dist = MagicMock()
         mock_dist.version = "2.0.0"
@@ -192,7 +195,9 @@ class TestGetApplicationVersion:
         config = MagicMock()
         assert _get_application_version(config) == "2.0.0"
 
-    @patch("usecli.cli.commands.defaults.base.about_command._get_application_distribution")
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_application_distribution"
+    )
     @patch("usecli.cli.commands.defaults.base.about_command._get_version")
     def test_returns_config_version_when_no_dist(self, mock_version, mock_get_dist):
         mock_get_dist.return_value = None
@@ -200,7 +205,9 @@ class TestGetApplicationVersion:
         config.get_project_version.return_value = "1.5.0"
         assert _get_application_version(config) == "1.5.0"
 
-    @patch("usecli.cli.commands.defaults.base.about_command._get_application_distribution")
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_application_distribution"
+    )
     @patch("usecli.cli.commands.defaults.base.about_command._get_version")
     def test_returns_fallback_version(self, mock_version, mock_get_dist):
         mock_get_dist.return_value = None
@@ -252,7 +259,10 @@ class TestGetApplicationDescription:
         config = MagicMock()
         config.get.return_value = "   "
         config.has_key.return_value = True
-        with patch("usecli.cli.commands.defaults.base.about_command._get_project_description", return_value=None):
+        with patch(
+            "usecli.cli.commands.defaults.base.about_command._get_project_description",
+            return_value=None,
+        ):
             result = _get_application_description(config)
             assert "CLI framework" in result
 
@@ -292,7 +302,7 @@ class TestGetProjectDescription:
 
     def test_returns_none_for_non_string_description(self, tmp_path):
         toml_path = tmp_path / "pyproject.toml"
-        toml_path.write_text('[project]\ndescription = 42')
+        toml_path.write_text("[project]\ndescription = 42")
         config = MagicMock()
         config.pyproject_path = toml_path
         result = _get_project_description(config)
@@ -306,19 +316,28 @@ class TestGetProjectDescription:
 
 class TestGetInstalledScriptCommands:
     def test_returns_empty_when_no_dist(self):
-        with patch("usecli.cli.commands.defaults.base.about_command._get_console_script_distribution", return_value=None):
+        with patch(
+            "usecli.cli.commands.defaults.base.about_command._get_console_script_distribution",
+            return_value=None,
+        ):
             assert _get_installed_script_commands("mycli") == []
 
     def test_returns_empty_on_attribute_error(self):
         mock_dist = MagicMock()
         type(mock_dist).entry_points = PropertyMock(side_effect=AttributeError)
-        with patch("usecli.cli.commands.defaults.base.about_command._get_console_script_distribution", return_value=mock_dist):
+        with patch(
+            "usecli.cli.commands.defaults.base.about_command._get_console_script_distribution",
+            return_value=mock_dist,
+        ):
             assert _get_installed_script_commands("mycli") == []
 
     def test_returns_empty_on_os_error(self):
         mock_dist = MagicMock()
         type(mock_dist).entry_points = PropertyMock(side_effect=OSError)
-        with patch("usecli.cli.commands.defaults.base.about_command._get_console_script_distribution", return_value=mock_dist):
+        with patch(
+            "usecli.cli.commands.defaults.base.about_command._get_console_script_distribution",
+            return_value=mock_dist,
+        ):
             assert _get_installed_script_commands("mycli") == []
 
     def test_returns_command_name_first(self):
@@ -334,7 +353,10 @@ class TestGetInstalledScriptCommands:
 
         mock_dist = MagicMock()
         mock_dist.entry_points = [ep1, ep2, ep3]
-        with patch("usecli.cli.commands.defaults.base.about_command._get_console_script_distribution", return_value=mock_dist):
+        with patch(
+            "usecli.cli.commands.defaults.base.about_command._get_console_script_distribution",
+            return_value=mock_dist,
+        ):
             result = _get_installed_script_commands("mycli")
             assert result == ["mycli", "mycli-other"]
 
@@ -345,7 +367,10 @@ class TestGetInstalledScriptCommands:
 
         mock_dist = MagicMock()
         mock_dist.entry_points = [ep1]
-        with patch("usecli.cli.commands.defaults.base.about_command._get_console_script_distribution", return_value=mock_dist):
+        with patch(
+            "usecli.cli.commands.defaults.base.about_command._get_console_script_distribution",
+            return_value=mock_dist,
+        ):
             result = _get_installed_script_commands("mycli")
             assert result == ["other-cli"]
 
@@ -356,7 +381,10 @@ class TestGetInstalledScriptCommands:
 
         mock_dist = MagicMock()
         mock_dist.entry_points = [ep1]
-        with patch("usecli.cli.commands.defaults.base.about_command._get_console_script_distribution", return_value=mock_dist):
+        with patch(
+            "usecli.cli.commands.defaults.base.about_command._get_console_script_distribution",
+            return_value=mock_dist,
+        ):
             assert _get_installed_script_commands("mycli") == []
 
 
@@ -366,8 +394,12 @@ class TestGetInstalledScriptCommands:
 
 
 class TestGetDependencies:
-    @patch("usecli.cli.commands.defaults.base.about_command._get_application_distribution")
-    @patch("usecli.cli.commands.defaults.base.about_command._get_package_dependencies_from_distribution")
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_application_distribution"
+    )
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_package_dependencies_from_distribution"
+    )
     def test_returns_deps_from_distribution(self, mock_get_deps, mock_get_dist):
         mock_dist = MagicMock()
         mock_get_dist.return_value = mock_dist
@@ -377,8 +409,12 @@ class TestGetDependencies:
         result = _get_dependencies(config)
         assert result == [("requests", ">=2.0")]
 
-    @patch("usecli.cli.commands.defaults.base.about_command._get_application_distribution")
-    @patch("usecli.cli.commands.defaults.base.about_command._get_console_script_distribution")
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_application_distribution"
+    )
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_console_script_distribution"
+    )
     def test_falls_back_to_pyproject(self, mock_find_dist, mock_get_dist):
         mock_get_dist.return_value = None
         mock_find_dist.return_value = None
@@ -389,14 +425,20 @@ class TestGetDependencies:
         result = _get_dependencies(config)
         assert result == []
 
-    @patch("usecli.cli.commands.defaults.base.about_command._get_application_distribution")
-    @patch("usecli.cli.commands.defaults.base.about_command._get_console_script_distribution")
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_application_distribution"
+    )
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_console_script_distribution"
+    )
     def test_parses_pyproject_deps(self, mock_find_dist, mock_get_dist, tmp_path):
         mock_get_dist.return_value = None
         mock_find_dist.return_value = None
 
         toml_path = tmp_path / "pyproject.toml"
-        toml_path.write_text('[project]\ndependencies = ["requests>=2.0", "click>=8.0"]')
+        toml_path.write_text(
+            '[project]\ndependencies = ["requests>=2.0", "click>=8.0"]'
+        )
         config = MagicMock()
         config.pyproject_path = toml_path
 
@@ -404,8 +446,12 @@ class TestGetDependencies:
         assert ("requests", ">=2.0") in result
         assert ("click", ">=8.0") in result
 
-    @patch("usecli.cli.commands.defaults.base.about_command._get_application_distribution")
-    @patch("usecli.cli.commands.defaults.base.about_command._get_console_script_distribution")
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_application_distribution"
+    )
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_console_script_distribution"
+    )
     def test_skips_non_list_deps(self, mock_find_dist, mock_get_dist, tmp_path):
         mock_get_dist.return_value = None
         mock_find_dist.return_value = None
@@ -425,7 +471,9 @@ class TestGetDependencies:
 
 
 class TestGetScriptCommands:
-    @patch("usecli.cli.commands.defaults.base.about_command._get_installed_script_commands")
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_installed_script_commands"
+    )
     @patch("usecli.cli.core.ui.title.get_script_command_name")
     def test_returns_installed_commands(self, mock_name, mock_installed):
         mock_name.return_value = "mycli"
@@ -433,7 +481,9 @@ class TestGetScriptCommands:
         result = _get_script_commands()
         assert result == ["mycli", "mycli-other"]
 
-    @patch("usecli.cli.commands.defaults.base.about_command._get_installed_script_commands")
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_installed_script_commands"
+    )
     @patch("usecli.cli.core.ui.title.get_script_command_name")
     def test_adds_primary_command_if_missing(self, mock_name, mock_installed):
         mock_name.return_value = "primary"
@@ -441,22 +491,32 @@ class TestGetScriptCommands:
         result = _get_script_commands()
         assert result == ["primary", "mycli"]
 
-    @patch("usecli.cli.commands.defaults.base.about_command._get_installed_script_commands")
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_installed_script_commands"
+    )
     @patch("usecli.cli.core.ui.title.get_script_command_name")
-    def test_falls_back_to_pyproject_scripts(self, mock_name, mock_installed, tmp_path, monkeypatch):
+    def test_falls_back_to_pyproject_scripts(
+        self, mock_name, mock_installed, tmp_path, monkeypatch
+    ):
         mock_name.return_value = "mycli"
         mock_installed.return_value = []
 
         monkeypatch.chdir(tmp_path)
         toml_path = tmp_path / "pyproject.toml"
-        toml_path.write_text('[project.scripts]\nmycli = "mycli:main"\nother = "other:main"')
+        toml_path.write_text(
+            '[project.scripts]\nmycli = "mycli:main"\nother = "other:main"'
+        )
 
         result = _get_script_commands()
         assert "mycli" in result
 
-    @patch("usecli.cli.commands.defaults.base.about_command._get_installed_script_commands")
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_installed_script_commands"
+    )
     @patch("usecli.cli.core.ui.title.get_script_command_name")
-    def test_returns_primary_when_no_scripts(self, mock_name, mock_installed, tmp_path, monkeypatch):
+    def test_returns_primary_when_no_scripts(
+        self, mock_name, mock_installed, tmp_path, monkeypatch
+    ):
         mock_name.return_value = "mycli"
         mock_installed.return_value = []
 
@@ -465,9 +525,13 @@ class TestGetScriptCommands:
         result = _get_script_commands()
         assert result == ["mycli"]
 
-    @patch("usecli.cli.commands.defaults.base.about_command._get_installed_script_commands")
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_installed_script_commands"
+    )
     @patch("usecli.cli.core.ui.title.get_script_command_name")
-    def test_returns_empty_when_nothing(self, mock_name, mock_installed, tmp_path, monkeypatch):
+    def test_returns_empty_when_nothing(
+        self, mock_name, mock_installed, tmp_path, monkeypatch
+    ):
         mock_name.return_value = None
         mock_installed.return_value = []
 
@@ -476,15 +540,19 @@ class TestGetScriptCommands:
         result = _get_script_commands()
         assert result == []
 
-    @patch("usecli.cli.commands.defaults.base.about_command._get_installed_script_commands")
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_installed_script_commands"
+    )
     @patch("usecli.cli.core.ui.title.get_script_command_name")
-    def test_handles_non_dict_scripts_in_pyproject(self, mock_name, mock_installed, tmp_path, monkeypatch):
+    def test_handles_non_dict_scripts_in_pyproject(
+        self, mock_name, mock_installed, tmp_path, monkeypatch
+    ):
         mock_name.return_value = "mycli"
         mock_installed.return_value = []
 
         monkeypatch.chdir(tmp_path)
         toml_path = tmp_path / "pyproject.toml"
-        toml_path.write_text('[project.scripts]\nmycli = 42')
+        toml_path.write_text("[project.scripts]\nmycli = 42")
 
         result = _get_script_commands()
         assert isinstance(result, list)
@@ -509,16 +577,38 @@ class TestAboutCommand:
         assert "information" in cmd.description().lower()
 
     @patch("usecli.cli.core.runtime.is_json_mode", return_value=True)
-    @patch("usecli.cli.commands.defaults.base.about_command._get_application_description", return_value="Test desc")
-    @patch("usecli.cli.commands.defaults.base.about_command._get_application_version", return_value="1.0.0")
-    @patch("usecli.cli.commands.defaults.base.about_command._get_application_distribution", return_value=None)
-    @patch("usecli.cli.commands.defaults.base.about_command._get_script_commands", return_value=["mycli"])
-    @patch("usecli.cli.commands.defaults.base.about_command._get_dependencies", return_value=[])
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_application_description",
+        return_value="Test desc",
+    )
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_application_version",
+        return_value="1.0.0",
+    )
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_application_distribution",
+        return_value=None,
+    )
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_script_commands",
+        return_value=["mycli"],
+    )
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_dependencies",
+        return_value=[],
+    )
     @patch("usecli.cli.core.ui.title.get_project_name", return_value="TestApp")
     @patch("usecli.cli.commands.defaults.base.about_command.get_config")
     def test_handle_json_mode_returns_data(
-        self, mock_config, mock_name, mock_deps, mock_scripts,
-        mock_dist, mock_version, mock_desc, mock_json
+        self,
+        mock_config,
+        mock_name,
+        mock_deps,
+        mock_scripts,
+        mock_dist,
+        mock_version,
+        mock_desc,
+        mock_json,
     ):
         cmd = self._make_command()
         result = cmd.handle()
@@ -532,18 +622,42 @@ class TestAboutCommand:
         assert result["dependencies"] == []
 
     @patch("usecli.cli.core.runtime.is_json_mode", return_value=False)
-    @patch("usecli.cli.commands.defaults.base.about_command._get_application_description", return_value="Test desc")
-    @patch("usecli.cli.commands.defaults.base.about_command._get_application_version", return_value="1.0.0")
-    @patch("usecli.cli.commands.defaults.base.about_command._get_application_distribution", return_value=MagicMock())
-    @patch("usecli.cli.commands.defaults.base.about_command._get_script_commands", return_value=["mycli"])
-    @patch("usecli.cli.commands.defaults.base.about_command._get_dependencies", return_value=[("click", ">=8.0")])
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_application_description",
+        return_value="Test desc",
+    )
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_application_version",
+        return_value="1.0.0",
+    )
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_application_distribution",
+        return_value=MagicMock(),
+    )
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_script_commands",
+        return_value=["mycli"],
+    )
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_dependencies",
+        return_value=[("click", ">=8.0")],
+    )
     @patch("usecli.cli.core.ui.title.get_project_name", return_value="TestApp")
     @patch("usecli.cli.commands.defaults.base.about_command.get_config")
     @patch("usecli.cli.commands.defaults.base.about_command.console")
     @patch("importlib.metadata.version")
     def test_handle_normal_mode_prints_and_returns(
-        self, mock_ver, mock_console, mock_config, mock_name, mock_deps, mock_scripts,
-        mock_dist, mock_version, mock_desc, mock_json
+        self,
+        mock_ver,
+        mock_console,
+        mock_config,
+        mock_name,
+        mock_deps,
+        mock_scripts,
+        mock_dist,
+        mock_version,
+        mock_desc,
+        mock_json,
     ):
         mock_ver.return_value = "8.1.0"
         cmd = self._make_command()
@@ -554,25 +668,46 @@ class TestAboutCommand:
         assert mock_console.print.called
 
     @patch("usecli.cli.core.runtime.is_json_mode", return_value=True)
-    @patch("usecli.cli.commands.defaults.base.about_command._get_application_description", return_value="desc")
-    @patch("usecli.cli.commands.defaults.base.about_command._get_application_version", return_value="1.0.0")
-    @patch("usecli.cli.commands.defaults.base.about_command._get_application_distribution", return_value=MagicMock())
-    @patch("usecli.cli.commands.defaults.base.about_command._get_script_commands", return_value=["cli"])
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_application_description",
+        return_value="desc",
+    )
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_application_version",
+        return_value="1.0.0",
+    )
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_application_distribution",
+        return_value=MagicMock(),
+    )
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_script_commands",
+        return_value=["cli"],
+    )
     @patch("usecli.cli.commands.defaults.base.about_command._get_dependencies")
     @patch("usecli.cli.core.ui.title.get_project_name", return_value="App")
     @patch("usecli.cli.commands.defaults.base.about_command.get_config")
     def test_handle_with_installed_and_uninstalled_deps(
-        self, mock_config, mock_name, mock_deps, mock_scripts,
-        mock_dist, mock_version, mock_desc, mock_json
+        self,
+        mock_config,
+        mock_name,
+        mock_deps,
+        mock_scripts,
+        mock_dist,
+        mock_version,
+        mock_desc,
+        mock_json,
     ):
         mock_deps.return_value = [("click", ">=8.0"), ("missing-pkg", None)]
 
         cmd = self._make_command()
         with patch("importlib.metadata.version") as mock_get_ver:
+
             def side_effect(name):
                 if name == "click":
                     return "8.1.0"
                 raise PackageNotFoundError(name)
+
             mock_get_ver.side_effect = side_effect
             result = cmd.handle()
 
@@ -583,17 +718,40 @@ class TestAboutCommand:
         assert result["dependencies"][1]["version"] is None
 
     @patch("usecli.cli.core.runtime.is_json_mode", return_value=False)
-    @patch("usecli.cli.commands.defaults.base.about_command._get_application_description", return_value="desc")
-    @patch("usecli.cli.commands.defaults.base.about_command._get_application_version", return_value="1.0.0")
-    @patch("usecli.cli.commands.defaults.base.about_command._get_application_distribution", return_value=None)
-    @patch("usecli.cli.commands.defaults.base.about_command._get_script_commands", return_value=["cli"])
-    @patch("usecli.cli.commands.defaults.base.about_command._get_dependencies", return_value=[])
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_application_description",
+        return_value="desc",
+    )
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_application_version",
+        return_value="1.0.0",
+    )
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_application_distribution",
+        return_value=None,
+    )
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_script_commands",
+        return_value=["cli"],
+    )
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_dependencies",
+        return_value=[],
+    )
     @patch("usecli.cli.core.ui.title.get_project_name", return_value="App")
     @patch("usecli.cli.commands.defaults.base.about_command.get_config")
     @patch("usecli.cli.commands.defaults.base.about_command.console")
     def test_handle_normal_mode_without_dist_uses_app_labels(
-        self, mock_console, mock_config, mock_name, mock_deps, mock_scripts,
-        mock_dist, mock_version, mock_desc, mock_json
+        self,
+        mock_console,
+        mock_config,
+        mock_name,
+        mock_deps,
+        mock_scripts,
+        mock_dist,
+        mock_version,
+        mock_desc,
+        mock_json,
     ):
         cmd = self._make_command()
         result = cmd.handle()
@@ -607,35 +765,79 @@ class TestAboutCommand:
         assert mock_console.print.called
 
     @patch("usecli.cli.core.runtime.is_json_mode", return_value=False)
-    @patch("usecli.cli.commands.defaults.base.about_command._get_application_description", return_value="desc")
-    @patch("usecli.cli.commands.defaults.base.about_command._get_application_version", return_value="1.0.0")
-    @patch("usecli.cli.commands.defaults.base.about_command._get_application_distribution", return_value=MagicMock())
-    @patch("usecli.cli.commands.defaults.base.about_command._get_script_commands", return_value=["cli", "cli-other"])
-    @patch("usecli.cli.commands.defaults.base.about_command._get_dependencies", return_value=[])
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_application_description",
+        return_value="desc",
+    )
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_application_version",
+        return_value="1.0.0",
+    )
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_application_distribution",
+        return_value=MagicMock(),
+    )
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_script_commands",
+        return_value=["cli", "cli-other"],
+    )
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_dependencies",
+        return_value=[],
+    )
     @patch("usecli.cli.core.ui.title.get_project_name", return_value="App")
     @patch("usecli.cli.commands.defaults.base.about_command.get_config")
     @patch("usecli.cli.commands.defaults.base.about_command.console")
     def test_handle_normal_mode_prints_multiple_entry_points(
-        self, mock_console, mock_config, mock_name, mock_deps, mock_scripts,
-        mock_dist, mock_version, mock_desc, mock_json
+        self,
+        mock_console,
+        mock_config,
+        mock_name,
+        mock_deps,
+        mock_scripts,
+        mock_dist,
+        mock_version,
+        mock_desc,
+        mock_json,
     ):
         cmd = self._make_command()
         result = cmd.handle()
         assert len(result["entry_points"]) == 2
 
     @patch("usecli.cli.core.runtime.is_json_mode", return_value=False)
-    @patch("usecli.cli.commands.defaults.base.about_command._get_application_description", return_value="desc")
-    @patch("usecli.cli.commands.defaults.base.about_command._get_application_version", return_value="1.0.0")
-    @patch("usecli.cli.commands.defaults.base.about_command._get_application_distribution", return_value=MagicMock())
-    @patch("usecli.cli.commands.defaults.base.about_command._get_script_commands", return_value=["cli"])
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_application_description",
+        return_value="desc",
+    )
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_application_version",
+        return_value="1.0.0",
+    )
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_application_distribution",
+        return_value=MagicMock(),
+    )
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_script_commands",
+        return_value=["cli"],
+    )
     @patch("usecli.cli.commands.defaults.base.about_command._get_dependencies")
     @patch("usecli.cli.core.ui.title.get_project_name", return_value="App")
     @patch("usecli.cli.commands.defaults.base.about_command.get_config")
     @patch("usecli.cli.commands.defaults.base.about_command.console")
     @patch("importlib.metadata.version")
     def test_handle_normal_mode_prints_deps(
-        self, mock_ver, mock_console, mock_config, mock_name, mock_deps, mock_scripts,
-        mock_dist, mock_version, mock_desc, mock_json
+        self,
+        mock_ver,
+        mock_console,
+        mock_config,
+        mock_name,
+        mock_deps,
+        mock_scripts,
+        mock_dist,
+        mock_version,
+        mock_desc,
+        mock_json,
     ):
         mock_ver.return_value = "8.1.0"
         mock_deps.return_value = [("click", ">=8.0")]
@@ -644,18 +846,39 @@ class TestAboutCommand:
         assert len(result["dependencies"]) == 1
 
     @patch("usecli.cli.core.runtime.is_json_mode", return_value=False)
-    @patch("usecli.cli.commands.defaults.base.about_command._get_application_description", return_value="desc")
-    @patch("usecli.cli.commands.defaults.base.about_command._get_application_version", return_value="1.0.0")
-    @patch("usecli.cli.commands.defaults.base.about_command._get_application_distribution", return_value=MagicMock())
-    @patch("usecli.cli.commands.defaults.base.about_command._get_script_commands", return_value=["cli"])
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_application_description",
+        return_value="desc",
+    )
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_application_version",
+        return_value="1.0.0",
+    )
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_application_distribution",
+        return_value=MagicMock(),
+    )
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_script_commands",
+        return_value=["cli"],
+    )
     @patch("usecli.cli.commands.defaults.base.about_command._get_dependencies")
     @patch("usecli.cli.core.ui.title.get_project_name", return_value="App")
     @patch("usecli.cli.commands.defaults.base.about_command.get_config")
     @patch("usecli.cli.commands.defaults.base.about_command.console")
     @patch("importlib.metadata.version")
     def test_handle_normal_mode_with_uninstalled_dep(
-        self, mock_ver, mock_console, mock_config, mock_name, mock_deps, mock_scripts,
-        mock_dist, mock_version, mock_desc, mock_json
+        self,
+        mock_ver,
+        mock_console,
+        mock_config,
+        mock_name,
+        mock_deps,
+        mock_scripts,
+        mock_dist,
+        mock_version,
+        mock_desc,
+        mock_json,
     ):
         mock_ver.side_effect = PackageNotFoundError("pkg")
         mock_deps.return_value = [("missing-pkg", ">=1.0")]
@@ -664,18 +887,39 @@ class TestAboutCommand:
         assert len(result["dependencies"]) == 1
 
     @patch("usecli.cli.core.runtime.is_json_mode", return_value=False)
-    @patch("usecli.cli.commands.defaults.base.about_command._get_application_description", return_value="desc")
-    @patch("usecli.cli.commands.defaults.base.about_command._get_application_version", return_value="1.0.0")
-    @patch("usecli.cli.commands.defaults.base.about_command._get_application_distribution", return_value=MagicMock())
-    @patch("usecli.cli.commands.defaults.base.about_command._get_script_commands", return_value=["cli"])
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_application_description",
+        return_value="desc",
+    )
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_application_version",
+        return_value="1.0.0",
+    )
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_application_distribution",
+        return_value=MagicMock(),
+    )
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_script_commands",
+        return_value=["cli"],
+    )
     @patch("usecli.cli.commands.defaults.base.about_command._get_dependencies")
     @patch("usecli.cli.core.ui.title.get_project_name", return_value="App")
     @patch("usecli.cli.commands.defaults.base.about_command.get_config")
     @patch("usecli.cli.commands.defaults.base.about_command.console")
     @patch("importlib.metadata.version")
     def test_handle_normal_mode_with_uninstalled_dep_no_spec(
-        self, mock_ver, mock_console, mock_config, mock_name, mock_deps, mock_scripts,
-        mock_dist, mock_version, mock_desc, mock_json
+        self,
+        mock_ver,
+        mock_console,
+        mock_config,
+        mock_name,
+        mock_deps,
+        mock_scripts,
+        mock_dist,
+        mock_version,
+        mock_desc,
+        mock_json,
     ):
         mock_ver.side_effect = PackageNotFoundError("pkg")
         mock_deps.return_value = [("missing-pkg", None)]
@@ -684,17 +928,40 @@ class TestAboutCommand:
         assert len(result["dependencies"]) == 1
 
     @patch("usecli.cli.core.runtime.is_json_mode", return_value=False)
-    @patch("usecli.cli.commands.defaults.base.about_command._get_application_description", return_value="desc")
-    @patch("usecli.cli.commands.defaults.base.about_command._get_application_version", return_value="1.0.0")
-    @patch("usecli.cli.commands.defaults.base.about_command._get_application_distribution", return_value=MagicMock())
-    @patch("usecli.cli.commands.defaults.base.about_command._get_script_commands", return_value=["cli"])
-    @patch("usecli.cli.commands.defaults.base.about_command._get_dependencies", return_value=[])
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_application_description",
+        return_value="desc",
+    )
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_application_version",
+        return_value="1.0.0",
+    )
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_application_distribution",
+        return_value=MagicMock(),
+    )
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_script_commands",
+        return_value=["cli"],
+    )
+    @patch(
+        "usecli.cli.commands.defaults.base.about_command._get_dependencies",
+        return_value=[],
+    )
     @patch("usecli.cli.core.ui.title.get_project_name", return_value="App")
     @patch("usecli.cli.commands.defaults.base.about_command.get_config")
     @patch("usecli.cli.commands.defaults.base.about_command.console")
     def test_handle_normal_mode_no_deps_prints_unable(
-        self, mock_console, mock_config, mock_name, mock_deps, mock_scripts,
-        mock_dist, mock_version, mock_desc, mock_json
+        self,
+        mock_console,
+        mock_config,
+        mock_name,
+        mock_deps,
+        mock_scripts,
+        mock_dist,
+        mock_version,
+        mock_desc,
+        mock_json,
     ):
         cmd = self._make_command()
         result = cmd.handle()

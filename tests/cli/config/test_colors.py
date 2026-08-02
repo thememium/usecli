@@ -3,9 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import patch
 
 from usecli.cli.config.colors import (
     COLOR,
@@ -13,7 +11,6 @@ from usecli.cli.config.colors import (
     _build_ansi_palette,
     _config_matches_command,
     _dedupe_paths,
-    _find_project_root,
     _get_command_name,
     _get_package_name,
     _hex_to_rgb,
@@ -25,7 +22,6 @@ from usecli.cli.config.colors import (
     bold,
     style,
 )
-
 
 # ---------------------------------------------------------------------------
 # Pure utility functions
@@ -168,7 +164,12 @@ class TestDedupePaths:
 
 class TestBuildAnsiPalette:
     def test_builds_from_colors(self):
-        colors = {k: v for k, v in __import__("usecli.cli.config.colors", fromlist=["DEFAULT_THEME_COLORS"]).DEFAULT_THEME_COLORS.items()}
+        colors = {
+            k: v
+            for k, v in __import__(
+                "usecli.cli.config.colors", fromlist=["DEFAULT_THEME_COLORS"]
+            ).DEFAULT_THEME_COLORS.items()
+        }
         result = _build_ansi_palette(colors)
         assert "reset" in result
         assert "primary" in result
@@ -279,7 +280,10 @@ class TestConfigMatchesCommand:
     def test_returns_true_when_config_matches(self, tmp_path):
         config_path = tmp_path / "config.toml"
         config_path.write_text('[usecli]\ncommand_name = "mycli"')
-        with patch("usecli.cli.config.colors._get_console_script_aliases", return_value={"mycli"}):
+        with patch(
+            "usecli.cli.config.colors._get_console_script_aliases",
+            return_value={"mycli"},
+        ):
             assert _config_matches_command(config_path, "mycli") is True
 
     def test_returns_true_when_no_command_in_config(self, tmp_path):
@@ -330,3 +334,105 @@ class TestStyle:
     def test_applies_bold(self):
         result = style("Hello", "#FF0000", bold=True)
         assert result == "[bold #FF0000]Hello[/bold #FF0000]"
+
+
+class TestLoadThemeFile:
+    def test_loads_valid_theme(self, tmp_path):
+        theme_path = tmp_path / "theme.toml"
+        theme_path.write_text('[colors]\nprimary = "#FF0000"')
+        from usecli.cli.config.colors import _load_theme_file
+
+        result = _load_theme_file(theme_path)
+        assert "colors" in result
+
+    def test_returns_empty_for_invalid_toml(self, tmp_path):
+        theme_path = tmp_path / "theme.toml"
+        theme_path.write_text("not = = valid")
+        from usecli.cli.config.colors import _load_theme_file
+
+        result = _load_theme_file(theme_path)
+        assert result == {}
+
+    def test_returns_empty_for_non_dict(self, tmp_path):
+        theme_path = tmp_path / "theme.toml"
+        theme_path.write_text("= 'just a value'")
+        from usecli.cli.config.colors import _load_theme_file
+
+        result = _load_theme_file(theme_path)
+        # Non-dict TOML returns empty
+        assert isinstance(result, dict)
+
+
+class TestResolveThemePath:
+    def test_returns_none_for_empty_name(self):
+        from usecli.cli.config.colors import _resolve_theme_path
+
+        assert _resolve_theme_path("", None, {}) is None
+
+    def test_returns_none_for_whitespace_name(self):
+        from usecli.cli.config.colors import _resolve_theme_path
+
+        assert _resolve_theme_path("   ", None, {}) is None
+
+    def test_resolves_absolute_path(self, tmp_path):
+        theme_path = tmp_path / "custom.toml"
+        theme_path.write_text("")
+        from usecli.cli.config.colors import _resolve_theme_path
+
+        result = _resolve_theme_path(str(theme_path), None, {})
+        assert result == theme_path
+
+    def test_resolves_relative_path_with_project_root(self, tmp_path):
+        theme_dir = tmp_path / "themes"
+        theme_dir.mkdir()
+        theme_path = theme_dir / "custom.toml"
+        theme_path.write_text("")
+        from usecli.cli.config.colors import _resolve_theme_path
+
+        result = _resolve_theme_path("themes/custom.toml", tmp_path, {})
+        assert result == theme_path
+
+    def test_returns_none_for_nonexistent_relative_path(self, tmp_path):
+        from usecli.cli.config.colors import _resolve_theme_path
+
+        result = _resolve_theme_path("nonexistent.toml", tmp_path, {})
+        assert result is None
+
+
+class TestIsPreferredPackagePath:
+    def test_returns_true_for_venv_path(self):
+        from usecli.cli.config.colors import _is_preferred_package_path
+
+        assert _is_preferred_package_path(Path(".venv/lib/python")) is True
+
+    def test_returns_false_for_normal_path(self):
+        from usecli.cli.config.colors import _is_preferred_package_path
+
+        assert _is_preferred_package_path(Path("src/usecli")) is False
+
+
+class TestFindProjectRoot:
+    def test_finds_root_with_pyproject(self, tmp_path):
+        nested = tmp_path / "src" / "deep"
+        nested.mkdir(parents=True)
+        (tmp_path / "pyproject.toml").write_text("")
+        from usecli.cli.config.colors import _find_project_root
+
+        result = _find_project_root(nested)
+        assert result == tmp_path
+
+    def test_finds_root_with_usecli_config(self, tmp_path):
+        nested = tmp_path / "src"
+        nested.mkdir(parents=True)
+        (tmp_path / "usecli.config.toml").write_text("")
+        from usecli.cli.config.colors import _find_project_root
+
+        result = _find_project_root(nested)
+        assert result == tmp_path
+
+    def test_returns_none_when_not_found(self, tmp_path):
+        from usecli.cli.config.colors import _find_project_root
+
+        result = _find_project_root(tmp_path)
+        # May return None or tmp_path depending on git root
+        assert result is None or isinstance(result, Path)

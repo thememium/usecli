@@ -5,11 +5,8 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 import click
-import pytest
-import typer
 
 from usecli.params import Argument, Option
-
 
 # ---------------------------------------------------------------------------
 # Argument wrapper
@@ -70,7 +67,9 @@ class TestOptionBasic:
 
 
 class TestOptionCallback:
-    def _make_context(self, param_name: str = "verbose", source=None, interactive: bool = False):
+    def _make_context(
+        self, param_name: str = "verbose", source=None, interactive: bool = False
+    ):
         """Build a minimal mock Click context."""
         ctx = MagicMock(spec=click.Context)
         ctx.info_name = "test-command"
@@ -80,7 +79,9 @@ class TestOptionCallback:
         if source is not None:
             ctx.get_parameter_source.return_value = source
         else:
-            ctx.get_parameter_source.return_value = click.core.ParameterSource.COMMANDLINE
+            ctx.get_parameter_source.return_value = (
+                click.core.ParameterSource.COMMANDLINE
+            )
         return ctx
 
     def _make_param(self, name: str = "verbose"):

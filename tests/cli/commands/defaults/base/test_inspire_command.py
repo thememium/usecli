@@ -50,7 +50,9 @@ class TestInspireCommand:
     @patch("usecli.cli.commands.defaults.base.inspire_command.get_config")
     @patch("rich.console.Console")
     @patch("rich.panel.Panel")
-    def test_handle_prints_panel_in_normal_mode(self, mock_panel, mock_console_cls, mock_get_config, mock_json):
+    def test_handle_prints_panel_in_normal_mode(
+        self, mock_panel, mock_console_cls, mock_get_config, mock_json
+    ):
         mock_get_config.return_value = MagicMock(get=MagicMock(return_value=False))
         mock_console_instance = MagicMock()
         mock_console_cls.return_value = mock_console_instance
