@@ -395,6 +395,24 @@ class TestConfigManagerAdditionalMethods:
         result = ConfigManager._load_project_version(tmp_path / "nonexistent.toml")
         assert result is None
 
+    def test_load_project_version_from_tool_usecli(self, tmp_path):
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text('[tool.usecli]\nversion = "2.0.0"')
+        result = ConfigManager._load_project_version(pyproject)
+        assert result == "2.0.0"
+
+    def test_load_project_version_with_invalid_toml(self, tmp_path):
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text("not = = valid")
+        result = ConfigManager._load_project_version(pyproject)
+        assert result is None
+
+    def test_load_project_version_with_empty_version(self, tmp_path):
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text('[project]\nversion = "  "')
+        result = ConfigManager._load_project_version(pyproject)
+        assert result is None
+
     def test_dot_notation_get(self, tmp_path):
         config_path = tmp_path / "usecli.config.toml"
         config_path.write_text('[usecli]\nnested.key = "value"')
