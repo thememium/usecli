@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from importlib import resources
 
-from click.testing import CliRunner
-from typer.main import get_command
+from typer.testing import CliRunner
 
 import usecli
 
@@ -55,12 +54,10 @@ def _assert_packaged_files() -> None:
 def _assert_cli_runs() -> None:
     runner = CliRunner()
 
-    command = get_command(usecli.app)
-
-    result = runner.invoke(command, ["--version"])  # ty: ignore[invalid-argument-type]
+    result = runner.invoke(usecli.app, ["--version"])
     assert result.exit_code == 0, result.output
 
-    result = runner.invoke(command, ["--help"])  # ty: ignore[invalid-argument-type]
+    result = runner.invoke(usecli.app, ["--help"])
     assert result.exit_code == 0, result.output
 
 
