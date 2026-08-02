@@ -74,6 +74,9 @@ release = "bash scripts/release.sh"
 
 [tool.ty]
 
+[tool.ty.environment]
+python-version = "3.12"
+
 [tool.ty.src]
 include = ["src", "tests"]
 exclude = ["**/__pycache__", "**/.venv"]
