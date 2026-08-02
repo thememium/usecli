@@ -955,3 +955,56 @@ class TestInitCommandConfigHelpers:
         dir_path.mkdir()
         result = init_cmd._resolve_config_path(str(dir_path), tmp_path)
         assert "usecli.config.toml" in str(result)
+
+    def test_ensure_project_scripts_adds_section(self, init_cmd, tmp_path):
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text('[project]\nname = "test"')
+        result = init_cmd._ensure_project_scripts(pyproject, "mycli", force=False)
+        assert result == "added"
+        assert "[project.scripts]" in pyproject.read_text()
+
+    def test_ensure_project_scripts_unchanged(self, init_cmd, tmp_path):
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text('[project.scripts]\nmycli = "usecli:main"')
+        result = init_cmd._ensure_project_scripts(pyproject, "mycli", force=False)
+        assert result == "unchanged"
+
+    def test_ensure_project_scripts_updates_existing(self, init_cmd, tmp_path):
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text('[project.scripts]\nmycli = "other:main"')
+        result = init_cmd._ensure_project_scripts(pyproject, "mycli", force=True)
+        assert result == "updated"
+        assert '"usecli:main"' in pyproject.read_text()
+
+    def test_ensure_project_scripts_adds_entry_to_existing_section(self, init_cmd, tmp_path):
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text('[project.scripts]\nother = "other:main"')
+        result = init_cmd._ensure_project_scripts(pyproject, "mycli", force=False)
+        assert result == "added"
+        assert "mycli" in pyproject.read_text()
+
+    def test_ensure_project_scripts_missing_file(self, init_cmd, tmp_path):
+        result = init_cmd._ensure_project_scripts(tmp_path / "nonexistent.toml", "mycli", force=False)
+        assert result == "missing"
+
+    def test_ensure_package_init_files_creates(self, init_cmd, tmp_path):
+        commands_path = tmp_path / "cli" / "commands"
+        commands_path.mkdir(parents=True)
+        result = init_cmd._ensure_package_init_files(commands_path, tmp_path)
+        assert result is True
+        assert (commands_path / "__init__.py").exists()
+
+    def test_ensure_package_init_files_skips_existing(self, init_cmd, tmp_path):
+        commands_path = tmp_path / "cli" / "commands"
+        commands_path.mkdir(parents=True)
+        (commands_path / "__init__.py").write_text("")
+        (commands_path.parent / "__init__.py").write_text("")
+        result = init_cmd._ensure_package_init_files(commands_path, tmp_path)
+        assert result is False
+
+    def test_ensure_package_init_files_creates_parent_init(self, init_cmd, tmp_path):
+        commands_path = tmp_path / "cli" / "commands"
+        commands_path.mkdir(parents=True)
+        result = init_cmd._ensure_package_init_files(commands_path, tmp_path)
+        assert result is True
+        assert (commands_path.parent / "__init__.py").exists()
