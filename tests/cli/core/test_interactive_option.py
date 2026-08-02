@@ -4,8 +4,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 import typer
-from click import Option
 from click.exceptions import Exit
+from typer.core import TyperOption
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
@@ -29,7 +29,7 @@ def test_custom_help_command_adds_interactive_option():
     interactive_params = [
         p
         for p in cmd.params
-        if isinstance(p, Option) and ("--interactive" in p.opts or "-i" in p.opts)
+        if isinstance(p, TyperOption) and ("--interactive" in p.opts or "-i" in p.opts)
     ]
 
     assert len(interactive_params) == 1
@@ -85,6 +85,8 @@ def test_main_interactive_calls_run_interactive():
 def test_group_callback_registers_interactive_option(clean_registry):
     group_app = clean_registry.get_or_create_group(typer.Typer(), "config")
     click_group = typer.main.get_command(group_app)
-    option_flags = [opt.opts for opt in click_group.params if isinstance(opt, Option)]
+    option_flags = [
+        opt.opts for opt in click_group.params if isinstance(opt, TyperOption)
+    ]
 
     assert any("--interactive" in opts or "-i" in opts for opts in option_flags)
