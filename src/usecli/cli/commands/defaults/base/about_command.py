@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import sys
+from importlib.metadata import PackageNotFoundError
 from pathlib import Path
 
 from usecli.cli.config.colors import COLOR
@@ -200,7 +201,7 @@ def _get_installed_script_commands(command_name: str | None) -> list[str]:
         return []
     try:
         entry_points = dist.entry_points
-    except Exception:
+    except (AttributeError, OSError):
         return []
     script_names = [
         entry_point.name
@@ -242,9 +243,7 @@ def _get_script_commands() -> list[str]:
             return [primary_command]
         return []
 
-    script_names = [
-        name for name in scripts.keys() if isinstance(name, str) and name.strip()
-    ]
+    script_names = [name for name in scripts if isinstance(name, str) and name.strip()]
     if primary_command and primary_command not in script_names:
         return [primary_command, *script_names]
     return script_names
@@ -281,7 +280,7 @@ class AboutCommand(BaseCommand):
 
                 installed_version = get_version(dep_name)
                 dependencies.append({"name": dep_name, "version": installed_version})
-            except Exception:
+            except (PackageNotFoundError, OSError):
                 dependencies.append({"name": dep_name, "version": spec})
 
         data: dict[str, object] = {
@@ -329,7 +328,7 @@ class AboutCommand(BaseCommand):
 
                     installed_version = get_version(dep_name)
                     self._print_row(dep_name, installed_version)
-                except Exception:
+                except (PackageNotFoundError, OSError):
                     if spec:
                         self._print_row(dep_name, spec)
                     else:

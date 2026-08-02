@@ -4,8 +4,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 import typer
-from click import Option
 from click.exceptions import Exit
+from typer.core import TyperOption
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
 
@@ -29,7 +29,7 @@ def test_custom_help_command_adds_interactive_option():
     interactive_params = [
         p
         for p in cmd.params
-        if isinstance(p, Option) and ("--interactive" in p.opts or "-i" in p.opts)
+        if isinstance(p, TyperOption) and ("--interactive" in p.opts or "-i" in p.opts)
     ]
 
     assert len(interactive_params) == 1
@@ -54,12 +54,14 @@ def test_custom_help_command_invoke_calls_run_interactive():
     ctx.params = {"interactive": True}
     ctx.command_path = "usecli about"
 
-    with patch("usecli.app", app):
-        with patch(
+    with (
+        patch("usecli.app", app),
+        patch(
             "usecli.cli.commands.defaults.base.internal.fzf_command.run_interactive"
-        ) as mock_run:
-            with pytest.raises(Exit):
-                cmd.invoke(ctx)
+        ) as mock_run,
+        pytest.raises(Exit),
+    ):
+        cmd.invoke(ctx)
 
     mock_run.assert_called_once_with(app, cmd_parts=["about"])
     assert "interactive" not in ctx.params
@@ -69,11 +71,13 @@ def test_main_interactive_calls_run_interactive():
     ctx = MagicMock()
     ctx.invoked_subcommand = "about"
 
-    with patch(
-        "usecli.cli.commands.defaults.base.internal.fzf_command.run_interactive"
-    ) as mock_run:
-        with pytest.raises(typer.Exit):
-            run_app(ctx=ctx, version=False, help=False, interactive=True)
+    with (
+        patch(
+            "usecli.cli.commands.defaults.base.internal.fzf_command.run_interactive"
+        ) as mock_run,
+        pytest.raises(typer.Exit),
+    ):
+        run_app(ctx=ctx, version=False, help=False, interactive=True)
 
     mock_run.assert_called_once_with(app, cmd_parts=["about"])
 
@@ -81,6 +85,8 @@ def test_main_interactive_calls_run_interactive():
 def test_group_callback_registers_interactive_option(clean_registry):
     group_app = clean_registry.get_or_create_group(typer.Typer(), "config")
     click_group = typer.main.get_command(group_app)
-    option_flags = [opt.opts for opt in click_group.params if isinstance(opt, Option)]
+    option_flags = [
+        opt.opts for opt in click_group.params if isinstance(opt, TyperOption)
+    ]
 
     assert any("--interactive" in opts or "-i" in opts for opts in option_flags)

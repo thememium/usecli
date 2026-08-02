@@ -3,6 +3,10 @@
 from __future__ import annotations
 
 from types import TracebackType
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from typing_extensions import Self
 
 from rich.console import Console
 from rich.progress import (
@@ -40,7 +44,7 @@ class Spinner:
         self._progress: Progress | None = None
         self._task_id: TaskID | None = None
 
-    def __enter__(self) -> Spinner:
+    def __enter__(self) -> Self:
         progress = Progress(
             SpinnerColumn(
                 spinner_name=self.spinner,
@@ -97,7 +101,7 @@ class ProgressBar:
         self._progress: Progress | None = None
         self._task_id: TaskID | None = None
 
-    def __enter__(self) -> ProgressBar:
+    def __enter__(self) -> Self:
         progress = Progress(
             TextColumn(
                 "[progress.description]{task.description}",
@@ -166,4 +170,4 @@ class ProgressBar:
             )
 
 
-__all__ = ["Spinner", "ProgressBar"]
+__all__ = ["ProgressBar", "Spinner"]

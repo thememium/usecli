@@ -7,7 +7,8 @@ matching your existing help and fzf command styling.
 from __future__ import annotations
 
 import functools
-from typing import Callable, TypeVar
+from collections.abc import Callable
+from typing import TypeVar, cast
 
 import typer
 from rich.console import Console
@@ -107,11 +108,11 @@ class ErrorHandler:
             except UsecliError as e:
                 e.show()
                 raise typer.Exit(code=e.exit_code)
-            except Exception as e:
+            except (OSError, RuntimeError, ValueError, TypeError) as e:
                 ErrorHandler.display_error(
                     f"Unexpected error: {e!s}",
                     suggestion="Run with --verbose for more details",
                 )
                 raise typer.Exit(code=1)
 
-        return wrapper  # type: ignore[return-value]
+        return cast(F, wrapper)

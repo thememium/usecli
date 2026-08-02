@@ -6,15 +6,11 @@ import importlib.util
 import sys
 from pathlib import Path
 from types import ModuleType
-from typing import TYPE_CHECKING
 
 import typer
 
 from usecli.cli.core.base_command import BaseCommand
 from usecli.shared.config.globals import PACKAGE_ROOT
-
-if TYPE_CHECKING:
-    pass
 
 
 def get_config():

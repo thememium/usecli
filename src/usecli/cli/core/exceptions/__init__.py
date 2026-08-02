@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 __all__ = [
-    "UsecliError",
-    "UsecliUsageError",
     "UsecliBadParameter",
     "UsecliConfigError",
+    "UsecliError",
+    "UsecliUsageError",
     "UsecliValidationError",
 ]
 

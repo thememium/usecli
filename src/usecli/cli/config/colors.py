@@ -11,11 +11,15 @@ Usage:
 
 from __future__ import annotations
 
+import logging
 import os
 import sys
 import time
+from collections.abc import Callable
 from pathlib import Path
-from typing import Any, Callable, Final, Protocol, cast, final
+from typing import Any, Final, Protocol, cast, final
+
+logger = logging.getLogger(__name__)
 
 
 def _import_tomllib():
@@ -188,8 +192,8 @@ def _get_console_script_aliases(command_name: str | None) -> set[str]:
                 ep.name for ep in dist.entry_points if ep.group == "console_scripts"
             ]
             aliases.update(names)
-        except Exception:
-            pass
+        except (AttributeError, OSError):
+            logger.debug("Failed to read entry points for distribution %s", dist)
     return aliases
 
 
@@ -456,8 +460,7 @@ def _hex_to_rgb(value: str) -> tuple[int, int, int] | None:
     value = value.strip()
     if not value:
         return None
-    if value.startswith("#"):
-        value = value[1:]
+    value = value.removeprefix("#")
     if len(value) == 3:
         value = "".join(ch * 2 for ch in value)
     if len(value) != 6:

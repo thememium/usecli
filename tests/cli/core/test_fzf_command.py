@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import click
-from typer.core import TyperOption
 
 from usecli.cli.commands.defaults.base.internal.fzf_command import _get_optional_options
 
@@ -28,13 +27,14 @@ class TestGetOptionalOptions:
 
     def test_excludes_json_option(self):
         cmd = click.Command(
-            "demo", params=[TyperOption(param_decls=["--json"], is_flag=True)]
+            "demo",
+            params=[click.Option(["--json"], is_flag=True)],
         )
         assert _get_optional_options(cmd) == []
 
     def test_excludes_json_option_with_short_alias(self):
         cmd = click.Command(
             "demo",
-            params=[TyperOption(param_decls=["-j", "--json"], is_flag=True)],
+            params=[click.Option(["-j", "--json"], is_flag=True)],
         )
         assert _get_optional_options(cmd) == []

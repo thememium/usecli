@@ -80,13 +80,12 @@ def get_project_name() -> str:
     # Last resort: package metadata
     try:
         meta = metadata("usecli")
-        name = meta["Name"] if "Name" in meta else "usecli"
-
+        name = meta.get("Name", "usecli")
         if name == "usecli":
             return "useCli"
 
         return name
-    except (PackageNotFoundError, Exception):
+    except PackageNotFoundError:
         return "useCli"
 
 

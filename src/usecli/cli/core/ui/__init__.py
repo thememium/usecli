@@ -11,10 +11,10 @@ from typing import Any
 __all__ = [
     "COLOR",
     "bold",
+    "get_project_name",
     "is_click_group",
     "list_commands",
     "print_title",
-    "get_project_name",
     "style",
 ]
 

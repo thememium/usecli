@@ -87,13 +87,13 @@ class Confirm:
 
 # Export Rich components directly for advanced use
 __all__ = [
-    "console",
-    "Console",
-    "Prompt",
+    "COLOR",
     "Confirm",
-    "Table",
+    "Console",
     "Panel",
+    "Prompt",
+    "Table",
     "Text",
     "box",
-    "COLOR",
+    "console",
 ]

@@ -4,12 +4,8 @@ from __future__ import annotations
 
 import re
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    pass
 
 
 class _LazyConsole:
@@ -122,7 +118,7 @@ def format_relative_time(timestamp: datetime) -> str:
     Returns:
         Relative time string (e.g., "2 hours ago", "3 days ago").
     """
-    now = datetime.now()
+    now = datetime.now(tz=timezone.utc)
     diff = now - timestamp
 
     if diff < timedelta(minutes=1):

@@ -68,8 +68,6 @@ class AnotherDummyCommand(BaseCommand):
 class NotACommand:
     """Not a BaseCommand subclass."""
 
-    pass
-
 
 # =============================================================================
 # CommandService.__init__ Tests
@@ -133,11 +131,13 @@ class TestCommandServiceLoadCommands:
         app = MagicMock()
         service = CommandService(app=app)
 
-        with patch.object(service, "_load_version") as mock_load_version:
-            with patch.object(service, "_load_from_dir"):
-                service.load_commands()
+        with (
+            patch.object(service, "_load_version") as mock_load_version,
+            patch.object(service, "_load_from_dir"),
+        ):
+            service.load_commands()
 
-                mock_load_version.assert_called_once()
+            mock_load_version.assert_called_once()
 
     @patch("usecli.cli.services.command_service.get_config")
     def test_load_commands_calls_load_from_dir_commands(
@@ -150,15 +150,17 @@ class TestCommandServiceLoadCommands:
         app = MagicMock()
         service = CommandService(app=app)
 
-        with patch.object(service, "_load_version"):
-            with patch.object(service, "_load_from_dir") as mock_load_from_dir:
-                service.load_commands()
+        with (
+            patch.object(service, "_load_version"),
+            patch.object(service, "_load_from_dir") as mock_load_from_dir,
+        ):
+            service.load_commands()
 
-                # First call should be for commands
-                calls = mock_load_from_dir.call_args_list
-                assert len(calls) >= 1
-                first_call_path = calls[0][0][0]
-                assert "commands" in str(first_call_path)
+            # First call should be for commands
+            calls = mock_load_from_dir.call_args_list
+            assert len(calls) >= 1
+            first_call_path = calls[0][0][0]
+            assert "commands" in str(first_call_path)
 
     @patch("usecli.cli.services.command_service.get_config")
     def test_load_commands_calls_load_from_dir_project(self, mock_get_config, tmp_path):
@@ -169,15 +171,17 @@ class TestCommandServiceLoadCommands:
         app = MagicMock()
         service = CommandService(app=app)
 
-        with patch.object(service, "_load_version"):
-            with patch.object(service, "_load_from_dir") as mock_load_from_dir:
-                service.load_commands()
+        with (
+            patch.object(service, "_load_version"),
+            patch.object(service, "_load_from_dir") as mock_load_from_dir,
+        ):
+            service.load_commands()
 
-                # Second call should be for project commands
-                calls = mock_load_from_dir.call_args_list
-                assert len(calls) >= 2
-                second_call_path = calls[1][0][0]
-                assert "commands" in str(second_call_path)
+            # Second call should be for project commands
+            calls = mock_load_from_dir.call_args_list
+            assert len(calls) >= 2
+            second_call_path = calls[1][0][0]
+            assert "commands" in str(second_call_path)
 
     @patch("usecli.cli.services.command_service.get_config")
     def test_load_commands_calls_all_load_from_dir(self, mock_get_config, tmp_path):
@@ -188,11 +192,13 @@ class TestCommandServiceLoadCommands:
         app = MagicMock()
         service = CommandService(app=app)
 
-        with patch.object(service, "_load_version"):
-            with patch.object(service, "_load_from_dir") as mock_load_from_dir:
-                service.load_commands()
+        with (
+            patch.object(service, "_load_version"),
+            patch.object(service, "_load_from_dir") as mock_load_from_dir,
+        ):
+            service.load_commands()
 
-                assert mock_load_from_dir.call_count == 2
+            assert mock_load_from_dir.call_count == 2
 
     @patch("usecli.cli.services.command_service.get_config")
     def test_load_commands_correct_directory_paths(self, mock_get_config, tmp_path):
@@ -202,16 +208,18 @@ class TestCommandServiceLoadCommands:
         app = MagicMock()
         service = CommandService(app=app)
 
-        with patch.object(service, "_load_version"):
-            with patch.object(service, "_load_from_dir") as mock_load_from_dir:
-                service.load_commands()
+        with (
+            patch.object(service, "_load_version"),
+            patch.object(service, "_load_from_dir") as mock_load_from_dir,
+        ):
+            service.load_commands()
 
-                calls = mock_load_from_dir.call_args_list
-                commands_path = calls[0][0][0]
-                project_path = calls[1][0][0]
+            calls = mock_load_from_dir.call_args_list
+            commands_path = calls[0][0][0]
+            project_path = calls[1][0][0]
 
-                assert str(commands_path).endswith("cli/commands")
-                assert project_path == project_commands_dir
+            assert str(commands_path).endswith("cli/commands")
+            assert project_path == project_commands_dir
 
     @patch("usecli.cli.services.command_service.get_config")
     def test_load_commands_execution_order(self, mock_get_config, tmp_path):
@@ -230,15 +238,15 @@ class TestCommandServiceLoadCommands:
         def mock_load_from_dir(path):
             call_order.append(str(path).split("/")[-1])
 
-        with patch.object(service, "_load_version", side_effect=mock_load_version):
-            with patch.object(
-                service, "_load_from_dir", side_effect=mock_load_from_dir
-            ):
-                service.load_commands()
+        with (
+            patch.object(service, "_load_version", side_effect=mock_load_version),
+            patch.object(service, "_load_from_dir", side_effect=mock_load_from_dir),
+        ):
+            service.load_commands()
 
-                assert call_order[0] == "version"
-                assert call_order[1] == "commands"
-                assert call_order[2] == "project_commands"
+            assert call_order[0] == "version"
+            assert call_order[1] == "commands"
+            assert call_order[2] == "project_commands"
 
     @patch("usecli.cli.services.command_service.get_config")
     def test_load_commands_skips_project_dir_when_same_as_package(
@@ -251,12 +259,14 @@ class TestCommandServiceLoadCommands:
         app = MagicMock()
         service = CommandService(app=app)
 
-        with patch("usecli.cli.services.command_service.PACKAGE_ROOT", package_root):
-            with patch.object(service, "_load_version"):
-                with patch.object(service, "_load_from_dir") as mock_load_from_dir:
-                    service.load_commands()
+        with (
+            patch("usecli.cli.services.command_service.PACKAGE_ROOT", package_root),
+            patch.object(service, "_load_version"),
+            patch.object(service, "_load_from_dir") as mock_load_from_dir,
+        ):
+            service.load_commands()
 
-                    assert mock_load_from_dir.call_count == 1
+            assert mock_load_from_dir.call_count == 1
 
     @patch("usecli.cli.services.command_service.get_config")
     def test_load_commands_skips_project_dir_when_nested_under_package(
@@ -270,12 +280,14 @@ class TestCommandServiceLoadCommands:
         app = MagicMock()
         service = CommandService(app=app)
 
-        with patch("usecli.cli.services.command_service.PACKAGE_ROOT", package_root):
-            with patch.object(service, "_load_version"):
-                with patch.object(service, "_load_from_dir") as mock_load_from_dir:
-                    service.load_commands()
+        with (
+            patch("usecli.cli.services.command_service.PACKAGE_ROOT", package_root),
+            patch.object(service, "_load_version"),
+            patch.object(service, "_load_from_dir") as mock_load_from_dir,
+        ):
+            service.load_commands()
 
-                    assert mock_load_from_dir.call_count == 1
+            assert mock_load_from_dir.call_count == 1
 
 
 # =============================================================================
@@ -533,21 +545,21 @@ class TestCommandServiceLoadFromDir:
                 return [("TestCmd", test_cmd)]
             return []
 
-        with patch.object(service, "_import_file", return_value=mock_module):
-            with patch("inspect.getmembers", side_effect=mock_get_members):
-                with patch("inspect.isclass", return_value=True):
-                    with patch("inspect.issubclass") as mock_issubclass:
-                        # issubclass should return True for TestCmd, False for BaseCommand
-                        def issubclass_check(obj, parent):
-                            if obj is BaseCommand:
-                                return True
-                            if obj is test_cmd:
-                                return True
-                            return False
+        with (
+            patch.object(service, "_import_file", return_value=mock_module),
+            patch("inspect.getmembers", side_effect=mock_get_members),
+            patch("inspect.isclass", return_value=True),
+            patch("inspect.issubclass") as mock_issubclass,
+        ):
+            # issubclass should return True for TestCmd, False for BaseCommand
+            def issubclass_check(obj, parent):
+                if obj is BaseCommand:
+                    return True
+                return obj is test_cmd
 
-                        mock_issubclass.side_effect = issubclass_check
+            mock_issubclass.side_effect = issubclass_check
 
-                        service._load_from_dir(mock_dir)
+            service._load_from_dir(mock_dir)
 
     def test_load_from_dir_skips_base_command_itself(self):
         """Test _load_from_dir does not instantiate BaseCommand directly."""
@@ -568,12 +580,14 @@ class TestCommandServiceLoadFromDir:
                 return [("BaseCommand", BaseCommand)]
             return []
 
-        with patch.object(service, "_import_file", return_value=mock_module):
-            with patch("inspect.getmembers", side_effect=mock_get_members):
-                with patch("inspect.isclass", return_value=True):
-                    with patch("inspect.issubclass", return_value=True):
-                        # BaseCommand should not be instantiated
-                        service._load_from_dir(mock_dir)
+        with (
+            patch.object(service, "_import_file", return_value=mock_module),
+            patch("inspect.getmembers", side_effect=mock_get_members),
+            patch("inspect.isclass", return_value=True),
+            patch("inspect.issubclass", return_value=True),
+        ):
+            # BaseCommand should not be instantiated
+            service._load_from_dir(mock_dir)
 
     def test_load_from_dir_empty_directory(self):
         """Test _load_from_dir handles empty directory."""
@@ -799,16 +813,20 @@ class TestCommandServiceIntegration:
         service = CommandService(app=app)
 
         # First load
-        with patch.object(service, "_load_version"):
-            with patch.object(service, "_load_from_dir"):
-                service.load_commands()
+        with (
+            patch.object(service, "_load_version"),
+            patch.object(service, "_load_from_dir"),
+        ):
+            service.load_commands()
 
         assert service.version != ""
 
         # Second load
-        with patch.object(service, "_load_version"):
-            with patch.object(service, "_load_from_dir"):
-                service.load_commands()
+        with (
+            patch.object(service, "_load_version"),
+            patch.object(service, "_load_from_dir"),
+        ):
+            service.load_commands()
 
         assert service.version != ""
 
@@ -820,9 +838,11 @@ class TestCommandServiceIntegration:
         original_app = service.app
         original_commands = service.commands
 
-        with patch.object(service, "_load_version"):
-            with patch.object(service, "_load_from_dir"):
-                service.load_commands()
+        with (
+            patch.object(service, "_load_version"),
+            patch.object(service, "_load_from_dir"),
+        ):
+            service.load_commands()
 
         assert service.app is original_app
         assert service.commands is original_commands
@@ -875,29 +895,33 @@ class TestCommandServiceEdgeCases:
                 ]
             return []
 
-        with patch.object(service, "_import_file", return_value=mock_module):
-            with patch("inspect.getmembers", side_effect=mock_get_members):
-                with patch("inspect.isclass", return_value=False):
-                    service._load_from_dir(mock_dir)
+        with (
+            patch.object(service, "_import_file", return_value=mock_module),
+            patch("inspect.getmembers", side_effect=mock_get_members),
+            patch("inspect.isclass", return_value=False),
+        ):
+            service._load_from_dir(mock_dir)
 
     def test_import_file_with_special_characters_in_stem(self):
         """Test _import_file handles special characters in module name."""
         app = MagicMock()
         service = CommandService(app=app)
 
-        with patch("importlib.util.spec_from_file_location") as mock_spec_from_file:
-            with patch("importlib.util.module_from_spec"):
-                mock_spec = MagicMock()
-                mock_spec.loader = None
-                mock_spec_from_file.return_value = mock_spec
+        with (
+            patch("importlib.util.spec_from_file_location") as mock_spec_from_file,
+            patch("importlib.util.module_from_spec"),
+        ):
+            mock_spec = MagicMock()
+            mock_spec.loader = None
+            mock_spec_from_file.return_value = mock_spec
 
-                path = MagicMock()
-                path.stem = "module-with-dash"
+            path = MagicMock()
+            path.stem = "module-with-dash"
 
-                result = service._import_file(path)
+            result = service._import_file(path)
 
-                # Should still be None because loader is None, but should not error
-                assert result is None
+            # Should still be None because loader is None, but should not error
+            assert result is None
 
 
 # =============================================================================
@@ -966,13 +990,15 @@ class TestCommandServiceMockingBehavior:
         app = MagicMock()
         service = CommandService(app=app)
 
-        with patch.object(service, "_load_version") as mock_load_version:
-            with patch.object(service, "_load_from_dir") as mock_load_from_dir:
-                service._load_version()
-                service._load_from_dir(Path("."))
+        with (
+            patch.object(service, "_load_version") as mock_load_version,
+            patch.object(service, "_load_from_dir") as mock_load_from_dir,
+        ):
+            service._load_version()
+            service._load_from_dir(Path("."))
 
-                mock_load_version.assert_called_once()
-                mock_load_from_dir.assert_called_once()
+            mock_load_version.assert_called_once()
+            mock_load_from_dir.assert_called_once()
 
 
 # =============================================================================
@@ -1055,13 +1081,15 @@ class TestCommandServiceRealWorldScenarios:
         app = MagicMock()
         service = CommandService(app=app)
 
-        with patch.object(service, "_load_version"):
-            with patch.object(service, "_load_from_dir"):
-                for _ in range(5):
-                    service.load_commands()
+        with (
+            patch.object(service, "_load_version"),
+            patch.object(service, "_load_from_dir"),
+        ):
+            for _ in range(5):
+                service.load_commands()
 
-                assert service.version == "0.0.0"
-                assert service.commands == []
+            assert service.version == "0.0.0"
+            assert service.commands == []
 
     @patch("importlib.util.module_from_spec")
     @patch("importlib.util.spec_from_file_location")
@@ -1096,22 +1124,24 @@ class TestCommandServiceRealWorldScenarios:
 
         def mock_load_version_fail():
             call_log.append("version_called")
-            raise Exception("Version load failed")
+            raise RuntimeError("Version load failed")
 
         def mock_load_from_dir_success(path):
             call_log.append(f"dir_called_{str(path).split('/')[-1]}")
 
-        with patch.object(service, "_load_version", side_effect=mock_load_version_fail):
-            with patch.object(
+        with (
+            patch.object(service, "_load_version", side_effect=mock_load_version_fail),
+            patch.object(
                 service, "_load_from_dir", side_effect=mock_load_from_dir_success
-            ):
-                try:
-                    service.load_commands()
-                except Exception:
-                    pass
+            ),
+        ):
+            try:
+                service.load_commands()
+            except RuntimeError:
+                pass
 
-                # load_version was called first
-                assert "version_called" in call_log
+            # load_version was called first
+            assert "version_called" in call_log
 
     def test_scenario_state_isolation_between_instances(self):
         """Test that different instances don't share state."""

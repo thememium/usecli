@@ -8,7 +8,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import click
 import typer
@@ -41,9 +41,11 @@ def _get_required_arguments(command: ClickCommand) -> list[tuple[str, str, type]
 
         is_required = False
 
-        if param.default is inspect.Parameter.empty:
-            is_required = True
-        elif hasattr(param.default, "default") and param.default.default is ...:
+        if (
+            param.default is inspect.Parameter.empty
+            or hasattr(param.default, "default")
+            and param.default.default is ...
+        ):
             is_required = True
 
         if is_required:
@@ -65,14 +67,17 @@ def _get_required_arguments(command: ClickCommand) -> list[tuple[str, str, type]
 def _get_optional_options(
     command: ClickCommand | typer.models.CommandInfo,
 ) -> list[tuple[str, str, str, type]]:
-    click_command: click.Command | None
+    click_command: click.Command | None = None
     if isinstance(command, click.Command):
         click_command = command
     elif isinstance(command, typer.models.CommandInfo):
-        click_command = typer.main.get_command_from_info(
-            command,
-            pretty_exceptions_short=False,
-            rich_markup_mode=None,
+        click_command = cast(
+            click.Command,
+            typer.main.get_command_from_info(
+                command,
+                pretty_exceptions_short=False,
+                rich_markup_mode=None,
+            ),
         )
     else:
         click_command = None
@@ -137,6 +142,7 @@ def _run_fzf_menu(
             input=input_data,
             capture_output=True,
             text=True,
+            check=False,
         )
 
         if result.returncode == 130 or not result.stdout.strip():
@@ -346,6 +352,7 @@ def run_interactive(
             capture_output=True,
             text=True,
             env={**os.environ, "FORCE_COLOR": "1", "CLICOLOR_FORCE": "1"},
+            check=False,
         )
         sys.stdout.write(help_result.stdout)
 
@@ -451,7 +458,7 @@ def run_interactive(
             for selected_option in selected_options:
                 idx = menu_options.index(selected_option)
                 (
-                    param_name,
+                    _param_name,
                     option_names,
                     help_text,
                     opt_type,
@@ -520,13 +527,12 @@ def run_interactive(
     console.print(f"[bold {COLOR.WARNING}]{full_cmd}")
     console.print()
 
-    subprocess.run(full_cmd, shell=True)
+    subprocess.run(full_cmd, shell=True, check=False)
 
-    try:
-        pass
-    except KeyboardInterrupt:
-        ErrorHandler.display_warning("Cancelled by user")
-        raise typer.Exit(code=0)
+
+_EXTRA_ARGS_DEFAULT = typer.Argument(
+    None, help="Additional arguments to pass to the selected command"
+)
 
 
 class FzfCommand(BaseCommand):
@@ -542,9 +548,7 @@ class FzfCommand(BaseCommand):
 
     def handle(
         self,
-        extra_args: list[str] = typer.Argument(
-            None, help="Additional arguments to pass to the selected command"
-        ),
+        extra_args: list[str] = _EXTRA_ARGS_DEFAULT,
     ) -> None:
         """Handle the fzf command execution.
 

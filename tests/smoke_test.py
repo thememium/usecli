@@ -2,8 +2,7 @@ from __future__ import annotations
 
 from importlib import resources
 
-from click.testing import CliRunner
-from typer.main import get_command
+from typer.testing import CliRunner
 
 import usecli
 
@@ -16,10 +15,10 @@ def _assert_resource(relative_path: str) -> None:
 
 
 def _assert_basic_imports() -> None:
-    from usecli import Confirm  # noqa: PLC0415
     from usecli import (
         Argument,
         BaseCommand,
+        Confirm,
         Console,
         Menu,
         Option,
@@ -55,12 +54,10 @@ def _assert_packaged_files() -> None:
 def _assert_cli_runs() -> None:
     runner = CliRunner()
 
-    command = get_command(usecli.app)
-
-    result = runner.invoke(command, ["--version"])
+    result = runner.invoke(usecli.app, ["--version"])
     assert result.exit_code == 0, result.output
 
-    result = runner.invoke(command, ["--help"])
+    result = runner.invoke(usecli.app, ["--help"])
     assert result.exit_code == 0, result.output
 
 

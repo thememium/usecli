@@ -5,6 +5,8 @@ from __future__ import annotations
 import sys
 from importlib import import_module
 
+from click import Command as _ClickCommand
+
 # Avoid importing typing at module level (costs ~6ms)
 # TYPE_CHECKING is False at runtime, so the if-block never executes
 TYPE_CHECKING = False
@@ -84,11 +86,14 @@ def _ensure_cli_initialized() -> None:
     from usecli.cli.services.command_service import CommandService
 
     # Store exceptions for error handling
+    # Typer vendors click internally and raises its own exception types.
+    # We import them dynamically since typer._click has no type stubs.
     try:
-        from typer._click.exceptions import BadParameter as TyperBadParameter  # type: ignore[import-untyped]
-        from typer._click.exceptions import ClickException as TyperClickException  # type: ignore[import-untyped]
-        from typer._click.exceptions import UsageError as TyperUsageError  # type: ignore[import-untyped]
-    except ImportError:
+        _typer_exceptions = import_module("typer._click.exceptions")
+        TyperBadParameter: Any = _typer_exceptions.BadParameter
+        TyperClickException: Any = _typer_exceptions.ClickException
+        TyperUsageError: Any = _typer_exceptions.UsageError
+    except (ImportError, AttributeError):
         TyperBadParameter = BadParameter
         TyperClickException = ClickException
         TyperUsageError = UsageError
@@ -252,7 +257,14 @@ def _ensure_cli_initialized() -> None:
                         write_document(success_document())
                         return None
                     fail("Exit", f"Command exited with status {code}", code)
-                except Exception as error:
+                except (
+                    OSError,
+                    RuntimeError,
+                    ValueError,
+                    TypeError,
+                    AttributeError,
+                    KeyError,
+                ) as error:
                     print(
                         f"{error.__class__.__name__}: {error}",
                         file=sys.stderr,
@@ -340,19 +352,19 @@ def _get_service():
 
 
 __all__ = [
-    "BaseCommand",
     "COLOR",
-    "console",
-    "Console",
-    "main",
-    "Menu",
     "Argument",
-    "Option",
-    "Prompt",
+    "BaseCommand",
     "Confirm",
-    "Spinner",
+    "Console",
+    "Menu",
+    "Option",
     "ProgressBar",
+    "Prompt",
+    "Spinner",
     "colors",
+    "console",
+    "main",
     "theme",
 ]
 
@@ -432,32 +444,40 @@ def _build_alias_to_primary(alias_registry: dict[str, list[str]]) -> dict[str, s
 PrefixMatchingGroup = None
 
 
-class _FilteredListCommand:
+class _FilteredListCommand(_ClickCommand):
     """Command that displays a filtered list of commands."""
 
     def __init__(self, prefix_filter: str) -> None:
+        super().__init__(
+            name="filtered-list",
+            context_settings={},
+            params=[],
+            callback=None,
+            help=None,
+            epilog=None,
+            short_help=None,
+            no_args_is_help=False,
+            hidden=False,
+            deprecated=False,
+        )
         self.prefix_filter = prefix_filter
-        self.name = "filtered-list"
         self.allow_extra_args = True
         self.allow_interspersed_args = True
         self.ignore_unknown_options = True
-        self.hidden = False
-        self.deprecated = False
-        self.params = []
-        self.callback = None
-        self.help = None
-        self.epilog = None
-        self.short_help = None
-        self.no_args_is_help = False
-        self.context_settings = {}
 
     def get_short_help_str(self, limit=45):
         return ""
 
-    def make_context(self, info_name: str, args: list[str], **kwargs: object):
+    def make_context(
+        self,
+        info_name: str | None,
+        args: list[str],
+        parent: object | None = None,
+        **extra: Any,
+    ):
         from click import Context
 
-        ctx = Context(self, info_name=info_name, **kwargs)  # type: ignore[arg-type]
+        ctx = Context(self, info_name=info_name, **extra)
         return ctx
 
     def invoke(self, ctx):
@@ -615,7 +635,14 @@ def main() -> None:
         if hasattr(e, "show"):
             e.show()
         sys.exit(e.exit_code if hasattr(e, "exit_code") else 1)
-    except Exception as e:
+    except (
+        OSError,
+        RuntimeError,
+        ValueError,
+        TypeError,
+        AttributeError,
+        KeyError,
+    ) as e:
         from usecli.cli.core.exceptions import UsecliUsageError
 
         styled_error = UsecliUsageError(str(e))

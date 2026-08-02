@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, TypedDict
+from collections.abc import Sequence
+from typing import Any, TypedDict
 
 import click
 import typer
@@ -15,9 +16,6 @@ from usecli.cli.core.ui.title import (
     get_script_command_name,
     print_title,
 )
-
-if TYPE_CHECKING:
-    pass
 
 console = Console()
 
@@ -460,8 +458,8 @@ def _get_option_description(param: click.Parameter) -> str:
 
 
 def _order_completion_params(
-    params: list[click.Parameter],
-) -> list[click.Parameter]:
+    params: Sequence[Any],
+) -> list[Any]:
     ordered = list(params)
     install_index = None
     show_index = None

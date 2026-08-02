@@ -46,9 +46,7 @@ class MakeCommand(BaseCommand):
         class_name = (
             pascalcase(clean_name.replace(":", "_").replace(" ", "_")) + "Command"
         )
-        if ":" in clean_name:
-            command_name = clean_name
-        elif " " in clean_name:
+        if ":" in clean_name or " " in clean_name:
             command_name = clean_name
         else:
             command_name = snakecase(clean_name)

@@ -208,12 +208,11 @@ class RaisesContext:
 
         self.exception = exc_val
 
-        if self.match and self.check_message:
-            if self.match not in str(exc_val):
-                raise AssertionError(
-                    f"Expected exception message to contain '{self.match}', "
-                    f"but got '{str(exc_val)}'"
-                )
+        if self.match and self.check_message and self.match not in str(exc_val):
+            raise AssertionError(
+                f"Expected exception message to contain '{self.match}', "
+                f"but got '{exc_val!s}'"
+            )
 
         return True
 

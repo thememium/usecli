@@ -11,7 +11,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 import typer
-from click import Argument, Option
 from click.exceptions import Exit
 from typer.core import TyperArgument, TyperOption
 
@@ -146,8 +145,8 @@ class TestCustomHelpCommandFormatHelpWithArguments:
     def test_format_help_with_multiple_arguments(self, mock_console):
         """Test format_help with multiple argument parameters."""
         cmd = CustomHelpCommand(name="test")
-        arg1 = Argument(["source"])
-        arg2 = Argument(["destination"])
+        arg1 = TyperArgument(param_decls=["source"])
+        arg2 = TyperArgument(param_decls=["destination"])
         cmd.params = [arg1, arg2]
 
         cmd.format_help(MagicMock(), MagicMock())
@@ -158,7 +157,7 @@ class TestCustomHelpCommandFormatHelpWithArguments:
     def test_format_help_argument_appears_in_usage(self, mock_console):
         """Test format_help includes argument in usage line."""
         cmd = CustomHelpCommand(name="init")
-        arg = Argument(["project_name"])
+        arg = TyperArgument(param_decls=["project_name"])
         cmd.params = [arg]
 
         cmd.format_help(MagicMock(), MagicMock())
@@ -204,8 +203,8 @@ class TestCustomHelpCommandFormatHelpWithOptions:
     def test_format_help_with_multiple_options(self, mock_console):
         """Test format_help with multiple option parameters."""
         cmd = CustomHelpCommand(name="deploy")
-        opt1 = Option(["-e", "--env"])
-        opt2 = Option(["-v", "--verbose"], is_flag=True)
+        opt1 = TyperOption(param_decls=["-e", "--env"])
+        opt2 = TyperOption(param_decls=["-v", "--verbose"], is_flag=True)
         cmd.params = [opt1, opt2]
 
         cmd.format_help(MagicMock(), MagicMock())
@@ -216,8 +215,8 @@ class TestCustomHelpCommandFormatHelpWithOptions:
     def test_format_help_excludes_help_option_from_options(self, mock_console):
         """Test format_help excludes --help from options list."""
         cmd = CustomHelpCommand(name="deploy")
-        help_opt = Option(["--help"])
-        other_opt = Option(["-v", "--verbose"])
+        help_opt = TyperOption(param_decls=["--help"])
+        other_opt = TyperOption(param_decls=["-v", "--verbose"])
         cmd.params = [help_opt, other_opt]
 
         cmd.format_help(MagicMock(), MagicMock())
@@ -245,7 +244,7 @@ class TestCustomHelpCommandFormatHelpWithOptions:
     def test_format_help_always_shows_help_option(self, mock_console):
         """Test format_help always shows --help, -h option."""
         cmd = CustomHelpCommand(name="cmd")
-        opt = Option(["-x", "--extra"])
+        opt = TyperOption(param_decls=["-x", "--extra"])
         cmd.params = [opt]
 
         cmd.format_help(MagicMock(), MagicMock())
@@ -263,8 +262,8 @@ class TestCustomHelpCommandFormatHelpWithBothArgumentsAndOptions:
     def test_format_help_with_arguments_and_options(self, mock_console):
         """Test format_help with both arguments and options."""
         cmd = CustomHelpCommand(name="run")
-        arg = Argument(["script"])
-        opt = Option(["-e", "--env"])
+        arg = TyperArgument(param_decls=["script"])
+        opt = TyperOption(param_decls=["-e", "--env"])
         cmd.params = [arg, opt]
 
         cmd.format_help(MagicMock(), MagicMock())
@@ -275,8 +274,8 @@ class TestCustomHelpCommandFormatHelpWithBothArgumentsAndOptions:
     def test_format_help_usage_includes_both_args_and_opts(self, mock_console):
         """Test format_help usage line includes both arguments and options."""
         cmd = CustomHelpCommand(name="run")
-        arg = Argument(["script"])
-        opt = Option(["-e", "--env"])
+        arg = TyperArgument(param_decls=["script"])
+        opt = TyperOption(param_decls=["-e", "--env"])
         cmd.params = [arg, opt]
 
         cmd.format_help(MagicMock(), MagicMock())
@@ -312,8 +311,8 @@ class TestCustomHelpCommandFormatHelpWithBothArgumentsAndOptions:
         """Test format_help calculates correct padding for alignment."""
         cmd = CustomHelpCommand(name="cmd")
         # Create options/args with varying name lengths
-        short_opt = Option(["-x"])
-        long_opt = Option(["--verbose-option"])
+        short_opt = TyperOption(param_decls=["-x"])
+        long_opt = TyperOption(param_decls=["--verbose-option"])
         cmd.params = [short_opt, long_opt]
 
         cmd.format_help(MagicMock(), MagicMock())
@@ -377,7 +376,7 @@ class TestCustomHelpCommandJsonCompatibility:
     def test_user_declared_json_value_is_preserved(self):
         """A legacy command declaring --json must still receive its value."""
         import typer
-        from click.testing import CliRunner
+        from typer.testing import CliRunner
 
         app = typer.Typer()
         captured: dict[str, bool] = {}
@@ -389,8 +388,7 @@ class TestCustomHelpCommandJsonCompatibility:
 
         app.command(name="legacy", cls=CustomHelpCommand)(legacy_handler)
         runner = CliRunner()
-        result = runner.invoke(typer.main.get_command(app), ["--json"])
-
+        result = runner.invoke(app, ["--json"])
         assert result.exit_code == 0
         assert captured.get("json_output") is True
 
@@ -405,7 +403,7 @@ class ConcreteCommand(BaseCommand):
 
     def handle(self, *args, **kwargs):
         """Implement abstract handle method."""
-        return None
+        return
 
     def signature(self) -> str:
         """Implement abstract signature method."""
@@ -421,7 +419,7 @@ class AnotherConcreteCommand(BaseCommand):
 
     def handle(self, *args, **kwargs):
         """Implement abstract handle method."""
-        return None
+        return
 
     def signature(self) -> str:
         """Implement abstract signature method."""
@@ -442,7 +440,7 @@ class TestBaseCommandAbstractMethods:
 
     def test_base_command_cannot_be_instantiated(self):
         """Test BaseCommand is abstract and cannot be instantiated directly."""
-        abstract_cls = getattr(base_command, "BaseCommand")
+        abstract_cls = base_command.BaseCommand
         with pytest.raises(TypeError):
             abstract_cls(app=MagicMock())
 
@@ -633,7 +631,7 @@ class TestBaseCommandRegister:
         ]
         assert "alias-cmd" in command_names
         assert "ac" in command_names
-        assert getattr(mock_app, "_usecli_aliases") == {"alias-cmd": ["ac"]}
+        assert mock_app._usecli_aliases == {"alias-cmd": ["ac"]}
 
 
 class TestBaseCommandIntegration:
@@ -886,10 +884,10 @@ class TestNestedCommandRegistration:
         NestedAliasCommand(app=app)
 
         group_app = registry._groups["spec"]
-        alias_registry = getattr(group_app, "_usecli_aliases")
+        alias_registry = getattr(group_app, "_usecli_aliases", {})
         assert alias_registry["show"] == ["s"]
 
-        group_alias_registry = getattr(app, "_usecli_group_aliases")
+        group_alias_registry = getattr(app, "_usecli_group_aliases", {})
         assert group_alias_registry["spec"] == ["sp"]
 
     def test_single_level_command_not_affected(self):
@@ -1028,7 +1026,7 @@ class TestCustomHelpCommandGetHelp:
         cmd = CustomHelpCommand(name="deploy")
         ctx = MagicMock()
         ctx.make_formatter.return_value = MagicMock()
-        opt = Option(["-e", "--env"])
+        opt = TyperOption(param_decls=["-e", "--env"])
         cmd.params = [opt]
 
         with pytest.raises(Exit):

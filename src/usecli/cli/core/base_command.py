@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
+
+if TYPE_CHECKING:
+    from typing_extensions import Self
 
 import typer
-from click.core import Context as ClickContext
 from click.exceptions import Exit
-from click.formatting import HelpFormatter
+from typer._click.core import Context as ClickContext
+from typer._click.formatting import HelpFormatter
 from typer.core import TyperArgument, TyperCommand, TyperOption
 
 from usecli.cli.config.colors import COLOR
@@ -39,18 +42,19 @@ class NestedCommandRegistry:
     properly organized into command groups.
     """
 
-    _instance: ClassVar[NestedCommandRegistry | None] = None
+    _instance: ClassVar[Self | None] = None
     _groups: dict[str, typer.Typer]
     _group_commands: dict[str, list[dict[str, Any]]]
     _main_app: typer.Typer | None
 
-    def __new__(cls) -> NestedCommandRegistry:
+    def __new__(cls) -> Self:
         """Ensure singleton pattern for the registry."""
         if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance._groups = {}
-            cls._instance._group_commands = {}
-            cls._instance._main_app = None
+            instance = super().__new__(cls)
+            instance._groups = {}
+            instance._group_commands = {}
+            instance._main_app = None
+            cls._instance = instance
         return cls._instance
 
     def get_or_create_group(
@@ -371,7 +375,6 @@ class BaseCommand(ABC):
             *args: Positional arguments.
             **kwargs: Keyword arguments.
         """
-        pass
 
     @abstractmethod
     def signature(self) -> str:
@@ -380,7 +383,6 @@ class BaseCommand(ABC):
         Returns:
             The command signature (e.g., "make:command").
         """
-        pass
 
     @abstractmethod
     def description(self) -> str:
@@ -389,7 +391,6 @@ class BaseCommand(ABC):
         Returns:
             A short description of what the command does.
         """
-        pass
 
     def aliases(self) -> list[str]:
         return []
@@ -483,21 +484,19 @@ class BaseCommand(ABC):
             alias_decorator(self.handle)
 
     def _get_alias_registry(self, app: typer.Typer) -> dict[str, list[str]]:
-        if not hasattr(app, "_usecli_aliases"):
-            setattr(app, "_usecli_aliases", {})
-        registry = getattr(app, "_usecli_aliases")
+        registry: dict[str, list[str]] | None = getattr(app, "_usecli_aliases", None)
         if not isinstance(registry, dict):
             registry = {}
-            setattr(app, "_usecli_aliases", registry)
+            object.__setattr__(app, "_usecli_aliases", registry)
         return registry
 
     def _get_group_alias_registry(self, app: typer.Typer) -> dict[str, list[str]]:
-        if not hasattr(app, "_usecli_group_aliases"):
-            setattr(app, "_usecli_group_aliases", {})
-        registry = getattr(app, "_usecli_group_aliases")
+        registry: dict[str, list[str]] | None = getattr(
+            app, "_usecli_group_aliases", None
+        )
         if not isinstance(registry, dict):
             registry = {}
-            setattr(app, "_usecli_group_aliases", registry)
+            object.__setattr__(app, "_usecli_group_aliases", registry)
         return registry
 
     def _register_group_aliases(

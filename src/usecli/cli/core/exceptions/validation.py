@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import IO
+from typing import IO, ClassVar
 
 from rich.console import Console
 
@@ -25,7 +25,7 @@ class UsecliValidationError(UsecliError):
         color: The color to use based on severity.
     """
 
-    SEVERITY_STYLES: dict[str, dict[str, str]] = {
+    SEVERITY_STYLES: ClassVar[dict[str, dict[str, str]]] = {
         "warning": {"color": COLOR.WARNING, "icon": "⚠"},
         "error": {"color": COLOR.ERROR, "icon": "✗"},
         "critical": {"color": COLOR.ERROR, "icon": "☠"},
