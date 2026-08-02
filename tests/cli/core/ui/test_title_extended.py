@@ -48,6 +48,18 @@ class TestGetScriptCommandNameInternal:
             result = _get_script_command_name()
             assert result is None
 
+    def test_handles_invalid_toml(self, tmp_path):
+        toml_path = tmp_path / "pyproject.toml"
+        toml_path.write_text("not = = valid")
+        result = _get_script_command_name(tmp_path)
+        assert result is None
+
+    def test_returns_none_when_scripts_not_dict(self, tmp_path):
+        toml_path = tmp_path / "pyproject.toml"
+        toml_path.write_text('[project]\nscripts = "not a dict"')
+        result = _get_script_command_name(tmp_path)
+        assert result is None
+
 
 # ---------------------------------------------------------------------------
 # get_script_command_name
