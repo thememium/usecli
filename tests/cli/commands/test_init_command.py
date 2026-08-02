@@ -1064,3 +1064,45 @@ class TestInitCommandConfigHelpers:
         mock_run.return_value = MagicMock(returncode=0)
         init_cmd._sync_environment(tmp_path, "mycli")
         mock_run.assert_called_once()
+
+    @patch("usecli.cli.commands.init_command.shutil.which")
+    @patch("usecli.cli.commands.init_command.subprocess.run")
+    @patch("usecli.cli.commands.init_command.sys")
+    def test_sync_environment_pip_failure(self, mock_sys, mock_run, mock_which, init_cmd, tmp_path):
+        mock_which.return_value = None
+        mock_sys.executable = "/usr/bin/python3"
+        mock_run.return_value = MagicMock(returncode=1)
+        init_cmd._sync_environment(tmp_path, "mycli")
+        mock_run.assert_called_once()
+
+    def test_handle_json_mode_raises_for_missing_params(self, init_cmd):
+        from usecli.cli.core.runtime import NonInteractiveError
+        with pytest.raises(NonInteractiveError, match="JSON mode"):
+            init_cmd._handle_json_mode(
+                command_name="usecli",
+                title="Use CLI",
+                description="A custom CLI tool",
+                commands_dir=None,
+                templates_dir=None,
+                themes_dir=None,
+                theme=None,
+                title_font=None,
+                force=False,
+                config_path=Path("/tmp/config"),
+            )
+
+    def test_handle_json_mode_raises_for_invalid_command_name(self, init_cmd):
+        from usecli.cli.core.runtime import NonInteractiveError
+        with pytest.raises(NonInteractiveError):
+            init_cmd._handle_json_mode(
+                command_name="invalid name with spaces",
+                title="My CLI",
+                description="desc",
+                commands_dir="cli/commands",
+                templates_dir="cli/templates",
+                themes_dir="cli/themes",
+                theme="default",
+                title_font="big",
+                force=False,
+                config_path=Path("/tmp/config"),
+            )
