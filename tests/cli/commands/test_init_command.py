@@ -903,3 +903,55 @@ class TestInitCommandPathHelpers:
         pyproject.write_text("not = = valid")
         result = init_cmd._get_existing_usecli_script_name(pyproject)
         assert result is None
+
+
+class TestInitCommandConfigHelpers:
+    @pytest.fixture
+    def init_cmd(self, mock_typer_app):
+        return InitCommand(app=mock_typer_app)
+
+    def test_write_usecli_config_creates_new(self, init_cmd, tmp_path):
+        config_path = tmp_path / "usecli.config.toml"
+        result = init_cmd._write_usecli_config(config_path, "[usecli]\ntitle = 'test'", force=False)
+        assert result == "created"
+        assert config_path.exists()
+
+    def test_write_usecli_config_updates_existing(self, init_cmd, tmp_path):
+        config_path = tmp_path / "usecli.config.toml"
+        config_path.write_text("old content")
+        with patch("usecli.cli.commands.init_command.Confirm.ask", return_value=True):
+            result = init_cmd._write_usecli_config(config_path, "[usecli]\ntitle = 'test'", force=False)
+        assert result == "updated"
+
+    def test_write_usecli_config_force_overwrites(self, init_cmd, tmp_path):
+        config_path = tmp_path / "usecli.config.toml"
+        config_path.write_text("old content")
+        result = init_cmd._write_usecli_config(config_path, "[usecli]\ntitle = 'test'", force=True)
+        assert result == "updated"
+
+    def test_write_usecli_config_creates_parent_dirs(self, init_cmd, tmp_path):
+        config_path = tmp_path / "deep" / "nested" / "usecli.config.toml"
+        result = init_cmd._write_usecli_config(config_path, "[usecli]\ntitle = 'test'", force=False)
+        assert result == "created"
+        assert config_path.exists()
+
+    def test_should_skip_config_path_with_venv(self, init_cmd):
+        assert init_cmd._should_skip_config_path(Path(".venv/lib/python")) is True
+
+    def test_should_skip_config_path_with_normal_path(self, init_cmd, tmp_path):
+        assert init_cmd._should_skip_config_path(tmp_path) is False
+
+    def test_resolve_config_path_relative(self, init_cmd, tmp_path):
+        result = init_cmd._resolve_config_path("cli/config", tmp_path)
+        assert isinstance(result, Path)
+
+    def test_resolve_config_path_absolute(self, init_cmd, tmp_path):
+        abs_path = tmp_path / "config.toml"
+        result = init_cmd._resolve_config_path(str(abs_path), tmp_path)
+        assert result == abs_path.resolve()
+
+    def test_resolve_config_path_directory(self, init_cmd, tmp_path):
+        dir_path = tmp_path / "config_dir"
+        dir_path.mkdir()
+        result = init_cmd._resolve_config_path(str(dir_path), tmp_path)
+        assert "usecli.config.toml" in str(result)
