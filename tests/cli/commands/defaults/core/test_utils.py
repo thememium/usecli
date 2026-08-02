@@ -260,3 +260,28 @@ class TestGetSpecPath:
 
     def test_returns_none_when_missing(self, tmp_path):
         assert get_spec_path("nope", tmp_path) is None
+
+
+# ---------------------------------------------------------------------------
+# _LazyConsole
+# ---------------------------------------------------------------------------
+
+
+class TestLazyConsole:
+    def test_lazy_console_proxies_to_rich(self):
+        from usecli.cli.commands.defaults.core.utils import console
+
+        # Accessing a method should trigger lazy initialization
+        assert hasattr(console, "print")
+        assert callable(console.print)
+
+    def test_lazy_console_caches_instance(self):
+        from usecli.cli.commands.defaults.core.utils import _LazyConsole
+
+        lc = _LazyConsole()
+        # First access initializes
+        _ = lc.print
+        assert lc._console is not None
+        # Second access reuses
+        _ = lc.print
+        assert lc._console is not None
