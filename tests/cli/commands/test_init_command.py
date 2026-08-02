@@ -805,3 +805,101 @@ class TestInitCommandThemeHelpers:
         theme_path.write_text('[colors]\nprimary = "#FF0000"')
         result = init_cmd._render_theme_preview(theme_path)
         assert "Theme" in result
+
+
+class TestInitCommandPathHelpers:
+    @pytest.fixture
+    def init_cmd(self, mock_typer_app):
+        return InitCommand(app=mock_typer_app)
+
+    def test_find_project_root_with_pyproject(self, init_cmd, tmp_path):
+        (tmp_path / "pyproject.toml").write_text("")
+        result = init_cmd._find_project_root_for_init(tmp_path)
+        assert result == tmp_path
+
+    def test_find_project_root_with_usecli_config(self, init_cmd, tmp_path):
+        (tmp_path / "usecli.config.toml").write_text("")
+        result = init_cmd._find_project_root_for_init(tmp_path)
+        assert result == tmp_path
+
+    def test_find_project_root_with_git(self, init_cmd, tmp_path):
+        (tmp_path / ".git").mkdir()
+        result = init_cmd._find_project_root_for_init(tmp_path)
+        assert result == tmp_path
+
+    def test_find_project_root_fallback(self, init_cmd, tmp_path):
+        result = init_cmd._find_project_root_for_init(tmp_path)
+        assert result == tmp_path.resolve()
+
+    def test_find_pyproject_path(self, init_cmd, tmp_path):
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text("")
+        result = init_cmd._find_pyproject_path_for_init(tmp_path)
+        assert result == pyproject
+
+    def test_find_pyproject_path_not_found(self, init_cmd, tmp_path):
+        result = init_cmd._find_pyproject_path_for_init(tmp_path)
+        assert result is None
+
+    def test_derive_templates_dir_relative(self, init_cmd):
+        result = init_cmd._derive_templates_dir("cli/commands")
+        assert result == "cli/templates"
+
+    def test_derive_templates_dir_absolute(self, init_cmd):
+        result = init_cmd._derive_templates_dir("/absolute/cli/commands")
+        assert "templates" in result
+
+    def test_derive_templates_dir_simple(self, init_cmd):
+        result = init_cmd._derive_templates_dir("commands")
+        assert result == "templates"
+
+    def test_derive_themes_dir_relative(self, init_cmd):
+        result = init_cmd._derive_themes_dir("cli/commands")
+        assert result == "cli/themes"
+
+    def test_derive_themes_dir_absolute(self, init_cmd):
+        result = init_cmd._derive_themes_dir("/absolute/cli/commands")
+        assert "themes" in result
+
+    def test_derive_themes_dir_simple(self, init_cmd):
+        result = init_cmd._derive_themes_dir("commands")
+        assert result == "themes"
+
+    def test_infer_commands_dir_with_src(self, init_cmd, tmp_path):
+        src_dir = tmp_path / "src" / "mypackage"
+        src_dir.mkdir(parents=True)
+        result = init_cmd._infer_commands_dir(tmp_path)
+        assert "src/mypackage/cli/commands" in result
+
+    def test_infer_commands_dir_with_pyproject(self, init_cmd, tmp_path):
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text('[project]\nname = "my-package"')
+        (tmp_path / "my_package").mkdir()
+        result = init_cmd._infer_commands_dir(tmp_path)
+        assert "my_package/cli/commands" in result
+
+    def test_infer_commands_dir_default(self, init_cmd, tmp_path):
+        result = init_cmd._infer_commands_dir(tmp_path)
+        assert result == "cli/commands"
+
+    def test_get_existing_usecli_script_name(self, init_cmd, tmp_path):
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text('[project.scripts]\nmycli = "usecli:main"')
+        result = init_cmd._get_existing_usecli_script_name(pyproject)
+        assert result == "mycli"
+
+    def test_get_existing_usecli_script_name_none(self, init_cmd, tmp_path):
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text('[project.scripts]\nother = "other:main"')
+        result = init_cmd._get_existing_usecli_script_name(pyproject)
+        assert result is None
+
+    def test_get_existing_usecli_script_name_nonexistent(self, init_cmd, tmp_path):
+        result = init_cmd._get_existing_usecli_script_name(tmp_path / "nonexistent.toml")
+        assert result is None
+
+    def test_get_existing_usecli_script_name_invalid_toml(self, init_cmd, tmp_path):
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text("not = = valid")
+        result = init_cmd._get_existing_usecli_script_name(pyproject)
+        assert result is None
