@@ -264,3 +264,21 @@ class TestPrintTitle:
             )
             print_title("My App")
             assert mock_console.print.called
+
+    @patch("usecli.cli.core.ui.title.console")
+    @patch("usecli.cli.core.ui.title.get_config")
+    def test_handles_import_error_for_pyfiglet(self, mock_config, mock_console):
+        mock_config.return_value = MagicMock(
+            get=MagicMock(return_value=None),
+        )
+        import sys
+        saved = sys.modules.get("pyfiglet")
+        sys.modules["pyfiglet"] = None
+        try:
+            print_title("My Custom Title")
+            assert mock_console.print.called
+        finally:
+            if saved is not None:
+                sys.modules["pyfiglet"] = saved
+            else:
+                sys.modules.pop("pyfiglet", None)
