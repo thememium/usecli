@@ -42,7 +42,7 @@ class NestedCommandRegistry:
     properly organized into command groups.
     """
 
-    _instance: ClassVar[NestedCommandRegistry | None] = None
+    _instance: ClassVar[Self | None] = None
     _groups: dict[str, typer.Typer]
     _group_commands: dict[str, list[dict[str, Any]]]
     _main_app: typer.Typer | None
@@ -50,11 +50,12 @@ class NestedCommandRegistry:
     def __new__(cls) -> Self:
         """Ensure singleton pattern for the registry."""
         if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance._groups = {}
-            cls._instance._group_commands = {}
-            cls._instance._main_app = None
-        return cls._instance  # ty: ignore[invalid-return-type]
+            instance = super().__new__(cls)
+            instance._groups = {}
+            instance._group_commands = {}
+            instance._main_app = None
+            cls._instance = instance
+        return cls._instance
 
     def get_or_create_group(
         self, main_app: typer.Typer, group_name: str
@@ -483,17 +484,19 @@ class BaseCommand(ABC):
             alias_decorator(self.handle)
 
     def _get_alias_registry(self, app: typer.Typer) -> dict[str, list[str]]:
-        registry = getattr(app, "_usecli_aliases", None)
+        registry: dict[str, list[str]] | None = getattr(app, "_usecli_aliases", None)
         if not isinstance(registry, dict):
             registry = {}
-            app._usecli_aliases = registry  # ty: ignore[unresolved-attribute]
+            object.__setattr__(app, "_usecli_aliases", registry)
         return registry
 
     def _get_group_alias_registry(self, app: typer.Typer) -> dict[str, list[str]]:
-        registry = getattr(app, "_usecli_group_aliases", None)
+        registry: dict[str, list[str]] | None = getattr(
+            app, "_usecli_group_aliases", None
+        )
         if not isinstance(registry, dict):
             registry = {}
-            app._usecli_group_aliases = registry  # ty: ignore[unresolved-attribute]
+            object.__setattr__(app, "_usecli_group_aliases", registry)
         return registry
 
     def _register_group_aliases(
