@@ -80,7 +80,7 @@ def get_project_name() -> str:
     # Last resort: package metadata
     try:
         meta = metadata("usecli")
-        name = meta.get("Name", "usecli")  # ty: ignore[unresolved-attribute]
+        name = meta.get("Name", "usecli")
         if name == "usecli":
             return "useCli"
 
