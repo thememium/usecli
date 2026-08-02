@@ -436,3 +436,79 @@ class TestFindProjectRoot:
         result = _find_project_root(tmp_path)
         # May return None or tmp_path depending on git root
         assert result is None or isinstance(result, Path)
+
+
+class TestGetThemeDirs:
+    def test_returns_default_dirs(self):
+        from usecli.cli.config.colors import _get_theme_dirs
+
+        result = _get_theme_dirs(None, {})
+        assert isinstance(result, list)
+        # Should always include THEMES_DIR
+        assert any("themes" in str(p).lower() for p in result)
+
+    def test_includes_project_themes_dir(self, tmp_path):
+        from usecli.cli.config.colors import _get_theme_dirs
+
+        result = _get_theme_dirs(tmp_path, {})
+        assert isinstance(result, list)
+
+    def test_includes_config_themes_dir(self, tmp_path):
+        from usecli.cli.config.colors import _get_theme_dirs
+
+        result = _get_theme_dirs(tmp_path, {"themes_dir": "custom/themes"})
+        assert isinstance(result, list)
+
+
+class TestGetConsoleScriptAliases:
+    def test_returns_empty_for_empty_command(self):
+        from usecli.cli.config.colors import _get_console_script_aliases
+
+        result = _get_console_script_aliases("")
+        assert result == set()
+
+    def test_returns_empty_for_none_command(self):
+        from usecli.cli.config.colors import _get_console_script_aliases
+
+        result = _get_console_script_aliases(None)
+        assert result == set()
+
+    def test_returns_command_name_for_unknown(self):
+        from usecli.cli.config.colors import _get_console_script_aliases
+
+        result = _get_console_script_aliases("unknown_command_xyz")
+        assert "unknown_command_xyz" in result
+
+
+class TestConfigSignature:
+    def test_returns_tuple_for_existing_file(self, tmp_path):
+        from usecli.cli.config.colors import _config_signature
+
+        path = tmp_path / "test.toml"
+        path.write_text("test")
+        result = _config_signature(path)
+        assert isinstance(result, tuple)
+        assert len(result) == 3
+        assert result[0] == path.resolve()
+
+    def test_returns_none_for_nonexistent_file(self):
+        from usecli.cli.config.colors import _config_signature
+
+        result = _config_signature(Path("/nonexistent/file.toml"))
+        assert isinstance(result, tuple)
+        assert result[1] is None
+
+
+class TestLoadUsecliConfig:
+    def test_returns_empty_for_none_root(self):
+        from usecli.cli.config.colors import _load_usecli_config
+
+        result, path = _load_usecli_config(None)
+        assert result == {}
+        assert path is None
+
+    def test_returns_empty_for_nonexistent_root(self, tmp_path):
+        from usecli.cli.config.colors import _load_usecli_config
+
+        result, path = _load_usecli_config(tmp_path / "nonexistent")
+        assert isinstance(result, dict)
