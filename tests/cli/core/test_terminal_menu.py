@@ -538,6 +538,23 @@ class TestTerminalMenuIntegration:
         assert call_kwargs["preview_command"] is preview
 
     @patch("usecli.cli.utils.interactive.terminal_menu.TerminalMenu")
+    def test_preview_with_string_title(self, mock_menu_class):
+        """Test preview command with string title (multi-line)."""
+        mock_menu_instance = Mock()
+        mock_menu_instance.show.return_value = 0
+        mock_menu_class.return_value = mock_menu_instance
+
+        def preview(value: str) -> str:
+            return f"Preview: {value}"
+
+        with patch("usecli.cli.utils.interactive.terminal_menu.shutil.get_terminal_size") as mock_size:
+            mock_size.return_value = os.terminal_size((80, 40))
+            terminal_menu(["A", "B"], title="Line 1\nLine 2", preview_command=preview)
+
+        call_kwargs = mock_menu_class.call_args.kwargs
+        assert call_kwargs["preview_command"] is preview
+
+    @patch("usecli.cli.utils.interactive.terminal_menu.TerminalMenu")
     def test_preview_with_callable_status_bar(self, mock_menu_class):
         """Test preview command with callable status bar."""
         mock_menu_instance = Mock()
