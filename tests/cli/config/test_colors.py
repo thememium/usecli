@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, PropertyMock, patch
 
 from usecli.cli.config.colors import (
     COLOR,
@@ -478,6 +478,40 @@ class TestGetConsoleScriptAliases:
 
         result = _get_console_script_aliases("unknown_command_xyz")
         assert "unknown_command_xyz" in result
+
+    @patch("usecli.shared.config.manager._find_distribution_for_console_script")
+    def test_includes_entry_point_names(self, mock_find):
+        from usecli.cli.config.colors import _get_console_script_aliases
+
+        ep1 = MagicMock()
+        ep1.group = "console_scripts"
+        ep1.name = "mycli"
+        ep2 = MagicMock()
+        ep2.group = "console_scripts"
+        ep2.name = "mycli-other"
+        ep3 = MagicMock()
+        ep3.group = "other"
+        ep3.name = "ignore"
+
+        mock_dist = MagicMock()
+        mock_dist.entry_points = [ep1, ep2, ep3]
+        mock_find.return_value = mock_dist
+
+        result = _get_console_script_aliases("mycli")
+        assert "mycli" in result
+        assert "mycli-other" in result
+        assert "ignore" not in result
+
+    @patch("usecli.shared.config.manager._find_distribution_for_console_script")
+    def test_handles_attribute_error_on_entry_points(self, mock_find):
+        from usecli.cli.config.colors import _get_console_script_aliases
+
+        mock_dist = MagicMock()
+        type(mock_dist).entry_points = PropertyMock(side_effect=AttributeError)
+        mock_find.return_value = mock_dist
+
+        result = _get_console_script_aliases("mycli")
+        assert "mycli" in result
 
 
 class TestConfigSignature:
