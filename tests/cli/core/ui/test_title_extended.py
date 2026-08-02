@@ -98,16 +98,15 @@ class TestGetScriptCommandName:
         result = get_script_command_name(default="fallback")
         assert result == "fallback"
 
-    @patch("usecli.cli.core.ui.title._get_script_command_name")
     @patch("usecli.cli.core.ui.title.get_config")
-    def test_returns_config_name_when_not_usecli(self, mock_config, mock_pyproject):
+    def test_returns_config_name_when_not_usecli(self, mock_config):
         mock_config.return_value = MagicMock(
             has_key=MagicMock(return_value=True),
             get=MagicMock(return_value="custom"),
         )
-        mock_pyproject.return_value = None
-        result = get_script_command_name()
-        assert result == "custom"
+        with patch("usecli.cli.core.ui.title._get_script_command_name", return_value=None):
+            result = get_script_command_name()
+            assert result == "custom"
 
 
 # ---------------------------------------------------------------------------
