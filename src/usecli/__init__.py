@@ -95,9 +95,9 @@ def _ensure_cli_initialized() -> None:
             UsageError as TyperUsageError,  # type: ignore[import-untyped]
         )
     except ImportError:
-        TyperBadParameter = BadParameter
-        TyperClickException = ClickException
-        TyperUsageError = UsageError
+        TyperBadParameter: Any = BadParameter
+        TyperClickException: Any = ClickException
+        TyperUsageError: Any = UsageError
 
     # Store in globals for use by other functions
     globals()["_TyperBadParameter"] = TyperBadParameter
@@ -470,7 +470,7 @@ class _FilteredListCommand:
     def make_context(self, info_name: str, args: list[str], **kwargs: object):
         from click import Context
 
-        ctx = Context(self, info_name=info_name, **kwargs)  # type: ignore[arg-type]
+        ctx = Context(self, info_name=info_name, **kwargs)  # ty: ignore[invalid-argument-type]
         return ctx
 
     def invoke(self, ctx):
