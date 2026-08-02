@@ -57,10 +57,10 @@ def _assert_cli_runs() -> None:
 
     command = get_command(usecli.app)
 
-    result = runner.invoke(command, ["--version"])
+    result = runner.invoke(command, ["--version"])  # ty: ignore[invalid-argument-type]
     assert result.exit_code == 0, result.output
 
-    result = runner.invoke(command, ["--help"])
+    result = runner.invoke(command, ["--help"])  # ty: ignore[invalid-argument-type]
     assert result.exit_code == 0, result.output
 
 

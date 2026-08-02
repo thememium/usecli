@@ -148,7 +148,7 @@ class TestCustomHelpCommandFormatHelpWithArguments:
         cmd = CustomHelpCommand(name="test")
         arg1 = Argument(["source"])
         arg2 = Argument(["destination"])
-        cmd.params = [arg1, arg2]
+        cmd.params = [arg1, arg2]  # ty: ignore[invalid-assignment]
 
         cmd.format_help(MagicMock(), MagicMock())
 
@@ -159,7 +159,7 @@ class TestCustomHelpCommandFormatHelpWithArguments:
         """Test format_help includes argument in usage line."""
         cmd = CustomHelpCommand(name="init")
         arg = Argument(["project_name"])
-        cmd.params = [arg]
+        cmd.params = [arg]  # ty: ignore[invalid-assignment]
 
         cmd.format_help(MagicMock(), MagicMock())
 
@@ -206,7 +206,7 @@ class TestCustomHelpCommandFormatHelpWithOptions:
         cmd = CustomHelpCommand(name="deploy")
         opt1 = Option(["-e", "--env"])
         opt2 = Option(["-v", "--verbose"], is_flag=True)
-        cmd.params = [opt1, opt2]
+        cmd.params = [opt1, opt2]  # ty: ignore[invalid-assignment]
 
         cmd.format_help(MagicMock(), MagicMock())
 
@@ -218,7 +218,7 @@ class TestCustomHelpCommandFormatHelpWithOptions:
         cmd = CustomHelpCommand(name="deploy")
         help_opt = Option(["--help"])
         other_opt = Option(["-v", "--verbose"])
-        cmd.params = [help_opt, other_opt]
+        cmd.params = [help_opt, other_opt]  # ty: ignore[invalid-assignment]
 
         cmd.format_help(MagicMock(), MagicMock())
 
@@ -246,7 +246,7 @@ class TestCustomHelpCommandFormatHelpWithOptions:
         """Test format_help always shows --help, -h option."""
         cmd = CustomHelpCommand(name="cmd")
         opt = Option(["-x", "--extra"])
-        cmd.params = [opt]
+        cmd.params = [opt]  # ty: ignore[invalid-assignment]
 
         cmd.format_help(MagicMock(), MagicMock())
 
@@ -265,7 +265,7 @@ class TestCustomHelpCommandFormatHelpWithBothArgumentsAndOptions:
         cmd = CustomHelpCommand(name="run")
         arg = Argument(["script"])
         opt = Option(["-e", "--env"])
-        cmd.params = [arg, opt]
+        cmd.params = [arg, opt]  # ty: ignore[invalid-assignment]
 
         cmd.format_help(MagicMock(), MagicMock())
 
@@ -277,7 +277,7 @@ class TestCustomHelpCommandFormatHelpWithBothArgumentsAndOptions:
         cmd = CustomHelpCommand(name="run")
         arg = Argument(["script"])
         opt = Option(["-e", "--env"])
-        cmd.params = [arg, opt]
+        cmd.params = [arg, opt]  # ty: ignore[invalid-assignment]
 
         cmd.format_help(MagicMock(), MagicMock())
 
@@ -314,7 +314,7 @@ class TestCustomHelpCommandFormatHelpWithBothArgumentsAndOptions:
         # Create options/args with varying name lengths
         short_opt = Option(["-x"])
         long_opt = Option(["--verbose-option"])
-        cmd.params = [short_opt, long_opt]
+        cmd.params = [short_opt, long_opt]  # ty: ignore[invalid-assignment]
 
         cmd.format_help(MagicMock(), MagicMock())
 
@@ -389,8 +389,7 @@ class TestCustomHelpCommandJsonCompatibility:
 
         app.command(name="legacy", cls=CustomHelpCommand)(legacy_handler)
         runner = CliRunner()
-        result = runner.invoke(typer.main.get_command(app), ["--json"])
-
+        result = runner.invoke(typer.main.get_command(app), ["--json"])  # ty: ignore[invalid-argument-type]
         assert result.exit_code == 0
         assert captured.get("json_output") is True
 
@@ -886,10 +885,10 @@ class TestNestedCommandRegistration:
         NestedAliasCommand(app=app)
 
         group_app = registry._groups["spec"]
-        alias_registry = group_app._usecli_aliases
+        alias_registry = group_app._usecli_aliases  # ty: ignore[unresolved-attribute]
         assert alias_registry["show"] == ["s"]
 
-        group_alias_registry = app._usecli_group_aliases
+        group_alias_registry = app._usecli_group_aliases  # ty: ignore[unresolved-attribute]
         assert group_alias_registry["spec"] == ["sp"]
 
     def test_single_level_command_not_affected(self):
@@ -1029,7 +1028,7 @@ class TestCustomHelpCommandGetHelp:
         ctx = MagicMock()
         ctx.make_formatter.return_value = MagicMock()
         opt = Option(["-e", "--env"])
-        cmd.params = [opt]
+        cmd.params = [opt]  # ty: ignore[invalid-assignment]
 
         with pytest.raises(Exit):
             cmd.get_help(ctx)

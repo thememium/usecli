@@ -28,13 +28,14 @@ class TestGetOptionalOptions:
 
     def test_excludes_json_option(self):
         cmd = click.Command(
-            "demo", params=[TyperOption(param_decls=["--json"], is_flag=True)]
+            "demo",
+            params=[TyperOption(param_decls=["--json"], is_flag=True)],  # ty: ignore[invalid-argument-type]
         )
         assert _get_optional_options(cmd) == []
 
     def test_excludes_json_option_with_short_alias(self):
         cmd = click.Command(
             "demo",
-            params=[TyperOption(param_decls=["-j", "--json"], is_flag=True)],
+            params=[TyperOption(param_decls=["-j", "--json"], is_flag=True)],  # ty: ignore[invalid-argument-type]
         )
         assert _get_optional_options(cmd) == []

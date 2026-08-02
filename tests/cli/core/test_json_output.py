@@ -136,7 +136,7 @@ def registered_json_commands() -> Iterator[None]:
 
 def _invoke_json(runner: CliRunner, arguments: list[str]):
     typer_main = import_module("typer.main")
-    return runner.invoke(typer_main.get_command(usecli.app), arguments)
+    return runner.invoke(typer_main.get_command(usecli.app), arguments)  # ty: ignore[invalid-argument-type]
 
 
 def _assert_success(result, expected_data: object) -> None:
