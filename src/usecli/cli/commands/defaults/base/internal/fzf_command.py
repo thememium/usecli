@@ -75,7 +75,7 @@ def _get_optional_options(
             command,
             pretty_exceptions_short=False,
             rich_markup_mode=None,
-        )
+        )  # ty: ignore[invalid-assignment]
     else:
         click_command = None
 
