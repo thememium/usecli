@@ -1008,3 +1008,59 @@ class TestInitCommandConfigHelpers:
         result = init_cmd._ensure_package_init_files(commands_path, tmp_path)
         assert result is True
         assert (commands_path.parent / "__init__.py").exists()
+
+    def test_get_project_name_from_pyproject(self, init_cmd, tmp_path):
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text('[project]\nname = "my-project"')
+        result = init_cmd._get_project_name_from_pyproject(pyproject)
+        assert result == "my-project"
+
+    def test_get_project_name_from_pyproject_missing(self, init_cmd, tmp_path):
+        result = init_cmd._get_project_name_from_pyproject(tmp_path / "nonexistent.toml")
+        assert result is None
+
+    def test_get_project_name_from_pyproject_no_name(self, init_cmd, tmp_path):
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text('[project]\nversion = "1.0"')
+        result = init_cmd._get_project_name_from_pyproject(pyproject)
+        assert result is None
+
+    def test_get_project_name_from_pyproject_invalid_toml(self, init_cmd, tmp_path):
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text("not = = valid")
+        result = init_cmd._get_project_name_from_pyproject(pyproject)
+        assert result is None
+
+    @patch("usecli.cli.commands.init_command.shutil.which")
+    @patch("usecli.cli.commands.init_command.subprocess.run")
+    def test_sync_environment_with_uv(self, mock_run, mock_which, init_cmd, tmp_path):
+        mock_which.return_value = "/usr/bin/uv"
+        (tmp_path / ".venv").mkdir()
+        mock_run.return_value = MagicMock(returncode=0)
+        init_cmd._sync_environment(tmp_path, "mycli")
+        mock_run.assert_called_once()
+
+    @patch("usecli.cli.commands.init_command.shutil.which")
+    @patch("usecli.cli.commands.init_command.subprocess.run")
+    def test_sync_environment_with_uv_failure(self, mock_run, mock_which, init_cmd, tmp_path):
+        mock_which.return_value = "/usr/bin/uv"
+        (tmp_path / ".venv").mkdir()
+        mock_run.return_value = MagicMock(returncode=1)
+        init_cmd._sync_environment(tmp_path, "mycli")
+        mock_run.assert_called_once()
+
+    @patch("usecli.cli.commands.init_command.shutil.which")
+    def test_sync_environment_no_venv(self, mock_which, init_cmd, tmp_path):
+        mock_which.return_value = "/usr/bin/uv"
+        init_cmd._sync_environment(tmp_path, "mycli")
+        # Should not run subprocess
+
+    @patch("usecli.cli.commands.init_command.shutil.which")
+    @patch("usecli.cli.commands.init_command.subprocess.run")
+    @patch("usecli.cli.commands.init_command.sys")
+    def test_sync_environment_fallback_to_pip(self, mock_sys, mock_run, mock_which, init_cmd, tmp_path):
+        mock_which.return_value = None
+        mock_sys.executable = "/usr/bin/python3"
+        mock_run.return_value = MagicMock(returncode=0)
+        init_cmd._sync_environment(tmp_path, "mycli")
+        mock_run.assert_called_once()
