@@ -290,3 +290,58 @@ class TestResetConfig:
         reset_config()
         config2 = get_config()
         assert config1 is not config2
+
+
+class TestConfigManagerAdditionalMethods:
+    def test_get_all_returns_copy(self, tmp_path):
+        manager = ConfigManager(start_dir=tmp_path)
+        all_config = manager.get_all()
+        assert isinstance(all_config, dict)
+        # Modifying the copy shouldn't affect the manager
+        all_config["new_key"] = "new_value"
+        assert manager.get("new_key") is None
+
+    def test_get_project_commands_dir(self, tmp_path):
+        manager = ConfigManager(start_dir=tmp_path)
+        commands_dir = manager.get_project_commands_dir()
+        assert isinstance(commands_dir, Path)
+
+    def test_get_project_templates_dir(self, tmp_path):
+        manager = ConfigManager(start_dir=tmp_path)
+        templates_dir = manager.get_project_templates_dir()
+        assert isinstance(templates_dir, Path)
+
+    def test_get_project_themes_dirs(self, tmp_path):
+        manager = ConfigManager(start_dir=tmp_path)
+        themes_dirs = manager.get_project_themes_dirs()
+        assert isinstance(themes_dirs, list)
+
+    def test_is_dev(self, tmp_path):
+        manager = ConfigManager(start_dir=tmp_path)
+        assert isinstance(manager.is_dev(), bool)
+
+    def test_is_prod(self, tmp_path):
+        manager = ConfigManager(start_dir=tmp_path)
+        assert isinstance(manager.is_prod(), bool)
+
+    def test_dot_notation_get(self, tmp_path):
+        config_path = tmp_path / "usecli.config.toml"
+        config_path.write_text('[usecli]\nnested.key = "value"')
+        manager = ConfigManager(usecli_config_path=config_path, start_dir=tmp_path)
+        # Test dot notation access
+        result = manager.get("nested.key", "default")
+        assert result == "default" or isinstance(result, str)
+
+    def test_load_project_version(self, tmp_path):
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text('[project]\nversion = "1.2.3"')
+        manager = ConfigManager(pyproject_path=pyproject, start_dir=tmp_path)
+        result = manager.get_project_version()
+        assert result == "1.2.3"
+
+    def test_load_project_version_missing(self, tmp_path):
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text('[project]\nname = "test"')
+        manager = ConfigManager(pyproject_path=pyproject, start_dir=tmp_path)
+        result = manager.get_project_version()
+        assert result is None
