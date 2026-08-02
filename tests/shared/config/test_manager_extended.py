@@ -507,6 +507,61 @@ class TestConfigManagerAdditionalMethods:
         path.write_text("not = = valid")
         assert ConfigManager._pyproject_has_usecli(path) is False
 
+    def test_find_usecli_config_on_sys_path_returns_none_when_empty(self):
+        with patch("usecli.shared.config.manager.sys", path=[]):
+            result = ConfigManager._find_usecli_config_on_sys_path()
+            assert result is None
+
+    def test_read_top_level_packages_returns_empty_for_none(self):
+        dist = MagicMock()
+        dist.read_text.return_value = None
+        result = ConfigManager._read_top_level_packages(dist)
+        assert result == []
+
+    def test_read_top_level_packages_returns_packages(self):
+        dist = MagicMock()
+        dist.read_text.return_value = "usecli\n"
+        result = ConfigManager._read_top_level_packages(dist)
+        assert result == ["usecli"]
+
+    def test_read_top_level_packages_handles_attribute_error(self):
+        dist = MagicMock()
+        dist.read_text.side_effect = AttributeError
+        result = ConfigManager._read_top_level_packages(dist)
+        assert result == []
+
+    def test_read_top_level_packages_handles_os_error(self):
+        dist = MagicMock()
+        dist.read_text.side_effect = OSError
+        result = ConfigManager._read_top_level_packages(dist)
+        assert result == []
+
+    def test_config_matches_command_returns_true_for_none(self, tmp_path):
+        config_path = tmp_path / "usecli.config.toml"
+        config_path.write_text('[usecli]\ntheme = "dark"')
+        assert ConfigManager._config_matches_command(config_path, None) is True
+
+    def test_config_matches_command_returns_true_for_matching(self, tmp_path):
+        config_path = tmp_path / "usecli.config.toml"
+        config_path.write_text('[usecli]\ncommand_name = "mycli"')
+        assert ConfigManager._config_matches_command(config_path, "mycli") is True
+
+    def test_config_matches_command_returns_true_for_no_command(self, tmp_path):
+        config_path = tmp_path / "usecli.config.toml"
+        config_path.write_text('[usecli]\ntheme = "dark"')
+        assert ConfigManager._config_matches_command(config_path, "mycli") is True
+
+    def test_config_matches_command_handles_invalid_toml(self, tmp_path):
+        config_path = tmp_path / "usecli.config.toml"
+        config_path.write_text("not = = valid")
+        assert ConfigManager._config_matches_command(config_path, "mycli") is True
+
+    def test_is_preferred_package_path_returns_true_for_venv(self):
+        assert ConfigManager._is_preferred_package_path(Path(".venv/lib")) is True
+
+    def test_is_preferred_package_path_returns_false_for_normal(self):
+        assert ConfigManager._is_preferred_package_path(Path("/tmp/project")) is False
+
     def test_dot_notation_get(self, tmp_path):
         config_path = tmp_path / "usecli.config.toml"
         config_path.write_text('[usecli]\nnested.key = "value"')
