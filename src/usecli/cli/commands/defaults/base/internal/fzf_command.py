@@ -8,7 +8,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 import click
 import typer
@@ -67,15 +67,18 @@ def _get_required_arguments(command: ClickCommand) -> list[tuple[str, str, type]
 def _get_optional_options(
     command: ClickCommand | typer.models.CommandInfo,
 ) -> list[tuple[str, str, str, type]]:
-    click_command: click.Command | None
+    click_command: click.Command | None = None
     if isinstance(command, click.Command):
         click_command = command
     elif isinstance(command, typer.models.CommandInfo):
-        click_command = typer.main.get_command_from_info(
-            command,
-            pretty_exceptions_short=False,
-            rich_markup_mode=None,
-        )  # ty: ignore[invalid-assignment]
+        click_command = cast(
+            click.Command,
+            typer.main.get_command_from_info(
+                command,
+                pretty_exceptions_short=False,
+                rich_markup_mode=None,
+            ),
+        )
     else:
         click_command = None
 
