@@ -145,7 +145,9 @@ class TestCommandService:
 
     @patch("usecli.shared.config.manager._find_distribution_for_console_script")
     @patch("usecli.cli.core.ui.title.get_script_command_name")
-    def test_get_application_version_returns_none_when_no_dist(self, mock_name, mock_find):
+    def test_get_application_version_returns_none_when_no_dist(
+        self, mock_name, mock_find
+    ):
         mock_name.return_value = "mycli"
         mock_find.return_value = None
 
