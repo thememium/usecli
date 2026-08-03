@@ -52,7 +52,7 @@ def _get_required_arguments(command: ClickCommand) -> list[tuple[str, str, type]
             help_text = ""
             try:
                 help_text = getattr(param.default, "help", "") or ""
-            except AttributeError:
+            except AttributeError:  # pragma: no cover - getattr supplies a default
                 pass
 
             param_type: type = param.annotation

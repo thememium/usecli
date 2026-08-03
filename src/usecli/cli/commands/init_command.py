@@ -19,7 +19,7 @@ from rich.prompt import Confirm, Prompt
 if sys.version_info >= (3, 11):
     import tomllib
 else:
-    import tomli as tomllib
+    import tomli as tomllib  # pragma: no cover - only on Python < 3.11
 
 import pyfiglet
 
