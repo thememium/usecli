@@ -48,7 +48,7 @@ class TestHexToRgb:
         assert _hex_to_rgb("#GGHHII") is None
 
     def test_non_string(self):
-        assert _hex_to_rgb(42) is None
+        assert _hex_to_rgb(42) is None  # type: ignore[ty:invalid-argument-type]
 
     def test_empty_string(self):
         assert _hex_to_rgb("") is None
@@ -110,7 +110,7 @@ class TestMergeThemeValues:
 
     def test_handles_non_dict_overrides(self):
         defaults = {"primary": "#FF0000"}
-        result = _merge_theme_values(defaults, "not a dict", _normalize_color)
+        result = _merge_theme_values(defaults, "not a dict", _normalize_color)  # type: ignore[ty:invalid-argument-type]
         assert result == defaults
 
 
@@ -552,5 +552,5 @@ class TestLoadUsecliConfig:
     def test_returns_empty_for_nonexistent_root(self, tmp_path):
         from usecli.cli.config.colors import _load_usecli_config
 
-        result, path = _load_usecli_config(tmp_path / "nonexistent")
+        result, _path = _load_usecli_config(tmp_path / "nonexistent")
         assert isinstance(result, dict)
