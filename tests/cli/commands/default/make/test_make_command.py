@@ -93,10 +93,16 @@ class TestMakeCommandTemplates:
     @patch("usecli.cli.commands.defaults.make.make_command.find_project_root")
     @patch("usecli.cli.commands.defaults.make.make_command.reset_config")
     @patch("usecli.cli.commands.defaults.make.make_command.get_config")
-    def test_resets_config_when_root_mismatch(self, mock_get_config, mock_reset, mock_find_root, tmp_path, monkeypatch, make_command):
+    def test_resets_config_when_root_mismatch(
+        self,
+        mock_get_config,
+        mock_reset,
+        mock_find_root,
+        tmp_path,
+        monkeypatch,
+        make_command,
+    ):
         monkeypatch.chdir(tmp_path)
-
-        from pathlib import Path
 
         mock_config = MagicMock()
         mock_config.get_project_root.return_value = Path("/different/root")

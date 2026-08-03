@@ -793,7 +793,9 @@ class TestInitCommandThemeHelpers:
         assert "--" in result
 
     def test_format_theme_color_line_background(self, init_cmd):
-        result = init_cmd._format_theme_color_line("Background", "#000000", background=True)
+        result = init_cmd._format_theme_color_line(
+            "Background", "#000000", background=True
+        )
         assert "Background" in result
 
     def test_render_theme_preview_none(self, init_cmd):
@@ -895,7 +897,9 @@ class TestInitCommandPathHelpers:
         assert result is None
 
     def test_get_existing_usecli_script_name_nonexistent(self, init_cmd, tmp_path):
-        result = init_cmd._get_existing_usecli_script_name(tmp_path / "nonexistent.toml")
+        result = init_cmd._get_existing_usecli_script_name(
+            tmp_path / "nonexistent.toml"
+        )
         assert result is None
 
     def test_get_existing_usecli_script_name_invalid_toml(self, init_cmd, tmp_path):
@@ -912,7 +916,9 @@ class TestInitCommandConfigHelpers:
 
     def test_write_usecli_config_creates_new(self, init_cmd, tmp_path):
         config_path = tmp_path / "usecli.config.toml"
-        result = init_cmd._write_usecli_config(config_path, "[usecli]\ntitle = 'test'", force=False)
+        result = init_cmd._write_usecli_config(
+            config_path, "[usecli]\ntitle = 'test'", force=False
+        )
         assert result == "created"
         assert config_path.exists()
 
@@ -920,18 +926,24 @@ class TestInitCommandConfigHelpers:
         config_path = tmp_path / "usecli.config.toml"
         config_path.write_text("old content")
         with patch("usecli.cli.commands.init_command.Confirm.ask", return_value=True):
-            result = init_cmd._write_usecli_config(config_path, "[usecli]\ntitle = 'test'", force=False)
+            result = init_cmd._write_usecli_config(
+                config_path, "[usecli]\ntitle = 'test'", force=False
+            )
         assert result == "updated"
 
     def test_write_usecli_config_force_overwrites(self, init_cmd, tmp_path):
         config_path = tmp_path / "usecli.config.toml"
         config_path.write_text("old content")
-        result = init_cmd._write_usecli_config(config_path, "[usecli]\ntitle = 'test'", force=True)
+        result = init_cmd._write_usecli_config(
+            config_path, "[usecli]\ntitle = 'test'", force=True
+        )
         assert result == "updated"
 
     def test_write_usecli_config_creates_parent_dirs(self, init_cmd, tmp_path):
         config_path = tmp_path / "deep" / "nested" / "usecli.config.toml"
-        result = init_cmd._write_usecli_config(config_path, "[usecli]\ntitle = 'test'", force=False)
+        result = init_cmd._write_usecli_config(
+            config_path, "[usecli]\ntitle = 'test'", force=False
+        )
         assert result == "created"
         assert config_path.exists()
 
@@ -976,7 +988,9 @@ class TestInitCommandConfigHelpers:
         assert result == "updated"
         assert '"usecli:main"' in pyproject.read_text()
 
-    def test_ensure_project_scripts_adds_entry_to_existing_section(self, init_cmd, tmp_path):
+    def test_ensure_project_scripts_adds_entry_to_existing_section(
+        self, init_cmd, tmp_path
+    ):
         pyproject = tmp_path / "pyproject.toml"
         pyproject.write_text('[project.scripts]\nother = "other:main"')
         result = init_cmd._ensure_project_scripts(pyproject, "mycli", force=False)
@@ -984,7 +998,9 @@ class TestInitCommandConfigHelpers:
         assert "mycli" in pyproject.read_text()
 
     def test_ensure_project_scripts_missing_file(self, init_cmd, tmp_path):
-        result = init_cmd._ensure_project_scripts(tmp_path / "nonexistent.toml", "mycli", force=False)
+        result = init_cmd._ensure_project_scripts(
+            tmp_path / "nonexistent.toml", "mycli", force=False
+        )
         assert result == "missing"
 
     def test_ensure_package_init_files_creates(self, init_cmd, tmp_path):
@@ -1016,7 +1032,9 @@ class TestInitCommandConfigHelpers:
         assert result == "my-project"
 
     def test_get_project_name_from_pyproject_missing(self, init_cmd, tmp_path):
-        result = init_cmd._get_project_name_from_pyproject(tmp_path / "nonexistent.toml")
+        result = init_cmd._get_project_name_from_pyproject(
+            tmp_path / "nonexistent.toml"
+        )
         assert result is None
 
     def test_get_project_name_from_pyproject_no_name(self, init_cmd, tmp_path):
@@ -1042,7 +1060,9 @@ class TestInitCommandConfigHelpers:
 
     @patch("usecli.cli.commands.init_command.shutil.which")
     @patch("usecli.cli.commands.init_command.subprocess.run")
-    def test_sync_environment_with_uv_failure(self, mock_run, mock_which, init_cmd, tmp_path):
+    def test_sync_environment_with_uv_failure(
+        self, mock_run, mock_which, init_cmd, tmp_path
+    ):
         mock_which.return_value = "/usr/bin/uv"
         (tmp_path / ".venv").mkdir()
         mock_run.return_value = MagicMock(returncode=1)
@@ -1058,7 +1078,9 @@ class TestInitCommandConfigHelpers:
     @patch("usecli.cli.commands.init_command.shutil.which")
     @patch("usecli.cli.commands.init_command.subprocess.run")
     @patch("usecli.cli.commands.init_command.sys")
-    def test_sync_environment_fallback_to_pip(self, mock_sys, mock_run, mock_which, init_cmd, tmp_path):
+    def test_sync_environment_fallback_to_pip(
+        self, mock_sys, mock_run, mock_which, init_cmd, tmp_path
+    ):
         mock_which.return_value = None
         mock_sys.executable = "/usr/bin/python3"
         mock_run.return_value = MagicMock(returncode=0)
@@ -1068,7 +1090,9 @@ class TestInitCommandConfigHelpers:
     @patch("usecli.cli.commands.init_command.shutil.which")
     @patch("usecli.cli.commands.init_command.subprocess.run")
     @patch("usecli.cli.commands.init_command.sys")
-    def test_sync_environment_pip_failure(self, mock_sys, mock_run, mock_which, init_cmd, tmp_path):
+    def test_sync_environment_pip_failure(
+        self, mock_sys, mock_run, mock_which, init_cmd, tmp_path
+    ):
         mock_which.return_value = None
         mock_sys.executable = "/usr/bin/python3"
         mock_run.return_value = MagicMock(returncode=1)
@@ -1077,6 +1101,7 @@ class TestInitCommandConfigHelpers:
 
     def test_handle_json_mode_raises_for_missing_params(self, init_cmd):
         from usecli.cli.core.runtime import NonInteractiveError
+
         with pytest.raises(NonInteractiveError, match="JSON mode"):
             init_cmd._handle_json_mode(
                 command_name="usecli",
@@ -1093,6 +1118,7 @@ class TestInitCommandConfigHelpers:
 
     def test_handle_json_mode_raises_for_invalid_command_name(self, init_cmd):
         from usecli.cli.core.runtime import NonInteractiveError
+
         with pytest.raises(NonInteractiveError):
             init_cmd._handle_json_mode(
                 command_name="invalid name with spaces",
