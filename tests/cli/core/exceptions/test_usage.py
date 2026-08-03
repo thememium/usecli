@@ -524,7 +524,10 @@ class TestGetHelpTextWithCommandName:
         ctx.info_name = None
         ctx.get_help.return_value = "Help text"
 
-        with patch("usecli.cli.core.exceptions.usage.get_script_command_name", return_value=None):
+        with patch(
+            "usecli.cli.core.exceptions.usage.get_script_command_name",
+            return_value=None,
+        ):
             result = _get_help_text_with_command_name(ctx)
 
         assert result == "Help text"
@@ -536,7 +539,10 @@ class TestGetHelpTextWithCommandName:
         ctx.info_name = None
         ctx.get_help.side_effect = Exit(0)
 
-        with patch("usecli.cli.core.exceptions.usage.get_script_command_name", return_value=None):
+        with patch(
+            "usecli.cli.core.exceptions.usage.get_script_command_name",
+            return_value=None,
+        ):
             result = _get_help_text_with_command_name(ctx)
 
         assert result == ""
@@ -548,7 +554,10 @@ class TestGetHelpTextWithCommandName:
         ctx.info_name = "original"
         ctx.get_help.return_value = "Help text"
 
-        with patch("usecli.cli.core.exceptions.usage.get_script_command_name", return_value="mycli"):
+        with patch(
+            "usecli.cli.core.exceptions.usage.get_script_command_name",
+            return_value="mycli",
+        ):
             result = _get_help_text_with_command_name(ctx)
 
         assert result == "Help text"

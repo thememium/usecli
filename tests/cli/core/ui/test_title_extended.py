@@ -104,7 +104,9 @@ class TestGetScriptCommandName:
             has_key=MagicMock(return_value=True),
             get=MagicMock(return_value="custom"),
         )
-        with patch("usecli.cli.core.ui.title._get_script_command_name", return_value=None):
+        with patch(
+            "usecli.cli.core.ui.title._get_script_command_name", return_value=None
+        ):
             result = get_script_command_name()
             assert result == "custom"
 
@@ -271,8 +273,9 @@ class TestPrintTitle:
             get=MagicMock(return_value=None),
         )
         import sys
+
         saved = sys.modules.get("pyfiglet")
-        sys.modules["pyfiglet"] = None
+        sys.modules["pyfiglet"] = None  # type: ignore[ty:invalid-assignment]
         try:
             print_title("My Custom Title")
             assert mock_console.print.called

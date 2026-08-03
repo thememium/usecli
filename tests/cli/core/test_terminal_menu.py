@@ -530,9 +530,11 @@ class TestTerminalMenuIntegration:
         def preview(value: str) -> str:
             return f"Preview: {value}"
 
-        with patch("usecli.cli.utils.interactive.terminal_menu.shutil.get_terminal_size") as mock_size:
+        with patch(
+            "usecli.cli.utils.interactive.terminal_menu.shutil.get_terminal_size"
+        ) as mock_size:
             mock_size.return_value = os.terminal_size((80, 40))
-            terminal_menu(["A", "B"], title=("line1", "line2"), preview_command=preview)
+            terminal_menu(["A", "B"], title=("line1", "line2"), preview_command=preview)  # type: ignore[ty:invalid-argument-type]
 
         call_kwargs = mock_menu_class.call_args.kwargs
         assert call_kwargs["preview_command"] is preview
@@ -547,7 +549,9 @@ class TestTerminalMenuIntegration:
         def preview(value: str) -> str:
             return f"Preview: {value}"
 
-        with patch("usecli.cli.utils.interactive.terminal_menu.shutil.get_terminal_size") as mock_size:
+        with patch(
+            "usecli.cli.utils.interactive.terminal_menu.shutil.get_terminal_size"
+        ) as mock_size:
             mock_size.return_value = os.terminal_size((80, 40))
             terminal_menu(["A", "B"], title="Line 1\nLine 2", preview_command=preview)
 
@@ -567,9 +571,15 @@ class TestTerminalMenuIntegration:
         def status_bar_getter(value: str) -> str:
             return f"Status: {value}"
 
-        with patch("usecli.cli.utils.interactive.terminal_menu.shutil.get_terminal_size") as mock_size:
+        with patch(
+            "usecli.cli.utils.interactive.terminal_menu.shutil.get_terminal_size"
+        ) as mock_size:
             mock_size.return_value = os.terminal_size((80, 40))
-            terminal_menu(["A", "B"], status_bar=status_bar_getter, preview_command=preview)
+            terminal_menu(
+                ["A", "B"],
+                status_bar=status_bar_getter,  # type: ignore[ty:invalid-argument-type]
+                preview_command=preview,
+            )
 
         call_kwargs = mock_menu_class.call_args.kwargs
         assert call_kwargs["status_bar"] is status_bar_getter
@@ -584,9 +594,15 @@ class TestTerminalMenuIntegration:
         def preview(value: str) -> str:
             return f"Preview: {value}"
 
-        with patch("usecli.cli.utils.interactive.terminal_menu.shutil.get_terminal_size") as mock_size:
+        with patch(
+            "usecli.cli.utils.interactive.terminal_menu.shutil.get_terminal_size"
+        ) as mock_size:
             mock_size.return_value = os.terminal_size((80, 40))
-            terminal_menu(["A", "B"], status_bar=("line1", "line2"), preview_command=preview)
+            terminal_menu(
+                ["A", "B"],
+                status_bar=("line1", "line2"),  # type: ignore[ty:invalid-argument-type]
+                preview_command=preview,
+            )
 
         call_kwargs = mock_menu_class.call_args.kwargs
         assert call_kwargs["status_bar"] == ("line1", "line2")
