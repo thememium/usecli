@@ -1,7 +1,8 @@
 """Comprehensive tests for terminal_menu function."""
 
+import importlib
 import os
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 # Import the function to test
 from usecli.cli.utils.interactive.terminal_menu import terminal_menu
@@ -33,17 +34,13 @@ class TestTerminalMenuSingleSelectMode:
     @patch("usecli.cli.utils.interactive.terminal_menu.TerminalMenu")
     def test_single_select_with_int_result(self, mock_menu_class):
         """Test single select mode when menu.show() returns an int."""
-        # Setup
         mock_menu_instance = Mock()
         mock_menu_instance.show.return_value = 1
         mock_menu_class.return_value = mock_menu_instance
 
         options = ["Option A", "Option B", "Option C"]
-
-        # Execute
         result = terminal_menu(options)
 
-        # Assert
         assert result == ["Option B"]
         assert len(result) == 1
         mock_menu_instance.show.assert_called_once()
@@ -55,10 +52,7 @@ class TestTerminalMenuSingleSelectMode:
         mock_menu_instance.show.return_value = 0
         mock_menu_class.return_value = mock_menu_instance
 
-        options = ["First", "Second", "Third"]
-
-        result = terminal_menu(options)
-
+        result = terminal_menu(["First", "Second", "Third"])
         assert result == ["First"]
 
     @patch("usecli.cli.utils.interactive.terminal_menu.TerminalMenu")
@@ -68,10 +62,7 @@ class TestTerminalMenuSingleSelectMode:
         mock_menu_instance.show.return_value = 2
         mock_menu_class.return_value = mock_menu_instance
 
-        options = ["First", "Second", "Third"]
-
-        result = terminal_menu(options)
-
+        result = terminal_menu(["First", "Second", "Third"])
         assert result == ["Third"]
 
     @patch("usecli.cli.utils.interactive.terminal_menu.TerminalMenu")
@@ -81,10 +72,7 @@ class TestTerminalMenuSingleSelectMode:
         mock_menu_instance.show.return_value = None
         mock_menu_class.return_value = mock_menu_instance
 
-        options = ["Option A", "Option B"]
-
-        result = terminal_menu(options)
-
+        result = terminal_menu(["Option A", "Option B"])
         assert result == []
 
     @patch("usecli.cli.utils.interactive.terminal_menu.TerminalMenu")
@@ -94,15 +82,11 @@ class TestTerminalMenuSingleSelectMode:
         mock_menu_instance.show.return_value = 0
         mock_menu_class.return_value = mock_menu_instance
 
-        options = ["Option 1", "Option 2"]
-        title = "Select your choice"
-
-        result = terminal_menu(options, title=title)
+        result = terminal_menu(["Option 1", "Option 2"], title="Select your choice")
 
         assert result == ["Option 1"]
-        # Verify title was passed to TerminalMenu
         call_kwargs = mock_menu_class.call_args.kwargs
-        assert call_kwargs.get("title") == title
+        assert call_kwargs.get("title") == "Select your choice"
 
     @patch("usecli.cli.utils.interactive.terminal_menu.TerminalMenu")
     def test_single_select_with_non_string_options(self, mock_menu_class):
@@ -111,27 +95,20 @@ class TestTerminalMenuSingleSelectMode:
         mock_menu_instance.show.return_value = 1
         mock_menu_class.return_value = mock_menu_instance
 
-        options = [10, 20, 30]
-
-        result = terminal_menu(options)
+        result = terminal_menu([10, 20, 30])
 
         assert result == [20]
-        # Verify display options were stringified
         call_args = mock_menu_class.call_args[0][0]
         assert call_args == ["10", "20", "30"]
 
     @patch("usecli.cli.utils.interactive.terminal_menu.TerminalMenu")
     def test_single_select_with_tuple_result_returns_empty(self, mock_menu_class):
-        """Test single select mode with tuple result (should be handled for multi_select)."""
+        """Test single select mode with tuple result returns empty."""
         mock_menu_instance = Mock()
         mock_menu_instance.show.return_value = (0, 1)
         mock_menu_class.return_value = mock_menu_instance
 
-        options = ["Option A", "Option B", "Option C"]
-
-        # In single select mode, tuple result is not expected but should return empty
-        result = terminal_menu(options, multi_select=False)
-
+        result = terminal_menu(["Option A", "Option B", "Option C"], multi_select=False)
         assert result == []
 
 
@@ -145,10 +122,7 @@ class TestTerminalMenuMultiSelectMode:
         mock_menu_instance.show.return_value = 1
         mock_menu_class.return_value = mock_menu_instance
 
-        options = ["Option A", "Option B", "Option C"]
-
-        result = terminal_menu(options, multi_select=True)
-
+        result = terminal_menu(["Option A", "Option B", "Option C"], multi_select=True)
         assert result == ["Option B"]
         assert len(result) == 1
 
@@ -159,10 +133,7 @@ class TestTerminalMenuMultiSelectMode:
         mock_menu_instance.show.return_value = (0, 2)
         mock_menu_class.return_value = mock_menu_instance
 
-        options = ["Option A", "Option B", "Option C"]
-
-        result = terminal_menu(options, multi_select=True)
-
+        result = terminal_menu(["Option A", "Option B", "Option C"], multi_select=True)
         assert result == ["Option A", "Option C"]
         assert len(result) == 2
 
@@ -173,10 +144,7 @@ class TestTerminalMenuMultiSelectMode:
         mock_menu_instance.show.return_value = (0, 1, 2)
         mock_menu_class.return_value = mock_menu_instance
 
-        options = ["First", "Second", "Third"]
-
-        result = terminal_menu(options, multi_select=True)
-
+        result = terminal_menu(["First", "Second", "Third"], multi_select=True)
         assert result == ["First", "Second", "Third"]
         assert len(result) == 3
 
@@ -187,23 +155,17 @@ class TestTerminalMenuMultiSelectMode:
         mock_menu_instance.show.return_value = None
         mock_menu_class.return_value = mock_menu_instance
 
-        options = ["Option A", "Option B", "Option C"]
-
-        result = terminal_menu(options, multi_select=True)
-
+        result = terminal_menu(["Option A", "Option B", "Option C"], multi_select=True)
         assert result == []
 
     @patch("usecli.cli.utils.interactive.terminal_menu.TerminalMenu")
     def test_multi_select_no_selection_returns_empty_list(self, mock_menu_class):
-        """Test multi select with empty tuple (no selections) returns empty list."""
+        """Test multi select with empty tuple returns empty list."""
         mock_menu_instance = Mock()
         mock_menu_instance.show.return_value = ()
         mock_menu_class.return_value = mock_menu_instance
 
-        options = ["Option A", "Option B"]
-
-        result = terminal_menu(options, multi_select=True)
-
+        result = terminal_menu(["Option A", "Option B"], multi_select=True)
         assert result == []
 
     @patch("usecli.cli.utils.interactive.terminal_menu.TerminalMenu")
@@ -213,28 +175,23 @@ class TestTerminalMenuMultiSelectMode:
         mock_menu_instance.show.return_value = (0, 1)
         mock_menu_class.return_value = mock_menu_instance
 
-        options = ["A", "B", "C"]
-        title = "Select multiple items"
-
-        result = terminal_menu(options, title=title, multi_select=True)
+        result = terminal_menu(
+            ["A", "B", "C"], title="Select multiple items", multi_select=True
+        )
 
         assert result == ["A", "B"]
-        # Verify multi_select parameters were set
         call_kwargs = mock_menu_class.call_args.kwargs
         assert call_kwargs.get("multi_select") is True
         assert call_kwargs.get("show_multi_select_hint") is True
 
     @patch("usecli.cli.utils.interactive.terminal_menu.TerminalMenu")
     def test_multi_select_invalid_return_type(self, mock_menu_class):
-        """Test multi select with invalid return type (string) returns empty."""
+        """Test multi select with invalid return type returns empty."""
         mock_menu_instance = Mock()
         mock_menu_instance.show.return_value = "invalid"
         mock_menu_class.return_value = mock_menu_instance
 
-        options = ["Option A", "Option B"]
-
-        result = terminal_menu(options, multi_select=True)
-
+        result = terminal_menu(["Option A", "Option B"], multi_select=True)
         assert result == []
 
 
@@ -248,12 +205,9 @@ class TestTerminalMenuMenuConfiguration:
         mock_menu_instance.show.return_value = 0
         mock_menu_class.return_value = mock_menu_instance
 
-        options = ["A", "B"]
-        terminal_menu(options)
-
+        terminal_menu(["A", "B"])
         call_kwargs = mock_menu_class.call_args.kwargs
 
-        # Verify all styling parameters
         assert call_kwargs["menu_cursor_style"] == ("fg_cyan", "bold")
         assert call_kwargs["menu_highlight_style"] == ("bg_cyan", "fg_black")
         assert call_kwargs["status_bar_style"] == ("fg_cyan", "bold")
@@ -266,9 +220,7 @@ class TestTerminalMenuMenuConfiguration:
         mock_menu_instance.show.return_value = 0
         mock_menu_class.return_value = mock_menu_instance
 
-        options = ["A", "B"]
-        terminal_menu(options, multi_select=True)
-
+        terminal_menu(["A", "B"], multi_select=True)
         call_kwargs = mock_menu_class.call_args.kwargs
 
         assert call_kwargs["multi_select_select_on_accept"] is False
@@ -281,9 +233,7 @@ class TestTerminalMenuMenuConfiguration:
         mock_menu_instance.show.return_value = 0
         mock_menu_class.return_value = mock_menu_instance
 
-        options = [1, 2, 3]
-        terminal_menu(options)
-
+        terminal_menu([1, 2, 3])
         display_options = mock_menu_class.call_args[0][0]
         assert display_options == ["1", "2", "3"]
         assert all(isinstance(opt, str) for opt in display_options)
@@ -297,7 +247,6 @@ class TestTerminalMenuMenuConfiguration:
         def preview_command(value: str) -> str:
             return f"Preview:\n{value}\n"
 
-        options = ["Option A", "Option B"]
         status_bar = "Enter = select • Esc = quit"
 
         with patch(
@@ -305,7 +254,7 @@ class TestTerminalMenuMenuConfiguration:
         ) as mock_terminal_size:
             mock_terminal_size.return_value = os.terminal_size((120, 60))
             terminal_menu(
-                options,
+                ["Option A", "Option B"],
                 search=True,
                 search_key=None,
                 show_search_hint=True,
@@ -322,95 +271,6 @@ class TestTerminalMenuMenuConfiguration:
         assert call_kwargs["preview_size"] == 0.70
 
 
-class TestTerminalMenuWithCustomTypes:
-    """Test cases with custom object types."""
-
-    def test_with_integer_options(self):
-        """Test with integer options."""
-
-        @patch("usecli.cli.utils.interactive.terminal_menu.TerminalMenu")
-        def run_test(mock_menu_class):
-            mock_menu_instance = Mock()
-            mock_menu_instance.show.return_value = 1
-            mock_menu_class.return_value = mock_menu_instance
-
-            options = [100, 200, 300]
-            result = terminal_menu(options)
-
-            assert result == [200]
-
-        run_test()
-
-    def test_with_float_options(self):
-        """Test with float options."""
-
-        @patch("usecli.cli.utils.interactive.terminal_menu.TerminalMenu")
-        def run_test(mock_menu_class):
-            mock_menu_instance = Mock()
-            mock_menu_instance.show.return_value = 0
-            mock_menu_class.return_value = mock_menu_instance
-
-            options = [1.5, 2.5, 3.5]
-            result = terminal_menu(options)
-
-            assert result == [1.5]
-
-        run_test()
-
-    def test_with_custom_objects(self):
-        """Test with custom objects that have __str__ method."""
-
-        class Item:
-            def __init__(self, name: str, value: int):
-                self.name = name
-                self.value = value
-
-            def __str__(self):
-                return f"{self.name} ({self.value})"
-
-        @patch("usecli.cli.utils.interactive.terminal_menu.TerminalMenu")
-        def run_test(mock_menu_class):
-            mock_menu_instance = Mock()
-            mock_menu_instance.show.return_value = 1
-            mock_menu_class.return_value = mock_menu_instance
-
-            item1 = Item("Item 1", 10)
-            item2 = Item("Item 2", 20)
-            item3 = Item("Item 3", 30)
-
-            options = [item1, item2, item3]
-            result = terminal_menu(options)
-
-            assert result == [item2]
-            assert result[0].value == 20
-
-            # Verify display options
-            display_options = mock_menu_class.call_args[0][0]
-            assert display_options == ["Item 1 (10)", "Item 2 (20)", "Item 3 (30)"]
-
-        run_test()
-
-    def test_with_mixed_types(self):
-        """Test with mixed types."""
-
-        @patch("usecli.cli.utils.interactive.terminal_menu.TerminalMenu")
-        def run_test(mock_menu_class):
-            mock_menu_instance = Mock()
-            mock_menu_instance.show.return_value = 1
-            mock_menu_class.return_value = mock_menu_instance
-
-            options = ["string", 42, 3.14]
-            result = terminal_menu(options)
-
-            assert result == [42]
-
-            # Verify display is stringified
-            display_options = mock_menu_class.call_args[0][0]
-            assert display_options == ["string", "42", "3.14"]
-
-        run_test()
-
-
 class TestTerminalMenuEdgeCases:
     """Test edge cases and boundary conditions."""
 
@@ -421,9 +281,7 @@ class TestTerminalMenuEdgeCases:
         mock_menu_instance.show.return_value = 0
         mock_menu_class.return_value = mock_menu_instance
 
-        options = ["Only Option"]
-        result = terminal_menu(options)
-
+        result = terminal_menu(["Only Option"])
         assert result == ["Only Option"]
 
     @patch("usecli.cli.utils.interactive.terminal_menu.TerminalMenu")
@@ -435,7 +293,6 @@ class TestTerminalMenuEdgeCases:
 
         options = [f"Option {i}" for i in range(100)]
         result = terminal_menu(options)
-
         assert result == ["Option 99"]
 
     @patch("usecli.cli.utils.interactive.terminal_menu.TerminalMenu")
@@ -445,9 +302,7 @@ class TestTerminalMenuEdgeCases:
         mock_menu_instance.show.return_value = 1
         mock_menu_class.return_value = mock_menu_instance
 
-        options = ["Option 🎯", "Option ✓", "Option ✗"]
-        result = terminal_menu(options)
-
+        result = terminal_menu(["Option 🎯", "Option ✓", "Option ✗"])
         assert result == ["Option ✓"]
 
     @patch("usecli.cli.utils.interactive.terminal_menu.TerminalMenu")
@@ -457,9 +312,7 @@ class TestTerminalMenuEdgeCases:
         mock_menu_instance.show.return_value = 0
         mock_menu_class.return_value = mock_menu_instance
 
-        options = ["", "Non-empty", ""]
-        result = terminal_menu(options)
-
+        result = terminal_menu(["", "Non-empty", ""])
         assert result == [""]
 
     @patch("usecli.cli.utils.interactive.terminal_menu.TerminalMenu")
@@ -469,9 +322,7 @@ class TestTerminalMenuEdgeCases:
         mock_menu_instance.show.return_value = 1
         mock_menu_class.return_value = mock_menu_instance
 
-        options = ["  spaces  ", "\ttabs\t", "\nnewline\n"]
-        result = terminal_menu(options)
-
+        result = terminal_menu(["  spaces  ", "\ttabs\t", "\nnewline\n"])
         assert result == ["\ttabs\t"]
 
 
@@ -490,9 +341,7 @@ class TestTerminalMenuTypeGeneric:
                 self.value = value
 
         obj = CustomType(42)
-        options = [obj]
-        result = terminal_menu(options)
-
+        result = terminal_menu([obj])
         assert result == [obj]
         assert result[0].value == 42
 
@@ -525,9 +374,11 @@ class TestTerminalMenuIntegration:
         mock_menu_instance.show.return_value = 1
         mock_menu_class.return_value = mock_menu_instance
 
-        options = ["Choice 1", "Choice 2", "Choice 3"]
-        result = terminal_menu(options, title="Select an option", multi_select=False)
-
+        result = terminal_menu(
+            ["Choice 1", "Choice 2", "Choice 3"],
+            title="Select an option",
+            multi_select=False,
+        )
         assert result == ["Choice 2"]
         call_kwargs = mock_menu_class.call_args.kwargs
         assert call_kwargs["title"] == "Select an option"
@@ -540,11 +391,11 @@ class TestTerminalMenuIntegration:
         mock_menu_instance.show.return_value = (0, 2)
         mock_menu_class.return_value = mock_menu_instance
 
-        options = ["Option A", "Option B", "Option C"]
         result = terminal_menu(
-            options, title="Select multiple options", multi_select=True
+            ["Option A", "Option B", "Option C"],
+            title="Select multiple options",
+            multi_select=True,
         )
-
         assert result == ["Option A", "Option C"]
         call_kwargs = mock_menu_class.call_args.kwargs
         assert call_kwargs["title"] == "Select multiple options"
@@ -560,12 +411,275 @@ class TestTerminalMenuIntegration:
         mock_menu_instance2.show.return_value = 1
         mock_menu_class.side_effect = [mock_menu_instance1, mock_menu_instance2]
 
-        options1 = ["A", "B"]
-        options2 = [1, 2, 3]
-
-        result1 = terminal_menu(options1)
-        result2 = terminal_menu(options2, multi_select=True)
+        result1 = terminal_menu(["A", "B"])
+        result2 = terminal_menu([1, 2, 3], multi_select=True)
 
         assert result1 == ["A"]
         assert result2 == [2]
         assert mock_menu_class.call_count == 2
+
+    @patch("usecli.cli.utils.interactive.terminal_menu.TerminalMenu")
+    def test_clear_screen_defaults(self, mock_menu_class):
+        """Test clear_screen and clear_menu_on_exit defaults."""
+        mock_menu_instance = Mock()
+        mock_menu_instance.show.return_value = 0
+        mock_menu_class.return_value = mock_menu_instance
+
+        terminal_menu(["A", "B"])
+        call_kwargs = mock_menu_class.call_args.kwargs
+
+        assert call_kwargs["clear_screen"] is False
+        assert call_kwargs["clear_menu_on_exit"] is True
+
+    @patch("usecli.cli.utils.interactive.terminal_menu.TerminalMenu")
+    def test_clear_screen_custom_values(self, mock_menu_class):
+        """Test clear_screen and clear_menu_on_exit custom values."""
+        mock_menu_instance = Mock()
+        mock_menu_instance.show.return_value = 0
+        mock_menu_class.return_value = mock_menu_instance
+
+        terminal_menu(["A", "B"], clear_screen=True, clear_menu_on_exit=False)
+        call_kwargs = mock_menu_class.call_args.kwargs
+
+        assert call_kwargs["clear_screen"] is True
+        assert call_kwargs["clear_menu_on_exit"] is False
+
+    @patch("usecli.cli.utils.interactive.terminal_menu.TerminalMenu")
+    def test_preview_command_with_callable(self, mock_menu_class):
+        """Test preview_command with a callable."""
+        mock_menu_instance = Mock()
+        mock_menu_instance.show.return_value = 0
+        mock_menu_class.return_value = mock_menu_instance
+
+        def preview(value: str) -> str:
+            return f"Preview: {value}"
+
+        with patch(
+            "usecli.cli.utils.interactive.terminal_menu.shutil.get_terminal_size"
+        ) as mock_size:
+            mock_size.return_value = os.terminal_size((80, 40))
+            terminal_menu(["A", "B"], preview_command=preview, preview_size=0.5)
+
+        call_kwargs = mock_menu_class.call_args.kwargs
+        assert call_kwargs["preview_command"] is preview
+
+    @patch("usecli.cli.utils.interactive.terminal_menu.TerminalMenu")
+    def test_preview_command_disabled_when_small_terminal(self, mock_menu_class):
+        """Test preview_command is disabled when terminal is too small."""
+        mock_menu_instance = Mock()
+        mock_menu_instance.show.return_value = 0
+        mock_menu_class.return_value = mock_menu_instance
+
+        def preview(value: str) -> str:
+            return f"Preview: {value}"
+
+        with patch(
+            "usecli.cli.utils.interactive.terminal_menu.shutil.get_terminal_size"
+        ) as mock_size:
+            mock_size.return_value = os.terminal_size((80, 5))
+            terminal_menu(["A", "B"], preview_command=preview)
+
+        call_kwargs = mock_menu_class.call_args.kwargs
+        # Preview should be disabled for small terminals
+        assert call_kwargs["preview_command"] is None
+
+    @patch("usecli.cli.utils.interactive.terminal_menu.TerminalMenu")
+    def test_search_disabled_by_default(self, mock_menu_class):
+        """Test search is disabled by default."""
+        mock_menu_instance = Mock()
+        mock_menu_instance.show.return_value = 0
+        mock_menu_class.return_value = mock_menu_instance
+
+        terminal_menu(["A", "B"])
+        call_kwargs = mock_menu_class.call_args.kwargs
+
+        assert call_kwargs["search_key"] == "/"
+        assert call_kwargs["show_search_hint"] is False
+
+    @patch("usecli.cli.utils.interactive.terminal_menu.TerminalMenu")
+    def test_search_enabled(self, mock_menu_class):
+        """Test search enabled with custom key."""
+        mock_menu_instance = Mock()
+        mock_menu_instance.show.return_value = 0
+        mock_menu_class.return_value = mock_menu_instance
+
+        terminal_menu(["A", "B"], search=True, search_key="?", show_search_hint=True)
+        call_kwargs = mock_menu_class.call_args.kwargs
+
+        assert call_kwargs["search_key"] == "?"
+        assert call_kwargs["show_search_hint"] is True
+
+    @patch("usecli.cli.utils.interactive.terminal_menu.TerminalMenu")
+    def test_search_with_none_key(self, mock_menu_class):
+        """Test search with None key (search on any letter)."""
+        mock_menu_instance = Mock()
+        mock_menu_instance.show.return_value = 0
+        mock_menu_class.return_value = mock_menu_instance
+
+        terminal_menu(["A", "B"], search=True, search_key=None)
+        call_kwargs = mock_menu_class.call_args.kwargs
+
+        assert call_kwargs["search_key"] is None
+
+    @patch("usecli.cli.utils.interactive.terminal_menu.TerminalMenu")
+    def test_preview_with_tuple_title(self, mock_menu_class):
+        """Test preview command with tuple title."""
+        mock_menu_instance = Mock()
+        mock_menu_instance.show.return_value = 0
+        mock_menu_class.return_value = mock_menu_instance
+
+        def preview(value: str) -> str:
+            return f"Preview: {value}"
+
+        with patch(
+            "usecli.cli.utils.interactive.terminal_menu.shutil.get_terminal_size"
+        ) as mock_size:
+            mock_size.return_value = os.terminal_size((80, 40))
+            terminal_menu(["A", "B"], title=("line1", "line2"), preview_command=preview)  # type: ignore[ty:invalid-argument-type]
+
+        call_kwargs = mock_menu_class.call_args.kwargs
+        assert call_kwargs["preview_command"] is preview
+
+    @patch("usecli.cli.utils.interactive.terminal_menu.TerminalMenu")
+    def test_preview_with_string_title(self, mock_menu_class):
+        """Test preview command with string title (multi-line)."""
+        mock_menu_instance = Mock()
+        mock_menu_instance.show.return_value = 0
+        mock_menu_class.return_value = mock_menu_instance
+
+        def preview(value: str) -> str:
+            return f"Preview: {value}"
+
+        with patch(
+            "usecli.cli.utils.interactive.terminal_menu.shutil.get_terminal_size"
+        ) as mock_size:
+            mock_size.return_value = os.terminal_size((80, 40))
+            terminal_menu(["A", "B"], title="Line 1\nLine 2", preview_command=preview)
+
+        call_kwargs = mock_menu_class.call_args.kwargs
+        assert call_kwargs["preview_command"] is preview
+
+    @patch("usecli.cli.utils.interactive.terminal_menu.TerminalMenu")
+    def test_preview_with_callable_status_bar(self, mock_menu_class):
+        """Test preview command with callable status bar."""
+        mock_menu_instance = Mock()
+        mock_menu_instance.show.return_value = 0
+        mock_menu_class.return_value = mock_menu_instance
+
+        def preview(value: str) -> str:
+            return f"Preview: {value}"
+
+        def status_bar_getter(value: str) -> str:
+            return f"Status: {value}"
+
+        with patch(
+            "usecli.cli.utils.interactive.terminal_menu.shutil.get_terminal_size"
+        ) as mock_size:
+            mock_size.return_value = os.terminal_size((80, 40))
+            terminal_menu(
+                ["A", "B"],
+                status_bar=status_bar_getter,  # type: ignore[ty:invalid-argument-type]
+                preview_command=preview,
+            )
+
+        call_kwargs = mock_menu_class.call_args.kwargs
+        assert call_kwargs["status_bar"] is status_bar_getter
+
+    @patch("usecli.cli.utils.interactive.terminal_menu.TerminalMenu")
+    def test_preview_with_tuple_status_bar(self, mock_menu_class):
+        """Test preview command with tuple status bar."""
+        mock_menu_instance = Mock()
+        mock_menu_instance.show.return_value = 0
+        mock_menu_class.return_value = mock_menu_instance
+
+        def preview(value: str) -> str:
+            return f"Preview: {value}"
+
+        with patch(
+            "usecli.cli.utils.interactive.terminal_menu.shutil.get_terminal_size"
+        ) as mock_size:
+            mock_size.return_value = os.terminal_size((80, 40))
+            terminal_menu(
+                ["A", "B"],
+                status_bar=("line1", "line2"),  # type: ignore[ty:invalid-argument-type]
+                preview_command=preview,
+            )
+
+        call_kwargs = mock_menu_class.call_args.kwargs
+        assert call_kwargs["status_bar"] == ("line1", "line2")
+
+
+# =============================================================================
+# Coverage-focused: terminal_menu safe-search-length and vim page-key patches
+# =============================================================================
+
+# NOTE: `import usecli.cli.utils.interactive.terminal_menu as tm` would bind the
+# `terminal_menu` *function* (re-exported by the package __init__), so we import
+# the module object explicitly.
+tm = importlib.import_module("usecli.cli.utils.interactive.terminal_menu")
+
+
+class TestSafeSearchLenPatch:
+    def test_patch_is_idempotent(self):
+        """Calling the patch again returns immediately (line 22)."""
+        tm._apply_safe_search_len_patch()
+
+    def test_search_len_with_text(self):
+        """len() on a Search with text returns the display width (lines 28-29)."""
+        search = tm.TerminalMenu.Search(["a", "b"], search_text="abc")
+        assert len(search) == 3
+
+    def test_search_len_with_none(self):
+        """len() on a Search with no text returns 0 (line 27)."""
+        search = tm.TerminalMenu.Search(["a", "b"])
+        assert len(search) == 0
+
+
+class TestVimPageKeysPatch:
+    def test_patch_is_idempotent(self):
+        """Calling the patch again returns immediately (line 39)."""
+        tm._apply_vim_page_keys_patch()
+
+    def _make_menu(self, search=False, search_key="/"):
+        menu = MagicMock()
+        menu._terminal_code_to_codename = {}
+        menu._tty_in = MagicMock()
+        menu._tty_in.fileno.return_value = 0
+        menu._reading_next_key = False
+        menu._paint_before_next_read = False
+        menu._paint_menu = MagicMock()
+        menu._search = search
+        menu._search_key = search_key
+        return menu
+
+    def _call(self, menu, key_bytes, ignore_case=True):
+        with patch("simple_term_menu.os.read", return_value=key_bytes):
+            return tm.TerminalMenu._read_next_key(menu, ignore_case)
+
+    def test_d_maps_to_page_down(self):
+        menu = self._make_menu()
+        assert self._call(menu, b"d") == "page_down"
+
+    def test_u_maps_to_page_up(self):
+        menu = self._make_menu()
+        assert self._call(menu, b"u") == "page_up"
+
+    def test_uppercase_j_maps_to_down(self):
+        menu = self._make_menu()
+        assert self._call(menu, b"J", ignore_case=False) == "down"
+
+    def test_uppercase_k_maps_to_up(self):
+        menu = self._make_menu()
+        assert self._call(menu, b"K", ignore_case=False) == "up"
+
+    def test_other_key_returned_unchanged(self):
+        menu = self._make_menu()
+        assert self._call(menu, b"x") == "x"
+
+    def test_search_active_returns_key_unchanged(self):
+        menu = self._make_menu(search=True)
+        assert self._call(menu, b"d") == "d"
+
+    def test_no_search_key_returns_key_unchanged(self):
+        menu = self._make_menu(search_key=None)
+        assert self._call(menu, b"d") == "d"

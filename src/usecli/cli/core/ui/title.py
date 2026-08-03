@@ -9,7 +9,7 @@ from pathlib import Path
 if sys.version_info >= (3, 11):
     import tomllib
 else:
-    import tomli as tomllib
+    import tomli as tomllib  # pragma: no cover - only on Python < 3.11
 
 from rich.console import Console
 
@@ -141,7 +141,7 @@ def print_title(title: str | None = None) -> None:
         if is_figlet:
             console.print()
     except (ImportError, ModuleNotFoundError):
-        if title is None or title.lower() == "usecli":
+        if title is None or title.lower() == "usecli":  # pragma: no cover - unreachable
             console.print(f"[{COLOR.PRIMARY}]{default_title_text}")
             return
 

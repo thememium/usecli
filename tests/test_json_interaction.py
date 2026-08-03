@@ -75,3 +75,21 @@ def test_terminal_menu_guard_cannot_be_bypassed() -> None:
         terminal_menu(["one", "two"])
 
     terminal_menu_type.assert_not_called()
+
+
+def test_prompt_delegates_to_rich_in_normal_mode() -> None:
+    with patch("usecli.ui.RichPrompt.ask") as rich_ask:
+        rich_ask.return_value = "user input"
+        result = Prompt.ask("Name", default="fallback")
+
+    assert result == "user input"
+    rich_ask.assert_called_once()
+
+
+def test_confirm_delegates_to_rich_in_normal_mode() -> None:
+    with patch("usecli.ui.RichConfirm.ask") as rich_ask:
+        rich_ask.return_value = True
+        result = Confirm.ask("Continue?")
+
+    assert result is True
+    rich_ask.assert_called_once()

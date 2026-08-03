@@ -68,6 +68,29 @@ def init_command(mock_console):
         yield InitCommand(mock_app)
 
 
+@pytest.fixture
+def init_cmd(mock_console):
+    return InitCommand(app=MagicMock())
+
+
+@pytest.fixture
+def interactive_cmd(mock_console):
+    """InitCommand with interactive prompts/menus mocked to their defaults."""
+    with (
+        patch("usecli.cli.commands.init_command.Prompt.ask") as mock_prompt,
+        patch("usecli.cli.commands.init_command.terminal_menu") as mock_terminal_menu,
+    ):
+        mock_prompt.side_effect = lambda *args, **kwargs: kwargs.get("default", "")
+
+        def _menu_side_effect(options, *args, **kwargs):
+            if isinstance(options, list) and "big" in options:
+                return ["big"]
+            return ["default"]
+
+        mock_terminal_menu.side_effect = _menu_side_effect
+        yield InitCommand(MagicMock())
+
+
 class TestInitCommandDirectoryCreation:
     def test_creates_commands_directory(self, temp_project_dir, init_command):
         commands_dir = temp_project_dir / "cli" / "commands"
@@ -724,3 +747,778 @@ class TestInitCommandIntegration:
         assert config_path.exists()
         config_content = config_path.read_text()
         assert 'title = "Standalone Test CLI"' in config_content
+
+
+class TestInitCommandThemeHelpers:
+    @pytest.fixture
+    def init_cmd(self, mock_typer_app):
+        return InitCommand(app=mock_typer_app)
+
+    def test_hex_to_rgb_valid(self, init_cmd):
+        assert init_cmd._hex_to_rgb("#FF0000") == (255, 0, 0)
+
+    def test_hex_to_rgb_without_hash(self, init_cmd):
+        assert init_cmd._hex_to_rgb("00FF00") == (0, 255, 0)
+
+    def test_hex_to_rgb_three_digit(self, init_cmd):
+        assert init_cmd._hex_to_rgb("#F00") == (255, 0, 0)
+
+    def test_hex_to_rgb_invalid_length(self, init_cmd):
+        assert init_cmd._hex_to_rgb("#FF00") is None
+
+    def test_hex_to_rgb_invalid_chars(self, init_cmd):
+        assert init_cmd._hex_to_rgb("#GGHHII") is None
+
+    def test_hex_to_rgb_non_string(self, init_cmd):
+        assert init_cmd._hex_to_rgb(42) is None
+
+    def test_hex_to_rgb_empty(self, init_cmd):
+        assert init_cmd._hex_to_rgb("") is None
+
+    def test_ansi_from_hex_foreground(self, init_cmd):
+        result = init_cmd._ansi_from_hex("#FF0000")
+        assert result == "\033[38;2;255;0;0m"
+
+    def test_ansi_from_hex_background(self, init_cmd):
+        result = init_cmd._ansi_from_hex("#FF0000", background=True)
+        assert result == "\033[48;2;255;0;0m"
+
+    def test_ansi_from_hex_invalid(self, init_cmd):
+        assert init_cmd._ansi_from_hex("invalid") is None
+
+    def test_load_theme_colors(self, init_cmd, tmp_path):
+        theme_path = tmp_path / "theme.toml"
+        theme_path.write_text('[colors]\nprimary = "#FF0000"\nsecondary = "#00FF00"')
+        result = init_cmd._load_theme_colors(theme_path)
+        assert result["primary"] == "#FF0000"
+        assert result["secondary"] == "#00FF00"
+
+    def test_load_theme_colors_invalid_toml(self, init_cmd, tmp_path):
+        theme_path = tmp_path / "theme.toml"
+        theme_path.write_text("not = = valid")
+        result = init_cmd._load_theme_colors(theme_path)
+        assert result == {}
+
+    def test_load_theme_colors_non_dict(self, init_cmd, tmp_path):
+        theme_path = tmp_path / "theme.toml"
+        theme_path.write_text("= 'value'")
+        result = init_cmd._load_theme_colors(theme_path)
+        assert isinstance(result, dict)
+
+    def test_format_theme_color_line_with_value(self, init_cmd):
+        result = init_cmd._format_theme_color_line("Primary", "#FF0000")
+        assert "Primary" in result
+        assert "#FF0000" in result
+
+    def test_format_theme_color_line_empty_value(self, init_cmd):
+        result = init_cmd._format_theme_color_line("Primary", "")
+        assert "Primary" in result
+        assert "--" in result
+
+    def test_format_theme_color_line_background(self, init_cmd):
+        result = init_cmd._format_theme_color_line(
+            "Background", "#000000", background=True
+        )
+        assert "Background" in result
+
+    def test_render_theme_preview_none(self, init_cmd):
+        result = init_cmd._render_theme_preview(None)
+        assert "unavailable" in result.lower()
+
+    def test_render_theme_preview_valid(self, init_cmd, tmp_path):
+        theme_path = tmp_path / "theme.toml"
+        theme_path.write_text('[colors]\nprimary = "#FF0000"')
+        result = init_cmd._render_theme_preview(theme_path)
+        assert "Theme" in result
+
+
+class TestInitCommandPathHelpers:
+    @pytest.fixture
+    def init_cmd(self, mock_typer_app):
+        return InitCommand(app=mock_typer_app)
+
+    def test_find_project_root_with_pyproject(self, init_cmd, tmp_path):
+        (tmp_path / "pyproject.toml").write_text("")
+        result = init_cmd._find_project_root_for_init(tmp_path)
+        assert result == tmp_path
+
+    def test_find_project_root_with_usecli_config(self, init_cmd, tmp_path):
+        (tmp_path / "usecli.config.toml").write_text("")
+        result = init_cmd._find_project_root_for_init(tmp_path)
+        assert result == tmp_path
+
+    def test_find_project_root_with_git(self, init_cmd, tmp_path):
+        (tmp_path / ".git").mkdir()
+        result = init_cmd._find_project_root_for_init(tmp_path)
+        assert result == tmp_path
+
+    def test_find_project_root_fallback(self, init_cmd, tmp_path):
+        result = init_cmd._find_project_root_for_init(tmp_path)
+        assert result == tmp_path.resolve()
+
+    def test_find_pyproject_path(self, init_cmd, tmp_path):
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text("")
+        result = init_cmd._find_pyproject_path_for_init(tmp_path)
+        assert result == pyproject
+
+    def test_find_pyproject_path_not_found(self, init_cmd, tmp_path):
+        result = init_cmd._find_pyproject_path_for_init(tmp_path)
+        assert result is None
+
+    def test_derive_templates_dir_relative(self, init_cmd):
+        result = init_cmd._derive_templates_dir("cli/commands")
+        assert result == "cli/templates"
+
+    def test_derive_templates_dir_absolute(self, init_cmd):
+        result = init_cmd._derive_templates_dir("/absolute/cli/commands")
+        assert "templates" in result
+
+    def test_derive_templates_dir_simple(self, init_cmd):
+        result = init_cmd._derive_templates_dir("commands")
+        assert result == "templates"
+
+    def test_derive_themes_dir_relative(self, init_cmd):
+        result = init_cmd._derive_themes_dir("cli/commands")
+        assert result == "cli/themes"
+
+    def test_derive_themes_dir_absolute(self, init_cmd):
+        result = init_cmd._derive_themes_dir("/absolute/cli/commands")
+        assert "themes" in result
+
+    def test_derive_themes_dir_simple(self, init_cmd):
+        result = init_cmd._derive_themes_dir("commands")
+        assert result == "themes"
+
+    def test_infer_commands_dir_with_src(self, init_cmd, tmp_path):
+        src_dir = tmp_path / "src" / "mypackage"
+        src_dir.mkdir(parents=True)
+        result = init_cmd._infer_commands_dir(tmp_path)
+        assert "src/mypackage/cli/commands" in result
+
+    def test_infer_commands_dir_with_pyproject(self, init_cmd, tmp_path):
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text('[project]\nname = "my-package"')
+        (tmp_path / "my_package").mkdir()
+        result = init_cmd._infer_commands_dir(tmp_path)
+        assert "my_package/cli/commands" in result
+
+    def test_infer_commands_dir_default(self, init_cmd, tmp_path):
+        result = init_cmd._infer_commands_dir(tmp_path)
+        assert result == "cli/commands"
+
+    def test_get_existing_usecli_script_name(self, init_cmd, tmp_path):
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text('[project.scripts]\nmycli = "usecli:main"')
+        result = init_cmd._get_existing_usecli_script_name(pyproject)
+        assert result == "mycli"
+
+    def test_get_existing_usecli_script_name_none(self, init_cmd, tmp_path):
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text('[project.scripts]\nother = "other:main"')
+        result = init_cmd._get_existing_usecli_script_name(pyproject)
+        assert result is None
+
+    def test_get_existing_usecli_script_name_nonexistent(self, init_cmd, tmp_path):
+        result = init_cmd._get_existing_usecli_script_name(
+            tmp_path / "nonexistent.toml"
+        )
+        assert result is None
+
+    def test_get_existing_usecli_script_name_invalid_toml(self, init_cmd, tmp_path):
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text("not = = valid")
+        result = init_cmd._get_existing_usecli_script_name(pyproject)
+        assert result is None
+
+
+class TestInitCommandConfigHelpers:
+    @pytest.fixture
+    def init_cmd(self, mock_typer_app):
+        return InitCommand(app=mock_typer_app)
+
+    def test_write_usecli_config_creates_new(self, init_cmd, tmp_path):
+        config_path = tmp_path / "usecli.config.toml"
+        result = init_cmd._write_usecli_config(
+            config_path, "[usecli]\ntitle = 'test'", force=False
+        )
+        assert result == "created"
+        assert config_path.exists()
+
+    def test_write_usecli_config_updates_existing(self, init_cmd, tmp_path):
+        config_path = tmp_path / "usecli.config.toml"
+        config_path.write_text("old content")
+        with patch("usecli.cli.commands.init_command.Confirm.ask", return_value=True):
+            result = init_cmd._write_usecli_config(
+                config_path, "[usecli]\ntitle = 'test'", force=False
+            )
+        assert result == "updated"
+
+    def test_write_usecli_config_force_overwrites(self, init_cmd, tmp_path):
+        config_path = tmp_path / "usecli.config.toml"
+        config_path.write_text("old content")
+        result = init_cmd._write_usecli_config(
+            config_path, "[usecli]\ntitle = 'test'", force=True
+        )
+        assert result == "updated"
+
+    def test_write_usecli_config_creates_parent_dirs(self, init_cmd, tmp_path):
+        config_path = tmp_path / "deep" / "nested" / "usecli.config.toml"
+        result = init_cmd._write_usecli_config(
+            config_path, "[usecli]\ntitle = 'test'", force=False
+        )
+        assert result == "created"
+        assert config_path.exists()
+
+    def test_should_skip_config_path_with_venv(self, init_cmd):
+        assert init_cmd._should_skip_config_path(Path(".venv/lib/python")) is True
+
+    def test_should_skip_config_path_with_normal_path(self, init_cmd, tmp_path):
+        assert init_cmd._should_skip_config_path(tmp_path) is False
+
+    def test_resolve_config_path_relative(self, init_cmd, tmp_path):
+        result = init_cmd._resolve_config_path("cli/config", tmp_path)
+        assert isinstance(result, Path)
+
+    def test_resolve_config_path_absolute(self, init_cmd, tmp_path):
+        abs_path = tmp_path / "config.toml"
+        result = init_cmd._resolve_config_path(str(abs_path), tmp_path)
+        assert result == abs_path.resolve()
+
+    def test_resolve_config_path_directory(self, init_cmd, tmp_path):
+        dir_path = tmp_path / "config_dir"
+        dir_path.mkdir()
+        result = init_cmd._resolve_config_path(str(dir_path), tmp_path)
+        assert "usecli.config.toml" in str(result)
+
+    def test_ensure_project_scripts_adds_section(self, init_cmd, tmp_path):
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text('[project]\nname = "test"')
+        result = init_cmd._ensure_project_scripts(pyproject, "mycli", force=False)
+        assert result == "added"
+        assert "[project.scripts]" in pyproject.read_text()
+
+    def test_ensure_project_scripts_unchanged(self, init_cmd, tmp_path):
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text('[project.scripts]\nmycli = "usecli:main"')
+        result = init_cmd._ensure_project_scripts(pyproject, "mycli", force=False)
+        assert result == "unchanged"
+
+    def test_ensure_project_scripts_updates_existing(self, init_cmd, tmp_path):
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text('[project.scripts]\nmycli = "other:main"')
+        result = init_cmd._ensure_project_scripts(pyproject, "mycli", force=True)
+        assert result == "updated"
+        assert '"usecli:main"' in pyproject.read_text()
+
+    def test_ensure_project_scripts_adds_entry_to_existing_section(
+        self, init_cmd, tmp_path
+    ):
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text('[project.scripts]\nother = "other:main"')
+        result = init_cmd._ensure_project_scripts(pyproject, "mycli", force=False)
+        assert result == "added"
+        assert "mycli" in pyproject.read_text()
+
+    def test_ensure_project_scripts_missing_file(self, init_cmd, tmp_path):
+        result = init_cmd._ensure_project_scripts(
+            tmp_path / "nonexistent.toml", "mycli", force=False
+        )
+        assert result == "missing"
+
+    def test_ensure_package_init_files_creates(self, init_cmd, tmp_path):
+        commands_path = tmp_path / "cli" / "commands"
+        commands_path.mkdir(parents=True)
+        result = init_cmd._ensure_package_init_files(commands_path, tmp_path)
+        assert result is True
+        assert (commands_path / "__init__.py").exists()
+
+    def test_ensure_package_init_files_skips_existing(self, init_cmd, tmp_path):
+        commands_path = tmp_path / "cli" / "commands"
+        commands_path.mkdir(parents=True)
+        (commands_path / "__init__.py").write_text("")
+        (commands_path.parent / "__init__.py").write_text("")
+        result = init_cmd._ensure_package_init_files(commands_path, tmp_path)
+        assert result is False
+
+    def test_ensure_package_init_files_creates_parent_init(self, init_cmd, tmp_path):
+        commands_path = tmp_path / "cli" / "commands"
+        commands_path.mkdir(parents=True)
+        result = init_cmd._ensure_package_init_files(commands_path, tmp_path)
+        assert result is True
+        assert (commands_path.parent / "__init__.py").exists()
+
+    def test_get_project_name_from_pyproject(self, init_cmd, tmp_path):
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text('[project]\nname = "my-project"')
+        result = init_cmd._get_project_name_from_pyproject(pyproject)
+        assert result == "my-project"
+
+    def test_get_project_name_from_pyproject_missing(self, init_cmd, tmp_path):
+        result = init_cmd._get_project_name_from_pyproject(
+            tmp_path / "nonexistent.toml"
+        )
+        assert result is None
+
+    def test_get_project_name_from_pyproject_no_name(self, init_cmd, tmp_path):
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text('[project]\nversion = "1.0"')
+        result = init_cmd._get_project_name_from_pyproject(pyproject)
+        assert result is None
+
+    def test_get_project_name_from_pyproject_invalid_toml(self, init_cmd, tmp_path):
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text("not = = valid")
+        result = init_cmd._get_project_name_from_pyproject(pyproject)
+        assert result is None
+
+    @patch("usecli.cli.commands.init_command.shutil.which")
+    @patch("usecli.cli.commands.init_command.subprocess.run")
+    def test_sync_environment_with_uv(self, mock_run, mock_which, init_cmd, tmp_path):
+        mock_which.return_value = "/usr/bin/uv"
+        (tmp_path / ".venv").mkdir()
+        mock_run.return_value = MagicMock(returncode=0)
+        init_cmd._sync_environment(tmp_path, "mycli")
+        mock_run.assert_called_once()
+
+    @patch("usecli.cli.commands.init_command.shutil.which")
+    @patch("usecli.cli.commands.init_command.subprocess.run")
+    def test_sync_environment_with_uv_failure(
+        self, mock_run, mock_which, init_cmd, tmp_path
+    ):
+        mock_which.return_value = "/usr/bin/uv"
+        (tmp_path / ".venv").mkdir()
+        mock_run.return_value = MagicMock(returncode=1)
+        init_cmd._sync_environment(tmp_path, "mycli")
+        mock_run.assert_called_once()
+
+    @patch("usecli.cli.commands.init_command.shutil.which")
+    def test_sync_environment_no_venv(self, mock_which, init_cmd, tmp_path):
+        mock_which.return_value = "/usr/bin/uv"
+        init_cmd._sync_environment(tmp_path, "mycli")
+        # Should not run subprocess
+
+    @patch("usecli.cli.commands.init_command.shutil.which")
+    @patch("usecli.cli.commands.init_command.subprocess.run")
+    @patch("usecli.cli.commands.init_command.sys")
+    def test_sync_environment_fallback_to_pip(
+        self, mock_sys, mock_run, mock_which, init_cmd, tmp_path
+    ):
+        mock_which.return_value = None
+        mock_sys.executable = "/usr/bin/python3"
+        mock_run.return_value = MagicMock(returncode=0)
+        init_cmd._sync_environment(tmp_path, "mycli")
+        mock_run.assert_called_once()
+
+    @patch("usecli.cli.commands.init_command.shutil.which")
+    @patch("usecli.cli.commands.init_command.subprocess.run")
+    @patch("usecli.cli.commands.init_command.sys")
+    def test_sync_environment_pip_failure(
+        self, mock_sys, mock_run, mock_which, init_cmd, tmp_path
+    ):
+        mock_which.return_value = None
+        mock_sys.executable = "/usr/bin/python3"
+        mock_run.return_value = MagicMock(returncode=1)
+        init_cmd._sync_environment(tmp_path, "mycli")
+        mock_run.assert_called_once()
+
+    def test_handle_json_mode_raises_for_missing_params(self, init_cmd):
+        from usecli.cli.core.runtime import NonInteractiveError
+
+        with pytest.raises(NonInteractiveError, match="JSON mode"):
+            init_cmd._handle_json_mode(
+                command_name="usecli",
+                title="Use CLI",
+                description="A custom CLI tool",
+                commands_dir=None,
+                templates_dir=None,
+                themes_dir=None,
+                theme=None,
+                title_font=None,
+                force=False,
+                config_path=Path("/tmp/config"),
+            )
+
+    def test_handle_json_mode_raises_for_invalid_command_name(self, init_cmd):
+        from usecli.cli.core.runtime import NonInteractiveError
+
+        with pytest.raises(NonInteractiveError):
+            init_cmd._handle_json_mode(
+                command_name="invalid name with spaces",
+                title="My CLI",
+                description="desc",
+                commands_dir="cli/commands",
+                templates_dir="cli/templates",
+                themes_dir="cli/themes",
+                theme="default",
+                title_font="big",
+                force=False,
+                config_path=Path("/tmp/config"),
+            )
+
+
+# =============================================================================
+# Coverage-focused: InitCommand edge branches
+# =============================================================================
+
+
+class TestInitCommandBasics:
+    def test_signature(self, init_cmd):
+        assert init_cmd.signature() == "init"
+
+    def test_description(self, init_cmd):
+        assert init_cmd.description() == "Initialize usecli in the current project"
+
+
+class TestBuildSystemHelpers:
+    def test_ensure_build_system_missing_file(self, init_cmd, tmp_path):
+        assert init_cmd._ensure_build_system(tmp_path / "nope.toml") is False
+
+    def test_ensure_build_system_already_present(self, init_cmd, tmp_path):
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text("[build-system]\nrequires = []\n")
+        assert init_cmd._ensure_build_system(pyproject) is False
+
+    def test_package_discovery_missing_file(self, init_cmd, tmp_path):
+        assert (
+            init_cmd._add_setuptools_package_discovery(
+                tmp_path / "nope.toml", "cli/commands"
+            )
+            is False
+        )
+
+    def test_package_discovery_already_present(self, init_cmd, tmp_path):
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text("[tool.setuptools.packages.find]\nwhere = ['.']\n")
+        assert (
+            init_cmd._add_setuptools_package_discovery(pyproject, "cli/commands")
+            is False
+        )
+
+    def test_package_discovery_empty_commands_dir(self, init_cmd, tmp_path):
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text("[project]\n")
+        assert init_cmd._add_setuptools_package_discovery(pyproject, "") is False
+
+    def test_package_data_missing_file(self, init_cmd, tmp_path):
+        assert (
+            init_cmd._add_setuptools_package_data(
+                tmp_path / "nope.toml", "cli/commands"
+            )
+            is False
+        )
+
+    def test_package_data_empty_commands_dir(self, init_cmd, tmp_path):
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text("[project]\n")
+        assert init_cmd._add_setuptools_package_data(pyproject, "") is False
+
+
+class TestShouldSkipConfigPath:
+    def test_resolve_oserror_falls_back(self, init_cmd, tmp_path):
+        target = tmp_path / "config.toml"
+        real_resolve = Path.resolve
+
+        def _fake_resolve(self, *args, **kwargs):
+            if self == target:
+                raise OSError("boom")
+            return real_resolve(self, *args, **kwargs)
+
+        with patch.object(Path, "resolve", _fake_resolve):
+            # No skip dirs and not under sys.prefix -> False
+            assert init_cmd._should_skip_config_path(target) is False
+
+    def test_under_sys_prefix_returns_true(self, init_cmd, tmp_path, monkeypatch):
+        monkeypatch.setattr(sys, "prefix", str(tmp_path))
+        target = tmp_path / "config.toml"
+        assert init_cmd._should_skip_config_path(target) is True
+
+
+class TestEnsureProjectScripts:
+    def test_declines_overwrite_existing_entry(self, init_cmd, tmp_path):
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text('[project.scripts]\nmycli = "other:main"\n')
+        with patch("usecli.cli.commands.init_command.Confirm.ask", return_value=False):
+            result = init_cmd._ensure_project_scripts(pyproject, "mycli", force=False)
+        assert result == "skipped"
+        assert 'mycli = "other:main"' in pyproject.read_text()
+
+
+class TestInferCommandsDir:
+    def test_invalid_toml_falls_back(self, init_cmd, tmp_path):
+        (tmp_path / "pyproject.toml").write_text("not = = valid")
+        assert init_cmd._infer_commands_dir(tmp_path) == "cli/commands"
+
+
+class TestGetExistingScriptName:
+    def test_scripts_not_a_dict(self, init_cmd, tmp_path):
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text('[project]\nscripts = "not-a-dict"\n')
+        assert init_cmd._get_existing_usecli_script_name(pyproject) is None
+
+
+class TestPromptCommandName:
+    def test_retries_after_invalid(self, init_cmd):
+        with (
+            patch(
+                "usecli.cli.commands.init_command.Prompt.ask",
+                side_effect=["invalid name!", "validcli"],
+            ),
+            patch("usecli.cli.core.exceptions.UsecliBadParameter.show") as mock_show,
+        ):
+            result = init_cmd._prompt_command_name("default")
+        assert result == "validcli"
+        mock_show.assert_called_once()
+
+
+class TestLoadThemeColors:
+    def test_colors_not_a_dict(self, init_cmd, tmp_path):
+        theme = tmp_path / "theme.toml"
+        theme.write_text('colors = "not-a-dict"\n')
+        assert init_cmd._load_theme_colors(theme) == {}
+
+
+class TestGetThemeFiles:
+    def test_skips_non_file_matches(self, init_cmd, tmp_path):
+        themes_path = tmp_path / "themes"
+        themes_path.mkdir()
+        (themes_path / "not_a_file.toml").mkdir()
+        with patch(
+            "usecli.cli.commands.init_command.THEMES_DIR", tmp_path / "missing_themes"
+        ):
+            assert init_cmd._get_theme_files(themes_path) == []
+
+
+class TestPromptTheme:
+    def test_no_theme_files_returns_default(self, init_cmd, tmp_path):
+        themes_path = tmp_path / "themes"
+        themes_path.mkdir()
+        with patch(
+            "usecli.cli.commands.init_command.THEMES_DIR", tmp_path / "missing_themes"
+        ):
+            assert init_cmd._prompt_theme(themes_path) == "default"
+
+
+class TestHandleJsonMode:
+    def _setup(self, tmp_path):
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text('[project]\nname = "test"\n')
+        (tmp_path / ".venv").mkdir()
+
+    def test_json_mode_success(self, temp_project_dir, init_cmd):
+        self._setup(temp_project_dir)
+        with (
+            patch(
+                "usecli.cli.commands.init_command.shutil.which",
+                return_value="/usr/bin/uv",
+            ),
+            patch(
+                "usecli.cli.commands.init_command.subprocess.run",
+                return_value=MagicMock(returncode=0),
+            ),
+        ):
+            result = init_cmd._handle_json_mode(
+                title="My CLI",
+                description="A custom CLI tool for testing",
+                commands_dir=None,
+                templates_dir=None,
+                themes_dir=None,
+                config_path=None,
+                command_name="mycli",
+                force=True,
+                theme="default",
+                title_font="big",
+            )
+        assert result["command_name"] == "mycli"
+        assert result["config_status"] == "created"
+        assert (temp_project_dir / "cli" / "usecli.config.toml").exists()
+
+    def test_handle_dispatches_to_json_mode(self, temp_project_dir, init_cmd):
+        self._setup(temp_project_dir)
+        with (
+            patch("usecli.cli.core.runtime.is_json_mode", return_value=True),
+            patch(
+                "usecli.cli.commands.init_command.shutil.which",
+                return_value="/usr/bin/uv",
+            ),
+            patch(
+                "usecli.cli.commands.init_command.subprocess.run",
+                return_value=MagicMock(returncode=0),
+            ),
+        ):
+            result = init_cmd.handle(
+                title="My CLI",
+                description="A custom CLI tool for testing",
+                commands_dir=None,
+                templates_dir=None,
+                themes_dir=None,
+                config_path=None,
+                command_name="mycli",
+                force=True,
+                theme="default",
+                title_font="big",
+            )
+        assert result["command_name"] == "mycli"
+
+    def test_json_mode_no_pyproject(self, temp_project_dir, init_cmd):
+        with (
+            patch(
+                "usecli.cli.commands.init_command.shutil.which",
+                return_value="/usr/bin/uv",
+            ),
+            patch(
+                "usecli.cli.commands.init_command.subprocess.run",
+                return_value=MagicMock(returncode=0),
+            ),
+        ):
+            result = init_cmd._handle_json_mode(
+                title="My CLI",
+                description="A custom CLI tool for testing",
+                commands_dir=None,
+                templates_dir=None,
+                themes_dir=None,
+                config_path=None,
+                command_name="mycli",
+                force=True,
+                theme="default",
+                title_font="big",
+            )
+        assert result["scripts_status"] == "added"
+        assert (temp_project_dir / "pyproject.toml").exists()
+
+    def test_json_mode_with_config_path(self, temp_project_dir, init_cmd):
+        self._setup(temp_project_dir)
+        with (
+            patch(
+                "usecli.cli.commands.init_command.shutil.which",
+                return_value="/usr/bin/uv",
+            ),
+            patch(
+                "usecli.cli.commands.init_command.subprocess.run",
+                return_value=MagicMock(returncode=0),
+            ),
+        ):
+            result = init_cmd._handle_json_mode(
+                title="My CLI",
+                description="A custom CLI tool for testing",
+                commands_dir=None,
+                templates_dir=None,
+                themes_dir=None,
+                config_path="custom/config.toml",
+                command_name="mycli",
+                force=True,
+                theme="default",
+                title_font="big",
+            )
+        assert (temp_project_dir / "custom" / "config.toml").exists()
+        assert result["config_status"] == "created"
+
+    def test_json_mode_skips_resolved_config_path(self, temp_project_dir, init_cmd):
+        self._setup(temp_project_dir)
+        with (
+            patch.object(init_cmd, "_should_skip_config_path", return_value=True),
+            patch(
+                "usecli.cli.commands.init_command.shutil.which",
+                return_value="/usr/bin/uv",
+            ),
+            patch(
+                "usecli.cli.commands.init_command.subprocess.run",
+                return_value=MagicMock(returncode=0),
+            ),
+        ):
+            result = init_cmd._handle_json_mode(
+                title="My CLI",
+                description="A custom CLI tool for testing",
+                commands_dir=None,
+                templates_dir=None,
+                themes_dir=None,
+                config_path=None,
+                command_name="mycli",
+                force=True,
+                theme="default",
+                title_font="big",
+            )
+        assert result["config_status"] == "created"
+
+
+class TestHandleInteractiveBranches:
+    def test_infers_commands_dir_and_uses_project_title(
+        self, temp_project_dir, interactive_cmd
+    ):
+        (temp_project_dir / "pyproject.toml").write_text('[project]\nname = "test"\n')
+        interactive_cmd.handle(
+            title="Use CLI",
+            description=DEFAULT_DESCRIPTION,
+            commands_dir=None,
+            force=True,
+        )
+        config = (temp_project_dir / "cli" / "usecli.config.toml").read_text()
+        assert 'title = "test"' in config
+
+    def test_make_template_already_exists(self, temp_project_dir, interactive_cmd):
+        templates = temp_project_dir / "cli" / "templates"
+        templates.mkdir(parents=True)
+        (templates / "command.py.j2").write_text("existing")
+        interactive_cmd.handle(
+            DEFAULT_TITLE, DEFAULT_DESCRIPTION, DEFAULT_COMMANDS_DIR, force=True
+        )
+        assert (templates / "command.py.j2").read_text() == "existing"
+
+    def test_theme_template_already_exists(self, temp_project_dir, interactive_cmd):
+        themes = temp_project_dir / "cli" / "themes"
+        themes.mkdir(parents=True)
+        (themes / "default.toml").write_text("existing")
+        interactive_cmd.handle(
+            DEFAULT_TITLE, DEFAULT_DESCRIPTION, DEFAULT_COMMANDS_DIR, force=True
+        )
+        assert (themes / "default.toml").read_text() == "existing"
+
+    def test_skipped_scripts_status(self, temp_project_dir, interactive_cmd):
+        pyproject = temp_project_dir / "pyproject.toml"
+        pyproject.write_text(
+            '[project]\nname = "test"\n\n[project.scripts]\ntest = "other:main"\n'
+        )
+        with patch("usecli.cli.commands.init_command.Confirm.ask", return_value=False):
+            interactive_cmd.handle(
+                DEFAULT_TITLE, DEFAULT_DESCRIPTION, DEFAULT_COMMANDS_DIR, force=False
+            )
+        assert 'test = "other:main"' in pyproject.read_text()
+
+    def test_skips_skipped_default_config_path(self, temp_project_dir, interactive_cmd):
+        (temp_project_dir / "pyproject.toml").write_text('[project]\nname = "test"\n')
+        with patch.object(
+            interactive_cmd, "_should_skip_config_path", return_value=True
+        ):
+            interactive_cmd.handle(
+                DEFAULT_TITLE, DEFAULT_DESCRIPTION, DEFAULT_COMMANDS_DIR, force=True
+            )
+        assert (temp_project_dir / "cli" / "usecli.config.toml").exists()
+
+    def test_replace_existing_config_at_new_location(
+        self, temp_project_dir, interactive_cmd
+    ):
+        (temp_project_dir / "pyproject.toml").write_text('[project]\nname = "test"\n')
+        existing = temp_project_dir / "cli" / "usecli.config.toml"
+        existing.parent.mkdir(parents=True)
+        existing.write_text('[usecli]\ntitle = "Old"\n')
+        custom = temp_project_dir / "custom" / "usecli.config.toml"
+
+        with (
+            patch("usecli.cli.commands.init_command.Prompt.ask") as mock_prompt,
+            patch("usecli.cli.commands.init_command.Confirm.ask", return_value=True),
+        ):
+
+            def _prompt_side_effect(*args, **kwargs):
+                if args and "Config file location" in args[0]:
+                    return str(custom)
+                return kwargs.get("default", "")
+
+            mock_prompt.side_effect = _prompt_side_effect
+            interactive_cmd.handle(
+                DEFAULT_TITLE, DEFAULT_DESCRIPTION, DEFAULT_COMMANDS_DIR, force=False
+            )
+
+        # The existing config was replaced in place rather than writing to custom.
+        content = existing.read_text()
+        assert 'title = "My CLI"' in content
+        assert not custom.exists()

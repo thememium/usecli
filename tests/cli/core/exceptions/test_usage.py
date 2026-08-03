@@ -509,3 +509,57 @@ class TestSubcommandUsageErrorExitCode:
             usecli.main()
 
         assert exc_info.value.code == 2
+
+
+# ---------------------------------------------------------------------------
+# _get_help_text_with_command_name
+# ---------------------------------------------------------------------------
+
+
+class TestGetHelpTextWithCommandName:
+    def test_returns_help_when_command_name_is_none(self):
+        from usecli.cli.core.exceptions.usage import _get_help_text_with_command_name
+
+        ctx = MagicMock()
+        ctx.info_name = None
+        ctx.get_help.return_value = "Help text"
+
+        with patch(
+            "usecli.cli.core.exceptions.usage.get_script_command_name",
+            return_value=None,
+        ):
+            result = _get_help_text_with_command_name(ctx)
+
+        assert result == "Help text"
+
+    def test_returns_empty_when_get_help_raises_exit(self):
+        from usecli.cli.core.exceptions.usage import _get_help_text_with_command_name
+
+        ctx = MagicMock()
+        ctx.info_name = None
+        ctx.get_help.side_effect = Exit(0)
+
+        with patch(
+            "usecli.cli.core.exceptions.usage.get_script_command_name",
+            return_value=None,
+        ):
+            result = _get_help_text_with_command_name(ctx)
+
+        assert result == ""
+
+    def test_sets_info_name_to_command_name(self):
+        from usecli.cli.core.exceptions.usage import _get_help_text_with_command_name
+
+        ctx = MagicMock()
+        ctx.info_name = "original"
+        ctx.get_help.return_value = "Help text"
+
+        with patch(
+            "usecli.cli.core.exceptions.usage.get_script_command_name",
+            return_value="mycli",
+        ):
+            result = _get_help_text_with_command_name(ctx)
+
+        assert result == "Help text"
+        # info_name should be restored
+        assert ctx.info_name == "original"
