@@ -8,6 +8,11 @@ from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
 
+try:
+    import tomllib
+except ModuleNotFoundError:  # pragma: no cover
+    import tomli as tomllib
+
 from usecli.cli.commands.defaults.base.about_command import (
     AboutCommand,
     _get_application_description,
@@ -38,7 +43,7 @@ class TestLoadToml:
         assert result == {}
 
     def test_raises_on_invalid_toml(self):
-        with pytest.raises(Exception):
+        with pytest.raises(tomllib.TOMLDecodeError):
             _load_toml("not = = valid")
 
 
@@ -569,9 +574,7 @@ class TestGetScriptCommands:
 
         monkeypatch.chdir(tmp_path)
         toml_path = tmp_path / "pyproject.toml"
-        toml_path.write_text(
-            '[project.scripts]\nmycli = "mycli:main"'
-        )
+        toml_path.write_text('[project.scripts]\nmycli = "mycli:main"')
 
         result = _get_script_commands()
         assert "primary" in result

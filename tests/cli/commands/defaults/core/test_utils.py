@@ -119,7 +119,7 @@ class TestValidateChangeName:
         assert msg == ""
 
     def test_valid_with_numbers(self):
-        valid, msg = validate_change_name("fix-123")
+        valid, _msg = validate_change_name("fix-123")
         assert valid is True
 
     def test_empty_name_rejected(self):
@@ -133,7 +133,7 @@ class TestValidateChangeName:
         assert "lowercase" in msg.lower()
 
     def test_underscores_rejected(self):
-        valid, msg = validate_change_name("my_change")
+        valid, _msg = validate_change_name("my_change")
         assert valid is False
 
     def test_leading_hyphen_rejected(self):
@@ -152,7 +152,7 @@ class TestValidateChangeName:
         assert "consecutive" in msg.lower()
 
     def test_special_characters_rejected(self):
-        valid, msg = validate_change_name("change@home")
+        valid, _msg = validate_change_name("change@home")
         assert valid is False
 
 

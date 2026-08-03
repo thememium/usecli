@@ -49,7 +49,9 @@ class TestMakeThemeCommandVisibility:
 
     @patch("usecli.cli.commands.defaults.make.make_theme_command.sys")
     @patch("usecli.cli.commands.defaults.make.make_theme_command.os")
-    def test_not_visible_when_other_command(self, mock_os, mock_sys, make_theme_command):
+    def test_not_visible_when_other_command(
+        self, mock_os, mock_sys, make_theme_command
+    ):
         mock_sys.argv = ["/usr/bin/mycli"]
         mock_os.path.basename.return_value = "mycli"
         assert make_theme_command.visible() is False
@@ -60,7 +62,9 @@ class TestMakeThemeCommandHandle:
         make_theme_command.handle("   ")
         # Should print error and return without creating file
 
-    def test_rejects_name_that_becomes_empty_after_strip_toml(self, tmp_path, monkeypatch, make_theme_command):
+    def test_rejects_name_that_becomes_empty_after_strip_toml(
+        self, tmp_path, monkeypatch, make_theme_command
+    ):
         monkeypatch.chdir(tmp_path)
         make_theme_command.handle(".toml")
         # Should print error and return
@@ -93,7 +97,9 @@ class TestMakeThemeCommandHandle:
         created = themes_dir / "mytheme_1.toml"
         assert created.exists()
 
-    def test_handles_multiple_duplicates(self, tmp_path, monkeypatch, make_theme_command):
+    def test_handles_multiple_duplicates(
+        self, tmp_path, monkeypatch, make_theme_command
+    ):
         monkeypatch.chdir(tmp_path)
         themes_dir = tmp_path / "cli" / "themes"
         themes_dir.mkdir(parents=True)
@@ -105,7 +111,9 @@ class TestMakeThemeCommandHandle:
         created = themes_dir / "mytheme_2.toml"
         assert created.exists()
 
-    def test_uses_project_template_when_available(self, tmp_path, monkeypatch, make_theme_command):
+    def test_uses_project_template_when_available(
+        self, tmp_path, monkeypatch, make_theme_command
+    ):
         monkeypatch.chdir(tmp_path)
         templates_dir = tmp_path / "cli" / "templates"
         templates_dir.mkdir(parents=True)
@@ -118,7 +126,9 @@ class TestMakeThemeCommandHandle:
         assert created.exists()
         assert created.read_text() == "# Project theme template"
 
-    def test_falls_back_to_builtin_template(self, tmp_path, monkeypatch, make_theme_command):
+    def test_falls_back_to_builtin_template(
+        self, tmp_path, monkeypatch, make_theme_command
+    ):
         monkeypatch.chdir(tmp_path)
 
         make_theme_command.handle("default")
@@ -128,7 +138,9 @@ class TestMakeThemeCommandHandle:
         assert created.exists()
         assert len(created.read_text()) > 0
 
-    def test_creates_themes_dir_if_missing(self, tmp_path, monkeypatch, make_theme_command):
+    def test_creates_themes_dir_if_missing(
+        self, tmp_path, monkeypatch, make_theme_command
+    ):
         monkeypatch.chdir(tmp_path)
         # themes_dir doesn't exist yet
 
@@ -141,7 +153,15 @@ class TestMakeThemeCommandHandle:
     @patch("usecli.cli.commands.defaults.make.make_theme_command.find_project_root")
     @patch("usecli.cli.commands.defaults.make.make_theme_command.reset_config")
     @patch("usecli.cli.commands.defaults.make.make_theme_command.get_config")
-    def test_resets_config_when_root_mismatch(self, mock_get_config, mock_reset, mock_find_root, make_theme_command, tmp_path, monkeypatch):
+    def test_resets_config_when_root_mismatch(
+        self,
+        mock_get_config,
+        mock_reset,
+        mock_find_root,
+        make_theme_command,
+        tmp_path,
+        monkeypatch,
+    ):
         monkeypatch.chdir(tmp_path)
 
         mock_config = MagicMock()
