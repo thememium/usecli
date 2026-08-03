@@ -1,8 +1,8 @@
-"""Coverage-focused tests for usecli.cli.commands.custom.
+"""Tests for usecli.cli.commands.custom package module import.
 
 The package ``__init__`` only contains a module docstring and a
-``from __future__ import annotations`` statement (line 3). Importing the
-package executes that statement.
+``from __future__ import annotations`` statement. Importing the package
+executes that statement.
 """
 
 from __future__ import annotations

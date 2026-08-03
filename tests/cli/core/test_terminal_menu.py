@@ -1,7 +1,8 @@
 """Comprehensive tests for terminal_menu function."""
 
+import importlib
 import os
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 # Import the function to test
 from usecli.cli.utils.interactive.terminal_menu import terminal_menu
@@ -606,3 +607,79 @@ class TestTerminalMenuIntegration:
 
         call_kwargs = mock_menu_class.call_args.kwargs
         assert call_kwargs["status_bar"] == ("line1", "line2")
+
+
+# =============================================================================
+# Coverage-focused: terminal_menu safe-search-length and vim page-key patches
+# =============================================================================
+
+# NOTE: `import usecli.cli.utils.interactive.terminal_menu as tm` would bind the
+# `terminal_menu` *function* (re-exported by the package __init__), so we import
+# the module object explicitly.
+tm = importlib.import_module("usecli.cli.utils.interactive.terminal_menu")
+
+
+class TestSafeSearchLenPatch:
+    def test_patch_is_idempotent(self):
+        """Calling the patch again returns immediately (line 22)."""
+        tm._apply_safe_search_len_patch()
+
+    def test_search_len_with_text(self):
+        """len() on a Search with text returns the display width (lines 28-29)."""
+        search = tm.TerminalMenu.Search(["a", "b"], search_text="abc")
+        assert len(search) == 3
+
+    def test_search_len_with_none(self):
+        """len() on a Search with no text returns 0 (line 27)."""
+        search = tm.TerminalMenu.Search(["a", "b"])
+        assert len(search) == 0
+
+
+class TestVimPageKeysPatch:
+    def test_patch_is_idempotent(self):
+        """Calling the patch again returns immediately (line 39)."""
+        tm._apply_vim_page_keys_patch()
+
+    def _make_menu(self, search=False, search_key="/"):
+        menu = MagicMock()
+        menu._terminal_code_to_codename = {}
+        menu._tty_in = MagicMock()
+        menu._tty_in.fileno.return_value = 0
+        menu._reading_next_key = False
+        menu._paint_before_next_read = False
+        menu._paint_menu = MagicMock()
+        menu._search = search
+        menu._search_key = search_key
+        return menu
+
+    def _call(self, menu, key_bytes, ignore_case=True):
+        with patch("simple_term_menu.os.read", return_value=key_bytes):
+            return tm.TerminalMenu._read_next_key(menu, ignore_case)
+
+    def test_d_maps_to_page_down(self):
+        menu = self._make_menu()
+        assert self._call(menu, b"d") == "page_down"
+
+    def test_u_maps_to_page_up(self):
+        menu = self._make_menu()
+        assert self._call(menu, b"u") == "page_up"
+
+    def test_uppercase_j_maps_to_down(self):
+        menu = self._make_menu()
+        assert self._call(menu, b"J", ignore_case=False) == "down"
+
+    def test_uppercase_k_maps_to_up(self):
+        menu = self._make_menu()
+        assert self._call(menu, b"K", ignore_case=False) == "up"
+
+    def test_other_key_returned_unchanged(self):
+        menu = self._make_menu()
+        assert self._call(menu, b"x") == "x"
+
+    def test_search_active_returns_key_unchanged(self):
+        menu = self._make_menu(search=True)
+        assert self._call(menu, b"d") == "d"
+
+    def test_no_search_key_returns_key_unchanged(self):
+        menu = self._make_menu(search_key=None)
+        assert self._call(menu, b"d") == "d"

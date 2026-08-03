@@ -285,3 +285,58 @@ class TestLazyConsole:
         # Second access reuses
         _ = lc.print
         assert lc._console is not None
+
+
+# ---------------------------------------------------------------------------
+# Coverage-focused: Path.cwd() default branches
+# ---------------------------------------------------------------------------
+
+
+class TestGetSpecIdsDefaultsToCwd:
+    def test_defaults_to_cwd_when_specs_dir_missing(self, tmp_path):
+        with patch("usecli.cli.commands.defaults.core.utils.Path") as mock_path:
+            mock_path.cwd.return_value = tmp_path
+            mock_path.side_effect = lambda *a: Path(*a) if a else tmp_path
+            assert get_spec_ids() == []
+
+    def test_defaults_to_cwd_and_lists_specs(self, tmp_path):
+        specs_dir = tmp_path / "usecli" / "specs"
+        specs_dir.mkdir(parents=True)
+        (specs_dir / "spec-b").mkdir()
+        (specs_dir / "spec-a").mkdir()
+        with patch("usecli.cli.commands.defaults.core.utils.Path") as mock_path:
+            mock_path.cwd.return_value = tmp_path
+            mock_path.side_effect = lambda *a: Path(*a) if a else tmp_path
+            assert get_spec_ids() == ["spec-a", "spec-b"]
+
+
+class TestGetChangePathDefaultsToCwd:
+    def test_defaults_to_cwd_when_change_missing(self, tmp_path):
+        with patch("usecli.cli.commands.defaults.core.utils.Path") as mock_path:
+            mock_path.cwd.return_value = tmp_path
+            mock_path.side_effect = lambda *a: Path(*a) if a else tmp_path
+            assert get_change_path("nope") is None
+
+    def test_defaults_to_cwd_and_finds_change(self, tmp_path):
+        change_dir = tmp_path / "usecli" / "changes" / "my-change"
+        change_dir.mkdir(parents=True)
+        with patch("usecli.cli.commands.defaults.core.utils.Path") as mock_path:
+            mock_path.cwd.return_value = tmp_path
+            mock_path.side_effect = lambda *a: Path(*a) if a else tmp_path
+            assert get_change_path("my-change") == change_dir
+
+
+class TestGetSpecPathDefaultsToCwd:
+    def test_defaults_to_cwd_when_spec_missing(self, tmp_path):
+        with patch("usecli.cli.commands.defaults.core.utils.Path") as mock_path:
+            mock_path.cwd.return_value = tmp_path
+            mock_path.side_effect = lambda *a: Path(*a) if a else tmp_path
+            assert get_spec_path("nope") is None
+
+    def test_defaults_to_cwd_and_finds_spec(self, tmp_path):
+        spec_dir = tmp_path / "usecli" / "specs" / "spec-1"
+        spec_dir.mkdir(parents=True)
+        with patch("usecli.cli.commands.defaults.core.utils.Path") as mock_path:
+            mock_path.cwd.return_value = tmp_path
+            mock_path.side_effect = lambda *a: Path(*a) if a else tmp_path
+            assert get_spec_path("spec-1") == spec_dir
