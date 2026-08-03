@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from pathlib import Path
 from unittest.mock import MagicMock, patch
-from unittest.mock import patch
 
 from usecli.shared.config.manager import (
     ConfigManager,
@@ -163,7 +162,7 @@ class TestFindDistributionForConsoleScript:
         assert _find_distribution_for_console_script("") is None
 
     def test_returns_none_for_none_command(self):
-        assert _find_distribution_for_console_script(None) is None
+        assert _find_distribution_for_console_script(None) is None  # type: ignore[ty:invalid-argument-type]
 
 
 # ---------------------------------------------------------------------------
@@ -334,25 +333,33 @@ class TestConfigManagerAdditionalMethods:
 
     def test_is_usecli_direct_dependency_with_usecli_dep(self, tmp_path):
         pyproject = tmp_path / "pyproject.toml"
-        pyproject.write_text('[project]\nname = "myapp"\ndependencies = ["usecli>=1.0"]')
+        pyproject.write_text(
+            '[project]\nname = "myapp"\ndependencies = ["usecli>=1.0"]'
+        )
         manager = ConfigManager(pyproject_path=pyproject, start_dir=tmp_path)
         assert manager.is_usecli_direct_dependency() is True
 
     def test_is_usecli_direct_dependency_with_dependency_groups(self, tmp_path):
         pyproject = tmp_path / "pyproject.toml"
-        pyproject.write_text('[project]\nname = "myapp"\n\n[dependency-groups]\ndev = ["usecli>=1.0"]')
+        pyproject.write_text(
+            '[project]\nname = "myapp"\n\n[dependency-groups]\ndev = ["usecli>=1.0"]'
+        )
         manager = ConfigManager(pyproject_path=pyproject, start_dir=tmp_path)
         assert manager.is_usecli_direct_dependency() is True
 
     def test_is_usecli_direct_dependency_with_dict_dep_in_group(self, tmp_path):
         pyproject = tmp_path / "pyproject.toml"
-        pyproject.write_text('[project]\nname = "myapp"\n\n[dependency-groups]\ndev = [{dependency = "usecli>=1.0"}]')
+        pyproject.write_text(
+            '[project]\nname = "myapp"\n\n[dependency-groups]\ndev = [{dependency = "usecli>=1.0"}]'
+        )
         manager = ConfigManager(pyproject_path=pyproject, start_dir=tmp_path)
         assert manager.is_usecli_direct_dependency() is True
 
     def test_is_usecli_direct_dependency_false_for_other(self, tmp_path):
         pyproject = tmp_path / "pyproject.toml"
-        pyproject.write_text('[project]\nname = "myapp"\ndependencies = ["requests>=2.0"]')
+        pyproject.write_text(
+            '[project]\nname = "myapp"\ndependencies = ["requests>=2.0"]'
+        )
         manager = ConfigManager(pyproject_path=pyproject, start_dir=tmp_path)
         # Might still return True if the running distribution lists usecli
         result = manager.is_usecli_direct_dependency()
@@ -373,6 +380,7 @@ class TestConfigManagerAdditionalMethods:
         # Modify config and reload
         config_path.write_text('[usecli]\ntitle = "v2"')
         from usecli.shared.config.manager import _reset_toml_cache
+
         _reset_toml_cache()
         manager.reload()
         assert manager.get("title") == "v2"
@@ -448,13 +456,17 @@ class TestConfigManagerAdditionalMethods:
 
     def test_resolve_editable_source_root_returns_path_for_editable(self, tmp_path):
         dist = MagicMock()
-        dist.read_text.return_value = f'{{"dir_info": {{"editable": true}}, "url": "file://{tmp_path}"}}'
+        dist.read_text.return_value = (
+            f'{{"dir_info": {{"editable": true}}, "url": "file://{tmp_path}"}}'
+        )
         result = ConfigManager._resolve_editable_source_root(dist)
         assert result == tmp_path.resolve()
 
     def test_resolve_editable_source_root_returns_none_for_nonexistent(self):
         dist = MagicMock()
-        dist.read_text.return_value = '{"dir_info": {"editable": true}, "url": "file:///nonexistent/path"}'
+        dist.read_text.return_value = (
+            '{"dir_info": {"editable": true}, "url": "file:///nonexistent/path"}'
+        )
         result = ConfigManager._resolve_editable_source_root(dist)
         assert result is None
 
@@ -477,7 +489,9 @@ class TestConfigManagerAdditionalMethods:
         assert result is None
 
     def test_search_source_for_config_returns_none_for_nonexistent(self):
-        result = ConfigManager._search_source_for_config(Path("/nonexistent"), None, None)
+        result = ConfigManager._search_source_for_config(
+            Path("/nonexistent"), None, None
+        )
         assert result is None
 
     def test_search_source_for_config_returns_none_when_no_candidates(self, tmp_path):
@@ -497,11 +511,13 @@ class TestConfigManagerAdditionalMethods:
 
     def test_pyproject_has_usecli_without_usecli(self, tmp_path):
         path = tmp_path / "pyproject.toml"
-        path.write_text('[tool.ruff]\nline-length = 88')
+        path.write_text("[tool.ruff]\nline-length = 88")
         assert ConfigManager._pyproject_has_usecli(path) is False
 
     def test_pyproject_has_usecli_nonexistent(self, tmp_path):
-        assert ConfigManager._pyproject_has_usecli(tmp_path / "nonexistent.toml") is False
+        assert (
+            ConfigManager._pyproject_has_usecli(tmp_path / "nonexistent.toml") is False
+        )
 
     def test_pyproject_has_usecli_invalid_toml(self, tmp_path):
         path = tmp_path / "pyproject.toml"
