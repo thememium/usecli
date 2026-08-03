@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.77
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.76...v0.1.77)
+
+### ✅ Tests
+
+- Improve test coverage ([#10](https://github.com/thememium/usecli/pull/10))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.76
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.75...v0.1.76)
