@@ -143,7 +143,7 @@ def _ensure_cli_initialized() -> None:
                 return None
 
             if cmd_name in matches:
-                if (
+                if (  # pragma: no cover - unreachable duplicate of the branch above
                     cmd_name in group_alias_to_primary
                     and group_alias_to_primary[cmd_name] != cmd_name
                 ):
