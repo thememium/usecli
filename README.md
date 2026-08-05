@@ -279,7 +279,7 @@ The bundler is an **optional** feature gated on PyInstaller being installed.
 Install it with:
 
 ```sh
-uv add usecli[pyinstaller]
+uv add "usecli[pyinstaller]"
 ```
 
 Once installed, a `make:bundle` command appears (usecli only) that builds your
