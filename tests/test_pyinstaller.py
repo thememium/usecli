@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 import pytest
 
+from usecli import entry as entry_mod
 from usecli import pyinstaller
 from usecli.bundler import (
     BUNDLE_DATA_DIR,
@@ -17,7 +18,6 @@ from usecli.bundler import (
     _resolve_config_path,
     cli,
 )
-from usecli.bundler import entry as entry_mod
 
 
 def _write_project(tmp_path: Path, *, command_name: str = "magic") -> Path:
@@ -306,10 +306,12 @@ def test_bundled_dir(monkeypatch):
     assert entry_mod._bundled_dir() == Path("/bundled/x") / BUNDLE_DATA_DIR
 
 
-def test_config_path_frozen(monkeypatch, tmp_path):
+def test_resolve_config_frozen(monkeypatch, tmp_path):
     bundle = _make_frozen_bundle(tmp_path)
     _freeze(monkeypatch, bundle)
-    assert entry_mod._config_path() == bundle / BUNDLE_DATA_DIR / "usecli.config.toml"
+    assert (
+        entry_mod._resolve_config() == bundle / BUNDLE_DATA_DIR / "usecli.config.toml"
+    )
 
 
 def test_inject_config_frozen(monkeypatch, tmp_path):
@@ -369,11 +371,11 @@ def test_bundle_root_dev(monkeypatch):
     assert entry_mod._bundle_root() == Path("/proj/main.py").resolve().parent
 
 
-def test_config_path_dev(monkeypatch, tmp_path):
+def test_resolve_config_dev(monkeypatch, tmp_path):
     config = _prepare_dev_project(tmp_path)
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(sys, "argv", ["main.py"])
-    assert entry_mod._config_path().resolve() == config.resolve()
+    assert entry_mod._resolve_config().resolve() == config.resolve()
 
 
 def test_inject_config_dev(monkeypatch, tmp_path):
@@ -423,9 +425,11 @@ def test_ensure_command_on_path_no_name(monkeypatch):
 
 def test_entry_main_calls_inject_path_and_cli(monkeypatch):
     calls: list[str] = []
-    monkeypatch.setattr(entry_mod, "_inject_config", lambda: calls.append("inject"))
     monkeypatch.setattr(
-        entry_mod, "_ensure_command_on_path", lambda: calls.append("path")
+        entry_mod, "_inject_config", lambda *a, **k: calls.append("inject")
+    )
+    monkeypatch.setattr(
+        entry_mod, "_ensure_command_on_path", lambda *a, **k: calls.append("path")
     )
     monkeypatch.setattr("usecli.main", lambda: calls.append("usecli_main"))
     entry_mod.main()
@@ -460,3 +464,104 @@ def test_main_module_entry(monkeypatch, tmp_path):
     ):
         runpy.run_module("usecli.bundler", run_name="__main__")
     assert exc.value.code == 0
+
+
+# =============================================================================
+# Public run() entry-point API (bundler-free main.py)
+# =============================================================================
+
+
+def test_run_exposed_lazily():
+    from usecli import run
+
+    assert callable(run)
+
+
+def test_run_explicit_config_path(monkeypatch, tmp_path):
+    from usecli.shared.config import manager as mgr
+
+    config = _write_project(tmp_path, command_name="custom")
+    calls: list[str] = []
+    monkeypatch.setattr("usecli.main", lambda: calls.append("cli"))
+    try:
+        entry_mod.run(str(config), on_path=False)
+        assert mgr._config_manager is not None
+        assert mgr._config_manager.usecli_config_path.resolve() == config.resolve()
+        assert calls == ["cli"]
+    finally:
+        mgr.reset_config()
+
+
+def test_run_explicit_pyproject_path(monkeypatch, tmp_path):
+    from usecli.shared.config import manager as mgr
+
+    config = _write_project(tmp_path)
+    pyproject = tmp_path / "pyproject.toml"
+    monkeypatch.setattr("usecli.main", lambda: None)
+    try:
+        entry_mod.run(str(config), pyproject_path=str(pyproject), on_path=False)
+        assert mgr._config_manager is not None
+        assert mgr._config_manager.pyproject_path.resolve() == pyproject.resolve()
+    finally:
+        mgr.reset_config()
+
+
+def test_run_auto_detect_dev(monkeypatch, tmp_path):
+    from usecli.shared.config import manager as mgr
+
+    config = _prepare_dev_project(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, "argv", ["main.py"])
+    calls: list[str] = []
+    monkeypatch.setattr("usecli.main", lambda: calls.append("cli"))
+    try:
+        entry_mod.run(on_path=False)
+        assert mgr._config_manager is not None
+        assert mgr._config_manager.usecli_config_path.resolve() == config.resolve()
+        assert calls == ["cli"]
+    finally:
+        mgr.reset_config()
+
+
+def test_run_auto_detect_frozen(monkeypatch, tmp_path):
+    from usecli.shared.config import manager as mgr
+
+    bundle = _make_frozen_bundle(tmp_path)
+    _freeze(monkeypatch, bundle)
+    calls: list[str] = []
+    monkeypatch.setattr("usecli.main", lambda: calls.append("cli"))
+    try:
+        entry_mod.run(on_path=False)
+        assert mgr._config_manager is not None
+        assert (
+            mgr._config_manager.usecli_config_path.resolve()
+            == (bundle / BUNDLE_DATA_DIR / "usecli.config.toml").resolve()
+        )
+        assert calls == ["cli"]
+    finally:
+        mgr.reset_config()
+
+
+def test_run_missing_explicit_config(monkeypatch, tmp_path):
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(FileNotFoundError):
+        entry_mod.run(str(tmp_path / "nope" / "usecli.config.toml"))
+
+
+def test_run_no_config_anywhere(monkeypatch, tmp_path):
+    nested = tmp_path / "a" / "b"
+    nested.mkdir(parents=True)
+    monkeypatch.chdir(nested)
+    with pytest.raises(FileNotFoundError):
+        entry_mod.run(on_path=False)
+
+
+def test_entry_main_delegates_to_run(monkeypatch):
+    captured: dict = {}
+
+    def fake_run(**kwargs):
+        captured.update(kwargs)
+
+    monkeypatch.setattr(entry_mod, "run", fake_run)
+    entry_mod.main()
+    assert captured == {}
