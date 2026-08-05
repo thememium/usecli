@@ -73,12 +73,22 @@ class MakeBundleCommand(BaseCommand):
             str | None,
             typer.Option("--workpath", help="PyInstaller work directory."),
         ] = None,
+        zip: Annotated[
+            bool | None,
+            typer.Option(
+                "--zip/--no-zip",
+                help=(
+                    "Zip the one-folder bundle into <name>.zip "
+                    "(onedir mode; prompted when omitted)."
+                ),
+            ),
+        ] = None,
         yes: Annotated[
             bool,
             typer.Option(
                 "--yes",
                 "-y",
-                help="Skip the confirmation prompt.",
+                help="Skip the confirmation prompt(s).",
             ),
         ] = False,
     ) -> None:
@@ -115,6 +125,16 @@ class MakeBundleCommand(BaseCommand):
                 )
                 return
 
+        do_zip = False
+        if mode == "onedir":
+            if zip is not None:
+                do_zip = zip
+            elif not yes:
+                do_zip = Confirm.ask(
+                    f"[{COLOR.WARNING}]Zip the one-folder bundle into <name>.zip?[/{COLOR.WARNING}]",
+                    default=False,
+                )
+
         from usecli.bundler import pyinstaller
 
         pyinstaller(
@@ -123,4 +143,5 @@ class MakeBundleCommand(BaseCommand):
             name=name,
             distpath=distpath,
             workpath=workpath,
+            zip=do_zip,
         )
