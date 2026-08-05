@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.78
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.77...v0.1.78)
+
+### 🚀 Enhancements
+
+- Pyinstaller optional dependency ([#11](https://github.com/thememium/usecli/pull/11))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.77
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.76...v0.1.77)
