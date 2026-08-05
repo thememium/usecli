@@ -1,16 +1,22 @@
-"""Runtime entry point for usecli-built PyInstaller executables.
+"""Runtime entry point for usecli projects.
 
 This module is the analysis target for the single-file bundles produced by
-:func:`usecli.pyinstaller.pyinstaller`. At runtime it:
+:func:`usecli.pyinstaller` and, in development, the shared runtime behind a
+project's ``main.py`` (``from usecli.bundler.entry import main``). It works in
+**both** modes:
 
-* Points usecli's global :class:`~usecli.shared.config.manager.ConfigManager` at
-  the project assets (``usecli.config.toml``, ``commands/``, ``templates/``,
-  ``themes/``, ``pyproject.toml``) that the PyInstaller spec drops under
-  ``sys._MEIPASS/<BUNDLE_DATA_DIR>`` — without ever walking the filesystem for
-  discovery (no CWD / ``rglob`` search under the frozen bundle).
-* Keeps the CLI resolvable on PATH so usecli's interactive (fzf) runner's
-  shell-outs (``/bin/sh -c "magic magic hello"``) succeed even though the
-  binary is never installed on PATH.
+* **Frozen** (PyInstaller): points usecli's global
+  :class:`~usecli.shared.config.manager.ConfigManager` at the project assets
+  (``usecli.config.toml``, ``commands/``, ``templates/``, ``themes/``,
+  ``pyproject.toml``) dropped under ``sys._MEIPASS/<BUNDLE_DATA_DIR>`` — without
+  any CWD / ``rglob`` filesystem discovery.
+* **Development** (``uv run main.py``): locates the same assets from the source
+  tree (via the project-root bounded search) and injects them explicitly, so no
+  PyInstaller install is required.
+
+In both modes it also keeps the CLI resolvable on PATH so the interactive (fzf)
+runner's shell-outs (``/bin/sh -c "magic magic hello"``) succeed even though the
+binary is never installed on PATH.
 
 The PyInstaller spec (``--collect-all usecli``) bundles every usecli module, so
 the lazy imports below are always available at runtime.
@@ -29,41 +35,63 @@ from pathlib import Path
 BUNDLE_DATA_DIR = "usecli_data"
 
 
+def _is_frozen() -> bool:
+    """True when running from a PyInstaller bundle (onefile or onedir)."""
+    return bool(getattr(sys, "frozen", False))
+
+
 def _bundle_root() -> Path:
     """Top-level directory containing the frozen app + collected data."""
-    return Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent))
+    if _is_frozen():
+        return Path(getattr(sys, "_MEIPASS", Path(sys.executable).parent))
+    return Path(sys.argv[0]).resolve().parent if sys.argv else Path.cwd()
 
 
-def _data_root() -> Path:
-    """Directory containing the bundled project assets."""
+def _bundled_dir() -> Path:
+    """The directory holding the bundled/dev project assets."""
     return _bundle_root() / BUNDLE_DATA_DIR
 
 
+def _config_path() -> Path:
+    """The project's ``usecli.config.toml`` for the current mode."""
+    if _is_frozen():
+        return _bundled_dir() / "usecli.config.toml"
+    from usecli.bundler import _resolve_config_path
+
+    return _resolve_config_path(None)
+
+
+def _pyproject_path(config_path: Path) -> Path | None:
+    """The project's ``pyproject.toml`` for the current mode, if any."""
+    if _is_frozen():
+        candidate = _bundled_dir() / "pyproject.toml"
+        return candidate if candidate.exists() else None
+    from usecli.bundler import _find_pyproject
+
+    return _find_pyproject(config_path.parent)
+
+
 def _inject_config() -> None:
-    """Point usecli's global ``ConfigManager`` at the bundled paths.
+    """Point usecli's global ``ConfigManager`` at the project's assets.
 
     Construction with explicit ``usecli_config_path`` bypasses the CWD-walking
-    ``_find_usecli_config`` discovery. Seeding the module-level
+    ``_find_usecli_config`` discovery (which filters by ``sys.argv[0]`` and
+    would not match a project's nested config). Seeding the module-level
     ``_config_manager`` singleton is the supported override seam (``get_config``
     / ``reset_config`` exist for exactly this).
     """
     from usecli.shared.config import manager as mgr
     from usecli.shared.config.manager import ConfigManager
 
-    data = _data_root()
-    config_path = data / "usecli.config.toml"
-    pyproject_path = data / "pyproject.toml"
-
+    config_path = _config_path()
     if not config_path.exists():
         raise FileNotFoundError(
-            "Could not locate the bundled usecli.config.toml. "
-            f"Expected at: {config_path}. Rebuild the binary with "
-            "usecli.pyinstaller()."
+            f"Could not locate usecli.config.toml. Expected at: {config_path}."
         )
 
     manager = ConfigManager(
-        start_dir=data,
-        pyproject_path=pyproject_path if pyproject_path.exists() else None,
+        start_dir=config_path.parent,
+        pyproject_path=_pyproject_path(config_path),
         usecli_config_path=config_path,
     )
 
@@ -82,33 +110,45 @@ def _command_name() -> str:
 
 
 def _exec_target() -> str:
-    """Shell-fragment that re-invokes THIS (frozen) CLI with the given argv."""
-    return f'"{sys.executable}"'
+    """Shell-fragment that re-invokes THIS CLI with the given argv.
+
+    * Frozen: ``sys.executable`` is the bundled binary itself.
+    * Source: the current interpreter + the running ``main.py``.
+    """
+    if _is_frozen():
+        return f'"{sys.executable}"'
+    script = Path(sys.argv[0]).resolve() if sys.argv else Path("main.py").resolve()
+    return f'"{sys.executable}" "{script}"'
 
 
 def _ensure_command_on_path() -> None:
-    """Make the frozen CLI resolvable on PATH for usecli's interactive runner.
+    """Make the CLI resolvable on PATH for usecli's interactive runner.
 
     usecli's interactive (fzf) runner does NOT call commands in-process — it
     re-invokes them through a shell: ``subprocess.run(f"{cmd} ...", shell=True)``
     (aka ``/bin/sh -c "magic magic hello"``). Under a PyInstaller bundle the
     binary is never installed on PATH, so those shell-outs would fail with
     "command not found". We inject a tiny, self-referential ``<command_name>``
-    launcher into a temp dir that is prepended to PATH.
+    launcher (and, in source mode, a launcher for the running ``main.py``) into
+    a temp dir that is prepended to PATH.
     """
-    name = _command_name()
-    if not name:
+    names = {_command_name()}
+    if not _is_frozen() and sys.argv:
+        names.add(Path(sys.argv[0]).name)
+    names.discard("")
+    if not names:
         return
-    shim_dir = Path(tempfile.mkdtemp(prefix=f"{name}-path-"))
-    shim = shim_dir / name
-    shim.write_text(f'#!/bin/sh\nexec {_exec_target()} "$@"\n', encoding="utf-8")
-    shim.chmod(shim.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
+    shim_dir = Path(tempfile.mkdtemp(prefix="usecli-path-"))
+    for name in names:
+        shim = shim_dir / name
+        shim.write_text(f'#!/bin/sh\nexec {_exec_target()} "$@"\n', encoding="utf-8")
+        shim.chmod(shim.stat().st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
     current = os.environ.get("PATH", "")
     os.environ["PATH"] = str(shim_dir) + (os.pathsep + current if current else "")
 
 
 def main() -> None:
-    """Run the usecli CLI with bundled (injected) configuration."""
+    """Run the usecli CLI with the project's (injected) configuration."""
     from usecli import main as _usecli_main
 
     _inject_config()
