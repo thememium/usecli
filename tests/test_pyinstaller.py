@@ -243,6 +243,21 @@ def test_pyinstaller_failure_raises_systemexit(monkeypatch, tmp_path):
 # =============================================================================
 
 
+def _prepare_dev_project(tmp_path):
+    """Place a project with a nested cli/ config, chdir into it."""
+    config = _write_project(tmp_path, command_name="magic")
+    return config
+
+
+def _freeze(monkeypatch, bundle: Path | None):
+    """Simulate a PyInstaller frozen env, optionally at a bundle dir."""
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    if bundle is None:
+        monkeypatch.delattr(sys, "_MEIPASS", raising=False)
+    else:
+        monkeypatch.setattr(sys, "_MEIPASS", str(bundle), raising=False)
+
+
 def _make_frozen_bundle(tmp_path) -> Path:
     """Build a fake ``sys._MEIPASS`` tree with one bundled config."""
     bundle = tmp_path / "_MEIPASS"
@@ -257,26 +272,51 @@ def _make_frozen_bundle(tmp_path) -> Path:
     return bundle
 
 
+# ---------------------------------------------------------------------------
+# Mode detection
+# ---------------------------------------------------------------------------
+
+
+def test_is_frozen_true(monkeypatch):
+    monkeypatch.setattr(sys, "frozen", True, raising=False)
+    assert entry_mod._is_frozen() is True
+
+
+def test_is_frozen_false():
+    assert entry_mod._is_frozen() is False
+
+
+# ---------------------------------------------------------------------------
+# Frozen mode
+# ---------------------------------------------------------------------------
+
+
 def test_bundle_root_uses_meipass(monkeypatch):
-    monkeypatch.setattr(sys, "_MEIPASS", "/bundled/x", raising=False)
+    _freeze(monkeypatch, Path("/bundled/x"))
     assert entry_mod._bundle_root() == Path("/bundled/x")
 
 
 def test_bundle_root_fallback(monkeypatch):
-    monkeypatch.delattr(sys, "_MEIPASS", raising=False)
+    _freeze(monkeypatch, None)
     assert entry_mod._bundle_root() == Path(sys.executable).parent
 
 
-def test_data_root(monkeypatch):
-    monkeypatch.setattr(sys, "_MEIPASS", "/bundled/x", raising=False)
-    assert entry_mod._data_root() == Path("/bundled/x") / BUNDLE_DATA_DIR
+def test_bundled_dir(monkeypatch):
+    _freeze(monkeypatch, Path("/bundled/x"))
+    assert entry_mod._bundled_dir() == Path("/bundled/x") / BUNDLE_DATA_DIR
 
 
-def test_inject_config(monkeypatch, tmp_path):
+def test_config_path_frozen(monkeypatch, tmp_path):
+    bundle = _make_frozen_bundle(tmp_path)
+    _freeze(monkeypatch, bundle)
+    assert entry_mod._config_path() == bundle / BUNDLE_DATA_DIR / "usecli.config.toml"
+
+
+def test_inject_config_frozen(monkeypatch, tmp_path):
     from usecli.shared.config import manager as mgr
 
     bundle = _make_frozen_bundle(tmp_path)
-    monkeypatch.setattr(sys, "_MEIPASS", str(bundle), raising=False)
+    _freeze(monkeypatch, bundle)
     try:
         entry_mod._inject_config()
         assert mgr._config_manager is not None
@@ -291,36 +331,21 @@ def test_inject_config(monkeypatch, tmp_path):
 def test_inject_config_missing(monkeypatch, tmp_path):
     bundle = tmp_path / "_MEIPASS"
     (bundle / BUNDLE_DATA_DIR).mkdir(parents=True)  # no config file inside
-    monkeypatch.setattr(sys, "_MEIPASS", str(bundle), raising=False)
+    _freeze(monkeypatch, bundle)
     with pytest.raises(FileNotFoundError):
         entry_mod._inject_config()
 
 
-def test_command_name_from_config(monkeypatch):
-    class FakeCfg:
-        def get(self, key, default=None):
-            return "mycmd"
-
-    monkeypatch.setattr("usecli.shared.config.manager.get_config", lambda: FakeCfg())
-    assert entry_mod._command_name() == "mycmd"
-
-
-def test_command_name_default(monkeypatch):
-    class FakeCfg:
-        def get(self, key, default=None):
-            return None
-
-    monkeypatch.setattr("usecli.shared.config.manager.get_config", lambda: FakeCfg())
-    assert entry_mod._command_name() == "usecli"
-
-
-def test_exec_target(monkeypatch):
+def test_exec_target_frozen(monkeypatch):
+    _freeze(monkeypatch, None)
     monkeypatch.setattr(sys, "executable", "/usr/bin/python")
     assert entry_mod._exec_target() == '"/usr/bin/python"'
 
 
-def test_ensure_command_on_path(monkeypatch):
+def test_ensure_command_on_path_frozen(monkeypatch):
+    _freeze(monkeypatch, None)
     monkeypatch.setattr(entry_mod, "_command_name", lambda: "magic")
+    monkeypatch.setattr(sys, "argv", ["whatever"])
     old_path = os.environ.get("PATH", "")
     try:
         entry_mod._ensure_command_on_path()
@@ -328,12 +353,66 @@ def test_ensure_command_on_path(monkeypatch):
         shim = Path(shim_dir) / "magic"
         assert shim.is_file()
         assert os.access(shim, os.X_OK)
+        # Frozen mode does NOT add an argv[0] shim.
+        assert not (Path(shim_dir) / "whatever").exists()
+    finally:
+        os.environ["PATH"] = old_path
+
+
+# ---------------------------------------------------------------------------
+# Development mode (uv run main.py, no PyInstaller)
+# ---------------------------------------------------------------------------
+
+
+def test_bundle_root_dev(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["/proj/main.py"])
+    assert entry_mod._bundle_root() == Path("/proj/main.py").resolve().parent
+
+
+def test_config_path_dev(monkeypatch, tmp_path):
+    config = _prepare_dev_project(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, "argv", ["main.py"])
+    assert entry_mod._config_path().resolve() == config.resolve()
+
+
+def test_inject_config_dev(monkeypatch, tmp_path):
+    from usecli.shared.config import manager as mgr
+
+    config = _prepare_dev_project(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, "argv", ["main.py"])
+    try:
+        entry_mod._inject_config()
+        assert mgr._config_manager is not None
+        assert mgr._config_manager.usecli_config_path.resolve() == config.resolve()
+    finally:
+        mgr.reset_config()
+
+
+def test_exec_target_dev(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["/abs/main.py"])
+    monkeypatch.setattr(sys, "executable", "/usr/bin/python")
+    assert entry_mod._exec_target() == '"/usr/bin/python" "/abs/main.py"'
+
+
+def test_ensure_command_on_path_dev(monkeypatch):
+    monkeypatch.setattr(entry_mod, "_command_name", lambda: "magic")
+    monkeypatch.setattr(sys, "argv", ["main.py"])
+    old_path = os.environ.get("PATH", "")
+    try:
+        entry_mod._ensure_command_on_path()
+        shim_dir = os.environ["PATH"].split(os.pathsep)[0]
+        # Both the command name and the running main.py are shimmed.
+        assert (Path(shim_dir) / "magic").is_file()
+        assert (Path(shim_dir) / "main.py").is_file()
     finally:
         os.environ["PATH"] = old_path
 
 
 def test_ensure_command_on_path_no_name(monkeypatch):
     monkeypatch.setattr(entry_mod, "_command_name", lambda: "")
+    monkeypatch.setattr(sys, "argv", [])
     old_path = os.environ.get("PATH", "")
     try:
         entry_mod._ensure_command_on_path()
@@ -359,7 +438,7 @@ def test_entry_main_guard(monkeypatch, tmp_path):
     from usecli.shared.config import manager as mgr
 
     bundle = _make_frozen_bundle(tmp_path)
-    monkeypatch.setattr(sys, "_MEIPASS", str(bundle), raising=False)
+    _freeze(monkeypatch, bundle)
     monkeypatch.setattr("usecli.main", lambda: None)
     old_path = os.environ.get("PATH", "")
     try:
