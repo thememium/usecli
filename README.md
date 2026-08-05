@@ -24,6 +24,7 @@
     <li><a href="#about">About</a></li>
     <li><a href="#quick-start">Quick Start</a></li>
     <li><a href="#usage">Usage</a></li>
+    <li><a href="#entry-points--packaging">Entry Points &amp; Packaging</a></li>
     <li><a href="#development">Development</a></li>
     <li><a href="#contributing">Contributing</a></li>
     <li><a href="#license">License</a></li>
@@ -216,7 +217,112 @@ init         Initialize usecli (usecli only)
 inspire      Random quote
 make:command Create new command (usecli only)
 make:theme   Create new theme (usecli only)
+make:bundle  Build a standalone executable with PyInstaller (usecli only)
 ```
+
+<p align="right">(<a href="#readme-top">back to top</a>)</p>
+
+<!-- ENTRY POINTS & PACKAGING -->
+
+## Entry Points &amp; Packaging
+
+A usecli CLI can be exposed in several ways, depending on how you distribute and
+run it. There are three common setups — none requires anything but the base
+`usecli` install, and the optional bundler adds PyInstaller packaging on top.
+
+### 1. Default — console script (no entry point)
+
+The simplest setup. Declare a console script in your project's `pyproject.toml`:
+
+```toml
+[project.scripts]
+mycli = "usecli:main"
+```
+
+usecli resolves your project's config automatically from the current directory
+(config discovery), so no `main.py` is required. Install and run it:
+
+```sh
+uv add usecli
+uv run mycli --help
+```
+
+This is the **default** — no entry point file of your own is needed.
+
+### 2. Custom entry point — `main.py`
+
+If you want your own entry point, use the public runtime API. It works in both
+development and frozen bundles, and accepts an optional config path (the config
+file is always named `usecli.config.toml`):
+
+```python
+# main.py
+from usecli import run
+
+if __name__ == "__main__":
+    run()  # auto-detect project config
+    # run("path/to/usecli.config.toml")          # or point at a specific config
+```
+
+Run it in development (no PyInstaller required):
+
+```sh
+uv run python main.py --help
+```
+
+Because `run()` injects the located config explicitly, a custom `main.py` works
+regardless of whether your CLI also has a `[project.scripts]` entry.
+
+### 3. Bundler — standalone executable (optional, requires PyInstaller)
+
+The bundler is an **optional** feature gated on PyInstaller being installed.
+Install it with:
+
+```sh
+uv add "usecli[pyinstaller]"
+```
+
+Once installed, a `make:bundle` command appears (usecli only) that builds your
+project into a standalone executable. It asks which mode to use via an
+interactive menu, and confirms before building (defaults to no unless `-y`):
+
+```sh
+uv run usecli make:bundle                  # menu: one file vs one folder + confirm
+uv run usecli make:bundle --mode onefile   # single-file executable
+uv run usecli make:bundle --mode onedir    # one-folder bundle
+uv run usecli make:bundle -y               # skip the confirmation
+uv run usecli make:bundle --mode onedir -y # fully programmatic
+uv run usecli make:bundle --mode onedir --zip -y  # one-folder bundle + zip
+```
+
+When building a **one-folder** bundle, `make:bundle` asks whether to also zip
+the folder into `dist/<name>.zip` (PyInstaller's recommended distribution
+format for one-folder mode). Pass `--zip` / `--no-zip` to skip the prompt and
+force a choice; with `-y` and no flag, zipping is skipped.
+
+A `usecli-bundle` console script wraps the same build, and you can drive it from
+Python too:
+
+```sh
+uv run usecli-bundle
+uv run usecli-bundle --mode onedir
+uv run usecli-bundle --mode onedir --zip
+```
+
+```python
+from usecli import pyinstaller
+
+pyinstaller()  # auto-detect config, single-file
+pyinstaller(mode="onedir")  # one-folder bundle
+pyinstaller(mode="onedir", zip=True)  # one-folder bundle + zip
+pyinstaller("path/to/usecli.config.toml")  # or point at a specific config
+```
+
+Output lands in `dist/` — `dist/mycli` for `onefile`, or a `dist/mycli/` folder
+containing the executable (plus `_internal/` with the bundled assets) for
+`onedir`. With `zip=True`, a `dist/mycli.zip` archive is created alongside the
+folder. `make:bundle` and `usecli-bundle` are only available when PyInstaller
+is installed.
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 

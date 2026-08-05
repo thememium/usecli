@@ -316,7 +316,14 @@ class ConfigManager:
         self.pyproject_path: Path = pyproject_path
         self.usecli_config_path: Path = usecli_config_path
         self.start_dir: Path = start_dir
-        detected_root = find_project_root(start_dir)
+        # An explicitly-provided config path is authoritative: do NOT run the
+        # find_project_root discovery (up-walk + bounded rglob tree search) that
+        # would otherwise be spent rediscovering it. Derive the project root
+        # from the config's own directory instead.
+        if usecli_config_path is None:
+            detected_root = find_project_root(start_dir)
+        else:
+            detected_root = None
         if self.usecli_config_path.exists():
             config_parent = self.usecli_config_path.parent
             if detected_root is None:
@@ -1118,6 +1125,59 @@ def find_project_root(start_dir: Path | None = None) -> Path | None:
 
     _project_root_cache[cache_key] = git_root
     return git_root
+
+
+def resolve_config_path(start_dir: Path | None = None) -> Path:
+    """Locate a project's ``usecli.config.toml`` without command-name filtering.
+
+    Walks up from ``start_dir`` for a config, then falls back to a bounded
+    recursive search rooted at the detected project root. Unlike
+    ``ConfigManager._find_usecli_config`` this does NOT filter candidates by the
+    runtime command name (``sys.argv[0]``) — entry/build contexts use it because
+    the running command (e.g. ``main.py``) never matches the config's
+    ``command_name``.
+
+    Raises:
+        FileNotFoundError: if no config can be located.
+    """
+    if start_dir is None:
+        start_dir = _get_path().cwd()
+    cwd = start_dir.resolve()
+
+    current = cwd
+    while True:
+        candidate = current / USECLI_CONFIG_TOML
+        if candidate.is_file():
+            return candidate
+        parent = current.parent
+        if parent == current:
+            break
+        current = parent
+
+    root = find_project_root(cwd) or cwd
+    candidates = [p for p in _rglob_limited(root, USECLI_CONFIG_TOML) if p.is_file()]
+    if candidates:
+        candidates.sort(key=lambda p: len(p.relative_to(root).parts))
+        return candidates[0]
+
+    raise FileNotFoundError(
+        "Could not locate a usecli.config.toml. Run this from inside your "
+        "project, or pass an explicit config path."
+    )
+
+
+def find_project_pyproject(start_dir: Path) -> Path | None:
+    """Find the nearest ``pyproject.toml`` walking up from ``start_dir``."""
+    current = start_dir.resolve()
+    for _ in range(64):
+        candidate = current / PYPROJECT_TOML
+        if candidate.exists():
+            return candidate
+        parent = current.parent
+        if parent == current:
+            break
+        current = parent
+    return None
 
 
 def _get_package_name() -> str:
