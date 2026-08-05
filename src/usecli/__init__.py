@@ -43,6 +43,7 @@ _LAZY_EXPORTS = {
     "Spinner": ("usecli.progress", "Spinner"),
     "ProgressBar": ("usecli.progress", "ProgressBar"),
     "pyinstaller": ("usecli.bundler", "pyinstaller"),
+    "run": ("usecli.entry", "run"),
 }
 
 
@@ -366,6 +367,8 @@ __all__ = [
     "colors",
     "console",
     "main",
+    "pyinstaller",
+    "run",
     "theme",
 ]
 
