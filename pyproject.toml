@@ -37,7 +37,6 @@ Changelog = "https://github.com/thememium/usecli/blob/master/CHANGELOG.md"
 [project.scripts]
 usecli = "usecli:main"
 usecli-bundle = "usecli.bundler:cli"
-INVALID = "usecli:main"
 
 [build-system]
 requires = ["uv_build>=0.10.2,<0.11.0"]
