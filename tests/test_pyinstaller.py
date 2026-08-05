@@ -453,6 +453,16 @@ def test_resolve_config_dev(monkeypatch, tmp_path):
     assert entry_mod._resolve_config().resolve() == config.resolve()
 
 
+def test_resolve_config_explicit_path_skips_discovery(monkeypatch, tmp_path):
+    config = _prepare_dev_project(tmp_path)
+    # The auto-detection finder must NOT be consulted when an explicit path is
+    # provided — the path is authoritative.
+    with patch("usecli.shared.config.manager.resolve_config_path") as mock_resolve:
+        resolved = entry_mod._resolve_config(str(config))
+    mock_resolve.assert_not_called()
+    assert resolved.resolve() == config.resolve()
+
+
 def test_inject_config_dev(monkeypatch, tmp_path):
     from usecli.shared.config import manager as mgr
 
