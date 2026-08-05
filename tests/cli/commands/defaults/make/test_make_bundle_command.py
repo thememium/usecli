@@ -119,6 +119,7 @@ class TestMakeBundleCommandHandle:
             name=None,
             distpath=None,
             workpath=None,
+            zip=False,
         )
 
     @patch(
@@ -144,6 +145,7 @@ class TestMakeBundleCommandHandle:
             name="app",
             distpath=str(tmp_path / "out"),
             workpath=str(tmp_path / "work"),
+            zip=False,
         )
 
     @patch(
@@ -252,6 +254,7 @@ class TestMakeBundleCommandMenu:
             name=None,
             distpath=None,
             workpath=None,
+            zip=False,
         )
 
     @patch(MENU_MOD)
@@ -284,6 +287,7 @@ class TestMakeBundleCommandMenu:
             name=None,
             distpath=None,
             workpath=None,
+            zip=False,
         )
 
     @patch(MENU_MOD)
@@ -296,3 +300,59 @@ class TestMakeBundleCommandMenu:
             make_bundle_command.handle(mode="onedir", yes=True)
         mock_menu.select.assert_not_called()
         mock_pyi.assert_called_once()
+
+
+class TestMakeBundleCommandZipPrompt:
+    AVAIL_MOD = (
+        "usecli.cli.commands.defaults.make.make_bundle_command._pyinstaller_available"
+    )
+    CONFIRM_MOD = "usecli.cli.commands.defaults.make.make_bundle_command.Confirm"
+
+    @patch(CONFIRM_MOD)
+    @patch(AVAIL_MOD)
+    def test_asks_zip_for_onedir_when_omitted(
+        self, mock_available, mock_confirm, make_bundle_command
+    ):
+        mock_available.return_value = True
+        mock_confirm.ask.return_value = True
+        with patch("usecli.bundler.pyinstaller") as mock_pyi:
+            make_bundle_command.handle(mode="onedir")
+        assert mock_confirm.ask.call_count == 2
+        mock_pyi.assert_called_once()
+        assert mock_pyi.call_args.kwargs["zip"] is True
+
+    @patch(CONFIRM_MOD)
+    @patch(AVAIL_MOD)
+    def test_zip_prompt_no_opts_default_false(
+        self, mock_available, mock_confirm, make_bundle_command
+    ):
+        mock_available.return_value = True
+        mock_confirm.ask.return_value = False
+        with patch("usecli.bundler.pyinstaller") as mock_pyi:
+            make_bundle_command.handle(mode="onedir", yes=True)
+        mock_confirm.ask.assert_not_called()
+        mock_pyi.assert_called_once()
+        assert mock_pyi.call_args.kwargs["zip"] is False
+
+    @patch(CONFIRM_MOD)
+    @patch(AVAIL_MOD)
+    def test_no_zip_prompt_for_onefile(
+        self, mock_available, mock_confirm, make_bundle_command
+    ):
+        mock_available.return_value = True
+        mock_confirm.ask.return_value = True
+        with patch("usecli.bundler.pyinstaller") as mock_pyi:
+            make_bundle_command.handle(mode="onefile", yes=True)
+        mock_confirm.ask.assert_not_called()
+        mock_pyi.assert_called_once()
+        assert mock_pyi.call_args.kwargs["zip"] is False
+
+    @patch(AVAIL_MOD)
+    def test_explicit_zip_flag_passed_through(
+        self, mock_available, make_bundle_command
+    ):
+        mock_available.return_value = True
+        with patch("usecli.bundler.pyinstaller") as mock_pyi:
+            make_bundle_command.handle(mode="onedir", zip=True, yes=True)
+        mock_pyi.assert_called_once()
+        assert mock_pyi.call_args.kwargs["zip"] is True
