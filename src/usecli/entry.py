@@ -1,25 +1,29 @@
-"""Runtime entry point for usecli projects.
+"""Public runtime entry point for usecli projects.
 
-This module is the analysis target for the single-file bundles produced by
-:func:`usecli.pyinstaller` and, in development, the shared runtime behind a
-project's ``main.py`` (``from usecli.bundler.entry import main``). It works in
-**both** modes:
+A project can run its CLI through here directly — no PyInstaller needed — from a
+thin ``main.py``::
 
-* **Frozen** (PyInstaller): points usecli's global
-  :class:`~usecli.shared.config.manager.ConfigManager` at the project assets
-  (``usecli.config.toml``, ``commands/``, ``templates/``, ``themes/``,
-  ``pyproject.toml``) dropped under ``sys._MEIPASS/<BUNDLE_DATA_DIR>`` — without
-  any CWD / ``rglob`` filesystem discovery.
-* **Development** (``uv run main.py``): locates the same assets from the source
-  tree (via the project-root bounded search) and injects them explicitly, so no
-  PyInstaller install is required.
+    from usecli import run
 
-In both modes it also keeps the CLI resolvable on PATH so the interactive (fzf)
-runner's shell-outs (``/bin/sh -c "magic magic hello"``) succeed even though the
-binary is never installed on PATH.
+    if __name__ == "__main__":
+        run()                         # auto-detect the project config
+        run("my/custom/cli.toml")     # or point at a specific config
 
-The PyInstaller spec (``--collect-all usecli``) bundles every usecli module, so
-the lazy imports below are always available at runtime.
+It works in three contexts:
+
+* **Development** (``uv run main.py``): locates the project's
+  ``usecli.config.toml`` from the current directory via the default finder
+  (:func:`usecli.shared.config.manager.resolve_config_path`) and injects it
+  explicitly — no ``get_config()`` discovery (which is filtered by the runtime
+  command name / ``sys.argv[0]``) is involved.
+* **Frozen** (PyInstaller one-file): reads the assets bundled under
+  ``sys._MEIPASS/<BUNDLE_DATA_DIR>`` with no filesystem discovery.
+* **Explicit**: passing a config path lets callers build their own entry points
+  instead of relying on the default finder.
+
+In dev/frozen modes it also keeps the CLI resolvable on PATH so the interactive
+(fzf) runner's shell-outs succeed even though the binary is never installed on
+PATH.
 """
 
 from __future__ import annotations
@@ -31,7 +35,7 @@ import tempfile
 from pathlib import Path
 
 # Subdirectory (under sys._MEIPASS) where the spec drops the project assets.
-# The spec builder imports this constant so the runtime and the build agree.
+# The bundle builder imports this constant so the runtime and build agree.
 BUNDLE_DATA_DIR = "usecli_data"
 
 
@@ -48,51 +52,68 @@ def _bundle_root() -> Path:
 
 
 def _bundled_dir() -> Path:
-    """The directory holding the bundled/dev project assets."""
+    """The directory holding the bundled project assets."""
     return _bundle_root() / BUNDLE_DATA_DIR
 
 
-def _config_path() -> Path:
-    """The project's ``usecli.config.toml`` for the current mode."""
+def _resolve_config(config_path: str | os.PathLike[str] | None = None) -> Path:
+    """The project's ``usecli.config.toml`` for the current context.
+
+    Explicit ``config_path`` wins; otherwise the frozen bundle is used when
+    frozen, else the default finder from the current directory.
+    """
+    if config_path is not None:
+        resolved = Path(config_path).resolve()
+        if not resolved.is_file():
+            raise FileNotFoundError(f"usecli.config.toml not found at: {resolved}")
+        return resolved
     if _is_frozen():
         return _bundled_dir() / "usecli.config.toml"
-    from usecli.bundler import _resolve_config_path
+    from usecli.shared.config.manager import resolve_config_path
 
-    return _resolve_config_path(None)
+    return resolve_config_path(Path.cwd())
 
 
-def _pyproject_path(config_path: Path) -> Path | None:
-    """The project's ``pyproject.toml`` for the current mode, if any."""
+def _resolve_pyproject(
+    config_path: Path, pyproject_path: str | os.PathLike[str] | None
+) -> Path | None:
+    """The project's ``pyproject.toml`` for the current context, if any."""
+    if pyproject_path is not None:
+        resolved = Path(pyproject_path)
+        return resolved if resolved.exists() else None
     if _is_frozen():
         candidate = _bundled_dir() / "pyproject.toml"
         return candidate if candidate.exists() else None
-    from usecli.bundler import _find_pyproject
+    from usecli.shared.config.manager import find_project_pyproject
 
-    return _find_pyproject(config_path.parent)
+    return find_project_pyproject(config_path.parent)
 
 
-def _inject_config() -> None:
+def _inject_config(
+    config_path: str | os.PathLike[str] | None = None,
+    pyproject_path: str | os.PathLike[str] | None = None,
+) -> None:
     """Point usecli's global ``ConfigManager`` at the project's assets.
 
     Construction with explicit ``usecli_config_path`` bypasses the CWD-walking
     ``_find_usecli_config`` discovery (which filters by ``sys.argv[0]`` and
-    would not match a project's nested config). Seeding the module-level
+    would not match a project's config). Seeding the module-level
     ``_config_manager`` singleton is the supported override seam (``get_config``
     / ``reset_config`` exist for exactly this).
     """
     from usecli.shared.config import manager as mgr
     from usecli.shared.config.manager import ConfigManager
 
-    config_path = _config_path()
-    if not config_path.exists():
+    resolved = _resolve_config(config_path)
+    if not resolved.exists():
         raise FileNotFoundError(
-            f"Could not locate usecli.config.toml. Expected at: {config_path}."
+            f"Could not locate usecli.config.toml. Expected at: {resolved}."
         )
 
     manager = ConfigManager(
-        start_dir=config_path.parent,
-        pyproject_path=_pyproject_path(config_path),
-        usecli_config_path=config_path,
+        start_dir=resolved.parent,
+        pyproject_path=_resolve_pyproject(resolved, pyproject_path),
+        usecli_config_path=resolved,
     )
 
     # Install as the global singleton get_config() returns. get_config() only
@@ -147,13 +168,33 @@ def _ensure_command_on_path() -> None:
     os.environ["PATH"] = str(shim_dir) + (os.pathsep + current if current else "")
 
 
-def main() -> None:
-    """Run the usecli CLI with the project's (injected) configuration."""
+def run(
+    config_path: str | os.PathLike[str] | None = None,
+    *,
+    pyproject_path: str | os.PathLike[str] | None = None,
+    on_path: bool = True,
+) -> None:
+    """Run the usecli CLI for a project.
+
+    Args:
+        config_path: Optional ``usecli.config.toml`` path. When omitted it is
+            auto-detected: from the frozen bundle when running under PyInstaller,
+            otherwise via the default finder from the current directory.
+        pyproject_path: Optional ``pyproject.toml`` path (used for version info).
+        on_path: Whether to expose the CLI on ``PATH`` so the interactive
+            runner's shell-outs resolve it.
+    """
+    _inject_config(config_path=config_path, pyproject_path=pyproject_path)
+    if on_path:
+        _ensure_command_on_path()
     from usecli import main as _usecli_main
 
-    _inject_config()
-    _ensure_command_on_path()
     _usecli_main()
+
+
+def main() -> None:
+    """Convenience alias for :func:`run` with default arguments."""
+    run()
 
 
 if __name__ == "__main__":
