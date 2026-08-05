@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import os
 import sys
+import zipfile
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -118,6 +119,27 @@ def _build_args(
     return args
 
 
+def _zip_bundle(dist_dir: Path, name: str) -> Path:
+    """Compress a one-folder bundle into ``<name>.zip``.
+
+    The archive is rooted at the bundle folder (``<name>/``) so users can
+    install the program simply by unzipping it — the distribution flow PyInstaller
+    describes for one-folder mode
+    (https://pyinstaller.org/en/stable/operating-mode.html#bundling-to-one-folder).
+    """
+    bundle_dir = dist_dir / name
+    if not bundle_dir.is_dir():
+        raise FileNotFoundError(
+            f"Cannot zip: expected one-folder bundle at {bundle_dir}."
+        )
+    target = dist_dir / f"{name}.zip"
+    with zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED) as zf:
+        for path in sorted(bundle_dir.rglob("*")):
+            if path.is_file():
+                zf.write(path, arcname=f"{name}/{path.relative_to(bundle_dir)}")
+    return target
+
+
 def pyinstaller(
     config_path: str | os.PathLike[str] | None = None,
     *,
@@ -126,6 +148,7 @@ def pyinstaller(
     distpath: str | os.PathLike[str] | None = None,
     workpath: str | os.PathLike[str] | None = None,
     extra_args: Sequence[str] | None = None,
+    zip: bool = False,
 ) -> int:
     """Build an executable bundle for the given usecli project.
 
@@ -140,6 +163,10 @@ def pyinstaller(
         workpath: PyInstaller work directory (default: ``./build``).
         extra_args: Additional PyInstaller CLI flags, e.g.
             ``["--icon", "icon.icns"]``.
+        zip: When ``mode="onedir"`` and ``zip=True``, compress the resulting
+            folder into ``<name>.zip`` (alongside the folder in ``distpath``)
+            after a successful build — the distribution format PyInstaller
+            recommends for one-folder bundles. Ignored for ``mode="onefile"``.
 
     Returns:
         The PyInstaller exit code (``0`` on success).
@@ -181,7 +208,19 @@ def pyinstaller(
     code = _pyinstaller_run(args)
     if isinstance(code, int) and code != 0:
         raise SystemExit(code)
-    return int(code or 0)
+    result = int(code or 0)
+    if zip and mode == "onedir" and result == 0:
+        from usecli.shared.config.manager import ConfigManager
+
+        dist_dir = (
+            Path(distpath).resolve() if distpath is not None else Path.cwd() / "dist"
+        )
+        bundle_name = name or (
+            ConfigManager._load_usecli_toml(resolved).get("command_name") or "usecli"
+        )
+        zip_file = _zip_bundle(dist_dir, bundle_name)
+        print(f"[usecli] Created {zip_file}")
+    return result
 
 
 def cli(argv: Sequence[str] | None = None) -> int:
@@ -215,6 +254,11 @@ def cli(argv: Sequence[str] | None = None) -> int:
     )
     parser.add_argument("--distpath", default=None, help="Output directory.")
     parser.add_argument("--workpath", default=None, help="PyInstaller work dir.")
+    parser.add_argument(
+        "--zip",
+        action="store_true",
+        help="Zip the one-folder bundle into <name>.zip (onedir mode).",
+    )
     known, extra = parser.parse_known_args(argv)
     return pyinstaller(
         config_path=known.config_path,
@@ -223,6 +267,7 @@ def cli(argv: Sequence[str] | None = None) -> int:
         distpath=known.distpath,
         workpath=known.workpath,
         extra_args=extra or None,
+        zip=known.zip,
     )
 
 
