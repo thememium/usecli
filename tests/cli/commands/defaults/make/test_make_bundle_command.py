@@ -101,12 +101,18 @@ class TestMakeBundleCommandHandle:
     @patch(
         "usecli.cli.commands.defaults.make.make_bundle_command._pyinstaller_available"
     )
-    def test_invokes_pyinstaller_with_defaults(
+    def test_invokes_pyinstaller_with_explicit_mode(
         self, mock_available, make_bundle_command
     ):
         mock_available.return_value = True
-        with patch("usecli.bundler.pyinstaller") as mock_pyi:
-            make_bundle_command.handle(yes=True)
+        with (
+            patch("usecli.bundler.pyinstaller") as mock_pyi,
+            patch(
+                "usecli.cli.commands.defaults.make.make_bundle_command.Menu"
+            ) as mock_menu,
+        ):
+            make_bundle_command.handle(mode="onefile", yes=True)
+        mock_menu.select.assert_not_called()
         mock_pyi.assert_called_once_with(
             config_path=None,
             mode="onefile",
@@ -185,7 +191,7 @@ class TestMakeBundleCommandConfirmation:
         mock_available.return_value = True
         mock_confirm.ask.return_value = False
         with patch("usecli.bundler.pyinstaller") as mock_pyi:
-            make_bundle_command.handle()
+            make_bundle_command.handle(mode="onefile")
         mock_pyi.assert_not_called()
 
     @patch(AVAIL_MOD)
@@ -196,7 +202,7 @@ class TestMakeBundleCommandConfirmation:
         mock_available.return_value = True
         mock_confirm.ask.return_value = True
         with patch("usecli.bundler.pyinstaller") as mock_pyi:
-            make_bundle_command.handle()
+            make_bundle_command.handle(mode="onefile")
         mock_pyi.assert_called_once()
 
     @patch(AVAIL_MOD)
@@ -207,7 +213,7 @@ class TestMakeBundleCommandConfirmation:
         mock_available.return_value = True
         mock_confirm.ask.return_value = False
         with patch("usecli.bundler.pyinstaller") as mock_pyi:
-            make_bundle_command.handle()
+            make_bundle_command.handle(mode="onefile")
         mock_pyi.assert_not_called()
         mock_confirm.ask.assert_called_once()
         assert mock_confirm.ask.call_args.kwargs["default"] is False
@@ -217,6 +223,76 @@ class TestMakeBundleCommandConfirmation:
     def test_yes_skips_prompt(self, mock_confirm, mock_available, make_bundle_command):
         mock_available.return_value = True
         with patch("usecli.bundler.pyinstaller") as mock_pyi:
-            make_bundle_command.handle(yes=True)
+            make_bundle_command.handle(mode="onefile", yes=True)
         mock_confirm.ask.assert_not_called()
+        mock_pyi.assert_called_once()
+
+
+class TestMakeBundleCommandMenu:
+    AVAIL_MOD = (
+        "usecli.cli.commands.defaults.make.make_bundle_command._pyinstaller_available"
+    )
+    MENU_MOD = "usecli.cli.commands.defaults.make.make_bundle_command.Menu"
+
+    @patch(MENU_MOD)
+    @patch(AVAIL_MOD)
+    def test_menu_presented_when_mode_omitted(
+        self, mock_available, mock_menu, make_bundle_command
+    ):
+        mock_available.return_value = True
+        mock_menu.select.return_value = "One file (single executable)"
+        with patch("usecli.bundler.pyinstaller") as mock_pyi:
+            make_bundle_command.handle(yes=True)
+        mock_menu.select.assert_called_once()
+        assert "One file (single executable)" in mock_menu.select.call_args.args[0]
+        assert "One folder (bundle directory)" in mock_menu.select.call_args.args[0]
+        mock_pyi.assert_called_once_with(
+            config_path=None,
+            mode="onefile",
+            name=None,
+            distpath=None,
+            workpath=None,
+        )
+
+    @patch(MENU_MOD)
+    @patch(AVAIL_MOD)
+    def test_menu_cancelled_aborts(
+        self, mock_available, mock_menu, make_bundle_command
+    ):
+        mock_available.return_value = True
+        mock_menu.select.return_value = None
+        with (
+            patch("usecli.bundler.pyinstaller") as mock_pyi,
+            patch(
+                "usecli.cli.commands.defaults.make.make_bundle_command.console"
+            ) as mock_console,
+        ):
+            make_bundle_command.handle()
+        mock_pyi.assert_not_called()
+        mock_console.print.assert_called_once()
+
+    @patch(MENU_MOD)
+    @patch(AVAIL_MOD)
+    def test_menu_picks_onedir(self, mock_available, mock_menu, make_bundle_command):
+        mock_available.return_value = True
+        mock_menu.select.return_value = "One folder (bundle directory)"
+        with patch("usecli.bundler.pyinstaller") as mock_pyi:
+            make_bundle_command.handle(yes=True)
+        mock_pyi.assert_called_once_with(
+            config_path=None,
+            mode="onedir",
+            name=None,
+            distpath=None,
+            workpath=None,
+        )
+
+    @patch(MENU_MOD)
+    @patch(AVAIL_MOD)
+    def test_no_menu_when_mode_provided(
+        self, mock_available, mock_menu, make_bundle_command
+    ):
+        mock_available.return_value = True
+        with patch("usecli.bundler.pyinstaller") as mock_pyi:
+            make_bundle_command.handle(mode="onedir", yes=True)
+        mock_menu.select.assert_not_called()
         mock_pyi.assert_called_once()

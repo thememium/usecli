@@ -12,11 +12,17 @@ from rich.console import Console
 
 from usecli.cli.config.colors import COLOR
 from usecli.cli.core.base_command import BaseCommand
+from usecli.menu import Menu
 from usecli.ui import Confirm
 
 console = Console()
 
 _MODES = ("onefile", "onedir")
+
+_MENU_LABEL_TO_MODE = {
+    "One file (single executable)": "onefile",
+    "One folder (bundle directory)": "onedir",
+}
 
 
 def _pyinstaller_available() -> bool:
@@ -48,13 +54,13 @@ class MakeBundleCommand(BaseCommand):
             ),
         ] = None,
         mode: Annotated[
-            str,
+            str | None,
             typer.Option(
                 "--mode",
                 "-m",
-                help="onefile (single executable) or onedir (folder bundle).",
+                help="onefile or onedir (interactive menu when omitted).",
             ),
-        ] = "onefile",
+        ] = None,
         name: Annotated[
             str | None,
             typer.Option("--name", help="Executable name override."),
@@ -83,6 +89,15 @@ class MakeBundleCommand(BaseCommand):
                 "Install it with `uv add usecli[pyinstaller]`.[/{COLOR.ERROR}]"
             )
             return
+        if mode is None:
+            choice = Menu.select(
+                list(_MENU_LABEL_TO_MODE),
+                title="Bundle type:",
+            )
+            if choice is None:
+                console.print(f"[{COLOR.INFO}]Aborted.[/{COLOR.INFO}]")
+                return
+            mode = _MENU_LABEL_TO_MODE[choice]
         if mode not in _MODES:
             console.print(
                 f"[{COLOR.ERROR}]Invalid mode {mode!r}; expected one of "
