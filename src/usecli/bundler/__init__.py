@@ -9,13 +9,22 @@ re-injects the bundle paths — easy to get wrong.
 :func:`pyinstaller` turns all of that into a one-liner::
 
     from usecli import pyinstaller
-    pyinstaller()              # auto-detect config from the current directory
-    pyinstaller("config.toml") # or point at a specific config
+
+    pyinstaller()                   # auto-detect config from the current directory
+    pyinstaller("config.toml")      # or point at a specific config
+    pyinstaller(mode="onedir")      # or a one-folder (directory) bundle
+
+PyInstaller supports two operating modes (see
+https://pyinstaller.org/en/stable/operating-mode.html):
+
+* ``mode="onefile"`` (default): a single self-contained executable.
+* ``mode="onedir"``: a folder containing the executable plus its dependencies
+  (faster to start, easier to debug — you can inspect what was collected).
 
 It locates the project's ``usecli.config.toml`` (and the sibling
 ``commands/``, ``templates/``, ``themes/`` and ``pyproject.toml``), then runs
-PyInstaller to produce a single-file executable named after the config's
-``command_name``. PyInstaller is an optional dependency — install it with
+PyInstaller to produce a bundle named after the config's ``command_name``.
+PyInstaller is an optional dependency — install it with
 ``pip install usecli[pyinstaller]`` (or ``uv add usecli[pyinstaller]``).
 """
 
@@ -27,6 +36,12 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from usecli.entry import BUNDLE_DATA_DIR
+
+_MODE_FLAG = {"onefile": "--onefile", "onedir": "--onedir"}
+_MODE_LABEL = {
+    "onefile": "a single-file executable",
+    "onedir": "a one-folder bundle",
+}
 
 
 def _resolve_config_path(
@@ -64,8 +79,14 @@ def _build_args(
     distpath: Path | None,
     workpath: Path | None,
     extra_args: Sequence[str] | None,
+    mode: str = "onefile",
 ) -> list[str]:
     from usecli.shared.config.manager import ConfigManager
+
+    if mode not in _MODE_FLAG:
+        raise ValueError(
+            f"Invalid mode {mode!r}; expected one of {sorted(_MODE_FLAG)}."
+        )
 
     data_root = config_path.parent
     command_name = name or (
@@ -73,7 +94,7 @@ def _build_args(
     )
     pyproject = _find_pyproject(data_root)
 
-    args: list[str] = ["--onefile", "--name", command_name]
+    args: list[str] = [_MODE_FLAG[mode], "--name", command_name]
     if distpath is not None:
         args += ["--distpath", str(distpath)]
     if workpath is not None:
@@ -101,18 +122,21 @@ def pyinstaller(
     config_path: str | os.PathLike[str] | None = None,
     *,
     name: str | None = None,
+    mode: str = "onefile",
     distpath: str | os.PathLike[str] | None = None,
     workpath: str | os.PathLike[str] | None = None,
     extra_args: Sequence[str] | None = None,
 ) -> int:
-    """Build a single-file executable for the given usecli project.
+    """Build an executable bundle for the given usecli project.
 
     Args:
         config_path: Optional path to a ``usecli.config.toml``. When omitted it
             is auto-detected by walking up from the current directory.
         name: Optional override for the executable name. Defaults to the
             config's ``command_name``.
-        distpath: Output directory for the executable (default: ``./dist``).
+        mode: ``"onefile"`` (single executable, default) or ``"onedir"``
+            (folder containing the executable plus its dependencies).
+        distpath: Output directory for the bundle (default: ``./dist``).
         workpath: PyInstaller work directory (default: ``./build``).
         extra_args: Additional PyInstaller CLI flags, e.g.
             ``["--icon", "icon.icns"]``.
@@ -123,6 +147,7 @@ def pyinstaller(
     Raises:
         FileNotFoundError: if no config can be located / the given path is not
             a file.
+        ValueError: if ``mode`` is not ``"onefile"`` or ``"onedir"``.
         ImportError: if PyInstaller is not installed. Install with
             ``pip install usecli[pyinstaller]``.
     """
@@ -143,6 +168,7 @@ def pyinstaller(
         resolved,
         entry_path,
         name=name,
+        mode=mode,
         distpath=Path(distpath) if distpath is not None else None,
         workpath=Path(workpath) if workpath is not None else None,
         extra_args=extra_args,
@@ -150,7 +176,7 @@ def pyinstaller(
 
     print(
         f"[usecli] Packaging '{args[args.index('--name') + 1]}' "
-        f"from {resolved} as a single-file executable..."
+        f"from {resolved} as {_MODE_LABEL[mode]}..."
     )
     code = _pyinstaller_run(args)
     if isinstance(code, int) and code != 0:
@@ -162,16 +188,17 @@ def cli(argv: Sequence[str] | None = None) -> int:
     """Command-line interface backing the ``usecli-bundle`` console script.
 
     So a project's pyproject.toml never needs to carry PyInstaller flags —
-    ``uv run usecli-bundle`` auto-detects the config and builds the onefile::
+    ``uv run usecli-bundle`` auto-detects the config and builds the bundle::
 
         [tool.poe.tasks]
-        bundle = "uv run usecli-bundle"
+        bundle = "uv run usecli-bundle"            # single-file executable
+        bundle-dir = "uv run usecli-bundle --mode onedir"
     """
     import argparse
 
     parser = argparse.ArgumentParser(
         prog="usecli-bundle",
-        description="Build a single-file executable for the current usecli project.",
+        description="Build an executable bundle for the current usecli project.",
     )
     parser.add_argument(
         "config_path",
@@ -180,12 +207,19 @@ def cli(argv: Sequence[str] | None = None) -> int:
         help="Path to usecli.config.toml (auto-detected when omitted).",
     )
     parser.add_argument("--name", default=None, help="Executable name override.")
+    parser.add_argument(
+        "--mode",
+        choices=sorted(_MODE_FLAG),
+        default="onefile",
+        help="onefile (single executable, default) or onedir (folder bundle).",
+    )
     parser.add_argument("--distpath", default=None, help="Output directory.")
     parser.add_argument("--workpath", default=None, help="PyInstaller work dir.")
     known, extra = parser.parse_known_args(argv)
     return pyinstaller(
         config_path=known.config_path,
         name=known.name,
+        mode=known.mode,
         distpath=known.distpath,
         workpath=known.workpath,
         extra_args=extra or None,
