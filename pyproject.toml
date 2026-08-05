@@ -24,6 +24,9 @@ dependencies = [
 license = "MIT"
 license-files = ["LICEN[CS]E*"]
 
+[project.optional-dependencies]
+pyinstaller = ["pyinstaller>=6.21.0"]
+
 [project.urls]
 Homepage = "https://github.com/thememium/usecli"
 Documentation = "https://github.com/thememium/usecli"
@@ -33,6 +36,7 @@ Changelog = "https://github.com/thememium/usecli/blob/master/CHANGELOG.md"
 
 [project.scripts]
 usecli = "usecli:main"
+usecli-bundle = "usecli.bundler:cli"
 INVALID = "usecli:main"
 
 [build-system]
@@ -44,6 +48,7 @@ dev = [
   "deptry>=0.25.1",
   "isort>=8.0.1",
   "poethepoet>=0.48.0",
+  "pyinstaller>=6.21.0",
   "pytest>=9.1.1",
   "pytest-cov>=7.1.0",
   "ruff>=0.16.1",
@@ -92,4 +97,3 @@ include = ["cli*"]
 
 [tool.setuptools.package-data]
 cli = ["**/*.toml", "**/*.j2"]
-
