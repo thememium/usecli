@@ -316,7 +316,14 @@ class ConfigManager:
         self.pyproject_path: Path = pyproject_path
         self.usecli_config_path: Path = usecli_config_path
         self.start_dir: Path = start_dir
-        detected_root = find_project_root(start_dir)
+        # An explicitly-provided config path is authoritative: do NOT run the
+        # find_project_root discovery (up-walk + bounded rglob tree search) that
+        # would otherwise be spent rediscovering it. Derive the project root
+        # from the config's own directory instead.
+        if usecli_config_path is None:
+            detected_root = find_project_root(start_dir)
+        else:
+            detected_root = None
         if self.usecli_config_path.exists():
             config_parent = self.usecli_config_path.parent
             if detected_root is None:
