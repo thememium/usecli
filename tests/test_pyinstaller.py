@@ -16,6 +16,7 @@ from usecli.bundler import (
     _build_args,
     _find_pyproject,
     _resolve_config_path,
+    _zip_bundle,
     cli,
 )
 
@@ -266,6 +267,77 @@ def test_pyinstaller_requires_pyinstaller(tmp_path, monkeypatch):
     monkeypatch.setattr("builtins.__import__", fake_import)
     with pytest.raises(ImportError, match=r"usecli\[pyinstaller\]"):
         pyinstaller()
+
+
+# =============================================================================
+# One-folder zipping (_zip_bundle / pyinstaller(zip=True))
+# =============================================================================
+
+
+def _make_bundle_tree(tmp_path: Path, name: str = "magic") -> Path:
+    """Create a fake one-folder bundle (dist/<name>/) and return dist."""
+    dist = tmp_path / "dist"
+    bundle = dist / name
+    (bundle / "_internal").mkdir(parents=True)
+    (bundle / "magic").write_text("#!/bin/sh\necho hi\n", encoding="utf-8")
+    (bundle / "_internal" / "lib.so").write_text("data", encoding="utf-8")
+    return dist
+
+
+def test_zip_bundle_creates_archive_rooted_at_name(tmp_path):
+    dist = _make_bundle_tree(tmp_path)
+    target = _zip_bundle(dist, "magic")
+    assert target == dist / "magic.zip"
+    assert target.is_file()
+
+    import zipfile
+
+    with zipfile.ZipFile(target) as zf:
+        names = sorted(zf.namelist())
+    assert names[0].startswith("magic/")
+    assert "magic/magic" in names
+    assert "magic/_internal/lib.so" in names
+
+
+def test_zip_bundle_missing_folder_raises(tmp_path):
+    dist = tmp_path / "dist"
+    dist.mkdir()
+    with pytest.raises(FileNotFoundError, match="magic"):
+        _zip_bundle(dist, "magic")
+
+
+def test_pyinstaller_zip_onedir_creates_zip(tmp_path, monkeypatch):
+    _write_project(tmp_path, command_name="magic")
+    monkeypatch.chdir(tmp_path)
+    dist = _make_bundle_tree(tmp_path)
+
+    with patch("PyInstaller.__main__.run", return_value=0):
+        code = pyinstaller(mode="onedir", zip=True)
+    assert code == 0
+    assert (dist / "magic.zip").is_file()
+
+
+def test_pyinstaller_zip_onefile_ignored(tmp_path, monkeypatch):
+    """zip=True is a no-op for onefile mode: no archive is created."""
+    _write_project(tmp_path, command_name="magic")
+    monkeypatch.chdir(tmp_path)
+    dist = _make_bundle_tree(tmp_path)
+
+    with patch("PyInstaller.__main__.run", return_value=0):
+        code = pyinstaller(mode="onefile", zip=True)
+    assert code == 0
+    assert not (dist / "magic.zip").exists()
+
+
+def test_pyinstaller_zip_false_no_archive(tmp_path, monkeypatch):
+    _write_project(tmp_path, command_name="magic")
+    monkeypatch.chdir(tmp_path)
+    dist = _make_bundle_tree(tmp_path)
+
+    with patch("PyInstaller.__main__.run", return_value=0):
+        code = pyinstaller(mode="onedir", zip=False)
+    assert code == 0
+    assert not (dist / "magic.zip").exists()
 
 
 # =============================================================================
