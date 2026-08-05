@@ -722,6 +722,16 @@ class TestConfigManagerInitRoot:
             )
         assert manager.project_root == tmp_path.resolve()
 
+    def test_explicit_config_path_skips_discovery(self, tmp_path):
+        config = tmp_path / "usecli.config.toml"
+        config.write_text('[usecli]\ntitle = "x"')
+        with patch("usecli.shared.config.manager.find_project_root") as mock_fpr:
+            manager = ConfigManager(usecli_config_path=config, start_dir=tmp_path)
+        # An explicit config path is authoritative: no filesystem discovery runs.
+        mock_fpr.assert_not_called()
+        # The project root is derived from the config's own directory.
+        assert manager.project_root == tmp_path.resolve()
+
 
 # ---------------------------------------------------------------------------
 # _find_usecli_config discovery branches
