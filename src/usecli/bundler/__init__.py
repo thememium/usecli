@@ -26,7 +26,7 @@ import sys
 from collections.abc import Sequence
 from pathlib import Path
 
-from usecli.bundler.entry import BUNDLE_DATA_DIR
+from usecli.entry import BUNDLE_DATA_DIR
 
 
 def _resolve_config_path(
@@ -44,48 +44,16 @@ def _resolve_config_path(
             raise FileNotFoundError(f"usecli.config.toml not found at: {resolved}")
         return resolved
 
-    from usecli.shared.config.manager import _rglob_limited, find_project_root
+    from usecli.shared.config.manager import resolve_config_path
 
-    cwd = Path.cwd().resolve()
-
-    # 1. Walk up for a config at a project / parent directory (no command-name
-    #    filtering — we're in a build context, not resolving a runtime command).
-    current = cwd
-    while True:
-        candidate = current / "usecli.config.toml"
-        if candidate.is_file():
-            return candidate
-        parent = current.parent
-        if parent == current:
-            break
-        current = parent
-
-    # 2. Bounded tree search from the project root (picks up configs nested
-    #    under e.g. ``cli/`` or ``src/<pkg>/cli/``).
-    root = find_project_root(cwd) or cwd
-    candidates = [p for p in _rglob_limited(root, "usecli.config.toml") if p.is_file()]
-    if candidates:
-        candidates.sort(key=lambda p: len(p.relative_to(root).parts))
-        return candidates[0]
-
-    raise FileNotFoundError(
-        "Could not locate a usecli.config.toml. Run this from inside your "
-        "project, or pass an explicit config_path to pyinstaller()."
-    )
+    return resolve_config_path(Path.cwd())
 
 
 def _find_pyproject(data_root: Path) -> Path | None:
     """Find the nearest pyproject.toml walking up from the data dir."""
-    current = data_root
-    for _ in range(64):
-        candidate = current / "pyproject.toml"
-        if candidate.exists():
-            return candidate
-        parent = current.parent
-        if parent == current:
-            break
-        current = parent
-    return None
+    from usecli.shared.config.manager import find_project_pyproject
+
+    return find_project_pyproject(data_root)
 
 
 def _build_args(
@@ -159,7 +127,9 @@ def pyinstaller(
             ``pip install usecli[pyinstaller]``.
     """
     resolved = _resolve_config_path(config_path)
-    entry_path = Path(__file__).resolve().parent / "entry.py"
+    import usecli.entry as entry_module
+
+    entry_path = Path(entry_module.__file__)
 
     try:
         from PyInstaller.__main__ import run as _pyinstaller_run
