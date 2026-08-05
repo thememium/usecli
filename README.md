@@ -216,6 +216,7 @@ init         Initialize usecli (usecli only)
 inspire      Random quote
 make:command Create new command (usecli only)
 make:theme   Create new theme (usecli only)
+make:bundle  Build a standalone executable with PyInstaller (usecli only)
 ```
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
