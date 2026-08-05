@@ -124,6 +124,48 @@ def test_build_args_name_override(tmp_path):
     assert args[args.index("--name") + 1] == "renamed"
 
 
+def test_build_args_onedir(tmp_path):
+    config = _write_project(tmp_path, command_name="magic")
+    args = _build_args(
+        config,
+        tmp_path / "entry.py",
+        name=None,
+        distpath=None,
+        workpath=None,
+        extra_args=None,
+        mode="onedir",
+    )
+    assert "--onedir" in args
+    assert "--onefile" not in args
+
+
+def test_build_args_default_mode_is_onefile(tmp_path):
+    config = _write_project(tmp_path)
+    args = _build_args(
+        config,
+        tmp_path / "entry.py",
+        name=None,
+        distpath=None,
+        workpath=None,
+        extra_args=None,
+    )
+    assert "--onefile" in args
+
+
+def test_build_args_invalid_mode(tmp_path):
+    config = _write_project(tmp_path)
+    with pytest.raises(ValueError):
+        _build_args(
+            config,
+            tmp_path / "entry.py",
+            name=None,
+            distpath=None,
+            workpath=None,
+            extra_args=None,
+            mode="bogus",
+        )
+
+
 def test_pyinstaller_runs_pyinstaller(tmp_path, monkeypatch):
     _write_project(tmp_path, command_name="magic")
     monkeypatch.chdir(tmp_path)
@@ -139,7 +181,24 @@ def test_pyinstaller_runs_pyinstaller(tmp_path, monkeypatch):
     # Auto-detects the nested config and passes the embedded entry as target.
     assert "usecli_data" in captured["args"][captured["args"].index("--add-data") + 1]
     assert "--name" in captured["args"]
+    assert "--onefile" in captured["args"]
     assert captured["args"][-1].endswith("entry.py")
+
+
+def test_pyinstaller_onedir_mode(tmp_path, monkeypatch):
+    _write_project(tmp_path, command_name="magic")
+    monkeypatch.chdir(tmp_path)
+    captured: dict = {}
+
+    def fake_run(pyi_args: list[str] | None = None, pyi_config: dict | None = None):
+        captured["args"] = list(pyi_args or [])
+        return 0
+
+    with patch("PyInstaller.__main__.run", new=fake_run):
+        code = pyinstaller(mode="onedir")
+    assert code == 0
+    assert "--onedir" in captured["args"]
+    assert "--onefile" not in captured["args"]
 
 
 def test_cli_entry_point(tmp_path, monkeypatch):
@@ -175,6 +234,22 @@ def test_cli_entry_point_explicit_config(tmp_path, monkeypatch):
     assert captured["args"][captured["args"].index("--add-data") + 1] == (
         config.parent.as_posix() + ":" + BUNDLE_DATA_DIR
     )
+
+
+def test_cli_mode_onedir(tmp_path, monkeypatch):
+    _write_project(tmp_path, command_name="magic")
+    monkeypatch.chdir(tmp_path)
+    captured: dict = {}
+
+    def fake_run(pyi_args: list[str] | None = None, pyi_config: dict | None = None):
+        captured["args"] = list(pyi_args or [])
+        return 0
+
+    with patch("PyInstaller.__main__.run", new=fake_run):
+        code = cli(["--mode", "onedir"])
+    assert code == 0
+    assert "--onedir" in captured["args"]
+    assert "--onefile" not in captured["args"]
 
 
 def test_pyinstaller_requires_pyinstaller(tmp_path, monkeypatch):
