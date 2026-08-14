@@ -259,15 +259,28 @@ file is always named `usecli.config.toml`):
 # main.py
 from usecli import run
 
-if __name__ == "__main__":
+
+def main():
     run()  # auto-detect project config
     # run("path/to/usecli.config.toml")          # or point at a specific config
+
+
+if __name__ == "__main__":
+    main()
 ```
 
 Run it in development (no PyInstaller required):
 
 ```sh
 uv run python main.py --help
+```
+
+To expose the same entry point as a console script, point `[project.scripts]`
+at the `main` function in your `myapp` package (the usual `src/myapp` layout):
+
+```toml
+[project.scripts]
+myapp = "myapp:main"
 ```
 
 Because `run()` injects the located config explicitly, a custom `main.py` works

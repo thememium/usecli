@@ -5,9 +5,12 @@ thin ``main.py``::
 
     from usecli import run
 
-    if __name__ == "__main__":
+    def main():
         run()                         # auto-detect the project config
-        run("my/custom/cli.toml")     # or point at a specific config
+        # run("my/custom/cli.toml")   # or point at a specific config
+
+    if __name__ == "__main__":
+        main()
 
 It works in three contexts:
 
