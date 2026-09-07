@@ -17,9 +17,10 @@ from __future__ import annotations
 
 import logging
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from usecli.shared.upgrades.discovery import InstallInfo
+from usecli.shared.upgrades.pyproject import PyprojectUpdate, persist_upgrade
 
 logger = logging.getLogger(__name__)
 
@@ -33,11 +34,15 @@ class UpgradeResult:
         command: The exact command that was run, when a mutation was tried.
         message: Additional failure detail, when the upgrade did not run or
             failed.
+        pyproject: Result of persisting the upgrade into the owning
+            project's dependency metadata (pyproject.toml / uv.lock), when
+            an owning project was detected.
     """
 
     success: bool
     command: tuple[str, ...] | None = None
     message: str | None = None
+    pyproject: PyprojectUpdate | None = None
 
 
 def _shutil_which(name: str) -> str | None:
@@ -122,6 +127,20 @@ def _run(command: list[str]) -> UpgradeResult:
     )
 
 
+def _persist_after_success(
+    install: InstallInfo,
+    result: UpgradeResult,
+) -> UpgradeResult:
+    """Attach a pyproject/uv.lock persistence attempt to successful upgrades.
+
+    Without it, ``uv sync`` reinstalls the package from the project's stale
+    dependency metadata and reverts the upgrade.
+    """
+    if not result.success:
+        return result
+    return replace(result, pyproject=persist_upgrade(install))
+
+
 def upgrade(install: InstallInfo) -> UpgradeResult:
     """Upgrade the running installation.
 
@@ -202,7 +221,7 @@ def upgrade(install: InstallInfo) -> UpgradeResult:
                     "--upgrade",
                     target,
                 ]
-            return _run(command)
+            return _persist_after_success(install, _run(command))
         # uv binary missing but not a tool environment: fall through to pip.
 
     if installer == "pipx" or _is_pipx_environment():
@@ -215,7 +234,7 @@ def upgrade(install: InstallInfo) -> UpgradeResult:
                     f"manually: pipx upgrade {install.package}"
                 ),
             )
-        return _run([pipx, "upgrade", install.package])
+        return _persist_after_success(install, _run([pipx, "upgrade", install.package]))
 
     command = [
         sys.executable,
@@ -225,7 +244,7 @@ def upgrade(install: InstallInfo) -> UpgradeResult:
         "--upgrade",
         target,
     ]
-    return _run(command)
+    return _persist_after_success(install, _run(command))
 
 
 __all__ = ["UpgradeResult", "upgrade"]

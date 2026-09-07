@@ -9,11 +9,13 @@ configuration required.
 from usecli.shared.upgrades.checker import UpgradeStatus
 from usecli.shared.upgrades.discovery import InstallInfo, InstallSource
 from usecli.shared.upgrades.installer import UpgradeResult
+from usecli.shared.upgrades.pyproject import PyprojectUpdate
 from usecli.shared.upgrades.service import UpgradeService
 
 __all__ = [
     "InstallInfo",
     "InstallSource",
+    "PyprojectUpdate",
     "UpgradeResult",
     "UpgradeService",
     "UpgradeStatus",
