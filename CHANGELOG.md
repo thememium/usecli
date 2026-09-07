@@ -1,6 +1,22 @@
 # Changelog
 
 
+## v0.1.79
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.78...v0.1.79)
+
+### 🚀 Enhancements
+
+- Add built-in upgrade command and configuration support for usecli ([#12](https://github.com/thememium/usecli/pull/12))
+
+### 📖 Documentation
+
+- Expose main() entry point for console scripts ([33cc2f5](https://github.com/thememium/usecli/commit/33cc2f5))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.78
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.77...v0.1.78)

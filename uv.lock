@@ -756,7 +756,7 @@ wheels = [
 
 [[package]]
 name = "usecli"
-version = "0.1.78"
+version = "0.1.79"
 source = { editable = "." }
 dependencies = [
     { name = "case-converter" },
