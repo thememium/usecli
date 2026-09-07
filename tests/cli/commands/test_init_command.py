@@ -18,6 +18,7 @@ if str(local_usecli_path) not in list(usecli.__path__):
 importlib.invalidate_caches()
 
 from usecli.cli.commands.init_command import InitCommand
+from usecli.shared.config.manager import ConfigManager, reset_config
 
 DEFAULT_TITLE = "My CLI"
 DEFAULT_DESCRIPTION = "A custom CLI tool"
@@ -1522,3 +1523,33 @@ class TestHandleInteractiveBranches:
         content = existing.read_text()
         assert 'title = "My CLI"' in content
         assert not custom.exists()
+
+
+class TestUpgradeConfigSection:
+    def test_generated_config_ships_upgrade_section(
+        self, temp_project_dir, init_command
+    ):
+        init_command.handle(
+            "Test CLI", "Test description", DEFAULT_COMMANDS_DIR, force=True
+        )
+
+        config_path = _config_path(temp_project_dir, DEFAULT_COMMANDS_DIR)
+        content = config_path.read_text()
+        assert "[usecli.upgrade]" in content
+        assert "enabled = true" in content
+
+    def test_upgrade_section_round_trips_through_config_manager(
+        self, temp_project_dir, init_command, monkeypatch
+    ):
+        init_command.handle(
+            "Test CLI", "Test description", DEFAULT_COMMANDS_DIR, force=True
+        )
+
+        config_path = _config_path(temp_project_dir, DEFAULT_COMMANDS_DIR)
+        monkeypatch.chdir(config_path.parent)
+        reset_config()
+        try:
+            manager = ConfigManager(start_dir=config_path.parent)
+            assert manager.get("upgrade.enabled") is True
+        finally:
+            reset_config()

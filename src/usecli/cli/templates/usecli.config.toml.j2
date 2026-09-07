@@ -9,3 +9,6 @@ templates_dir = "{{ templates_dir | default('cli/templates') }}"
 themes_dir = "{{ themes_dir | default('cli/themes') }}"
 theme = "{{ theme | default('default') }}"
 hide_inspire = {{ hide_inspire | default(false) | lower }}
+
+[usecli.upgrade]
+enabled = {{ upgrade_enabled | default(true) | lower }}

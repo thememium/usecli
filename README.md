@@ -215,6 +215,7 @@ about        Show app info
 help         Show help
 init         Initialize usecli (usecli only)
 inspire      Random quote
+upgrade      Upgrade the application to the latest version
 make:command Create new command (usecli only)
 make:theme   Create new theme (usecli only)
 make:bundle  Build a standalone executable with PyInstaller (usecli only)

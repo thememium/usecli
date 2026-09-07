@@ -274,7 +274,7 @@ def _ensure_cli_initialized() -> None:
                     fail(error.__class__.__name__, str(error), 1)
 
         def invoke(self, ctx):
-            from click.exceptions import Exit
+            from click.exceptions import ClickException, Exit
 
             from usecli.cli.core.runtime import is_json_mode
 
@@ -306,7 +306,9 @@ def _ensure_cli_initialized() -> None:
                 styled_error = UsecliUsageError(e.message, ctx=e.ctx)
                 styled_error.show()
                 sys.exit(styled_error.exit_code)
-            except _TyperClickException as e:
+            # UsecliError extends real-click ClickException, not the vendored
+            # typer._click one — catch both, mirroring the JSON path.
+            except (_TyperClickException, ClickException) as e:
                 if hasattr(e, "show"):
                     e.show()
                 sys.exit(e.exit_code if hasattr(e, "exit_code") else 1)
