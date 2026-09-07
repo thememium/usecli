@@ -131,6 +131,7 @@ def _run(command: list[str]) -> UpgradeResult:
 def _persist_after_success(
     install: InstallInfo,
     result: UpgradeResult,
+    target_revision: str | None,
 ) -> UpgradeResult:
     """Attach a pyproject/uv.lock persistence attempt to successful upgrades.
 
@@ -139,7 +140,7 @@ def _persist_after_success(
     """
     if not result.success:
         return result
-    return replace(result, pyproject=persist_upgrade(install))
+    return replace(result, pyproject=persist_upgrade(install, target_revision))
 
 
 def upgrade(
@@ -228,7 +229,7 @@ def upgrade(
                     "--upgrade",
                     target,
                 ]
-            return _persist_after_success(install, _run(command))
+            return _persist_after_success(install, _run(command), target_revision)
         # uv binary missing but not a tool environment: fall through to pip.
 
     if installer == "pipx" or _is_pipx_environment():
@@ -245,7 +246,7 @@ def upgrade(
             command = [pipx, "install", "--force", target]
         else:
             command = [pipx, "upgrade", install.package]
-        return _persist_after_success(install, _run(command))
+        return _persist_after_success(install, _run(command), target_revision)
 
     command = [
         sys.executable,
@@ -255,7 +256,7 @@ def upgrade(
         "--upgrade",
         target,
     ]
-    return _persist_after_success(install, _run(command))
+    return _persist_after_success(install, _run(command), target_revision)
 
 
 __all__ = ["UpgradeResult", "upgrade"]

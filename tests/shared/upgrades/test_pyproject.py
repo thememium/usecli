@@ -11,12 +11,12 @@ import pytest
 from usecli.shared.upgrades.discovery import InstallInfo
 from usecli.shared.upgrades.pyproject import (
     PyprojectUpdate,
-    _dependency_git_spec,
+    _git_dependency,
     _persist_requirements,
-    _pinned_revision,
     _project_dir,
     _reinstalled_commit,
     _reinstalled_version,
+    _rewrite_dependency_ref,
     persist_upgrade,
     update_project_version,
 )
@@ -145,12 +145,9 @@ class TestUpdateProjectVersion:
         assert changed is False
         assert previous == "0.1.0"
 
-    def test_unreadable_dependency_scan_is_empty(self, tmp_path: Any) -> None:
-        assert _dependency_git_spec(tmp_path, "cli-upgrade") is None
 
-
-class TestDependencyGitSpec:
-    def test_finds_git_dependency_line(self, tmp_path: Any) -> None:
+class TestGitDependency:
+    def test_finds_inline_git_dependency(self, tmp_path: Any) -> None:
         pyproject = tmp_path / "pyproject.toml"
         pyproject.write_text(
             "[project]\ndependencies = [\n"
@@ -158,24 +155,63 @@ class TestDependencyGitSpec:
             '    "cli-upgrade @ git+https://github.com/foo/magic.git",\n'
             "]\n"
         )
-        spec = _dependency_git_spec(pyproject, "cli-upgrade")
-        assert spec is not None
-        assert "git+https://github.com/foo/magic.git" in spec
+        dependency = _git_dependency(pyproject, "cli-upgrade")
+        assert dependency is not None
+        assert dependency[0] == "inline"
+        assert "git+https://github.com/foo/magic.git" in dependency[1]
+
+    def test_finds_sources_git_dependency(self, tmp_path: Any) -> None:
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text(
+            '[project]\nname = "consumer"\ndependencies = ["cli-upgrade"]\n'
+            "\n[tool.uv.sources]\n"
+            'cli-upgrade = { git = "https://github.com/foo/magic.git" }\n'
+        )
+        dependency = _git_dependency(pyproject, "cli-upgrade")
+        assert dependency is not None
+        assert dependency[0] == "sources"
+        assert dependency[1] == "cli-upgrade"
+        assert dependency[2] is not None
+        assert dependency[2]["git"] == "https://github.com/foo/magic.git"
+
+    def test_sources_branch_entry_is_recognized(self, tmp_path: Any) -> None:
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text(
+            '[project]\nname = "consumer"\ndependencies = ["cli-upgrade"]\n'
+            "\n[tool.uv.sources]\n"
+            'cli-upgrade = { git = "https://github.com/foo/magic.git", branch = "main" }\n'
+        )
+        dependency = _git_dependency(pyproject, "cli-upgrade")
+        assert dependency is not None
+        assert dependency[2] is not None
+        assert dependency[2]["branch"] == "main"
+
+    def test_sources_tag_entry_is_recognized(self, tmp_path: Any) -> None:
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text(
+            '[project]\nname = "consumer"\ndependencies = ["cli-upgrade"]\n'
+            "\n[tool.uv.sources]\n"
+            'cli-upgrade = { git = "https://github.com/foo/magic.git", tag = "v0.1.0" }\n'
+        )
+        dependency = _git_dependency(pyproject, "cli-upgrade")
+        assert dependency is not None
+        assert dependency[2] is not None
+        assert dependency[2]["tag"] == "v0.1.0"
 
     def test_package_without_git_dependency_is_not_found(self, tmp_path: Any) -> None:
         pyproject = tmp_path / "pyproject.toml"
         pyproject.write_text('[project]\ndependencies = ["cli-upgrade>=0.1.0"]\n')
-        assert _dependency_git_spec(pyproject, "cli-upgrade") is None
+        assert _git_dependency(pyproject, "cli-upgrade") is None
 
     def test_unknown_package_is_not_found(self, tmp_path: Any) -> None:
         pyproject = tmp_path / "pyproject.toml"
         pyproject.write_text("[project]\ndependencies = []\n")
-        assert _dependency_git_spec(pyproject, "cli-upgrade") is None
+        assert _git_dependency(pyproject, "cli-upgrade") is None
 
     def test_non_list_dependencies_returns_none(self, tmp_path: Any) -> None:
         pyproject = tmp_path / "pyproject.toml"
         pyproject.write_text('[project]\ndependencies = "not-a-list"\n')
-        assert _dependency_git_spec(pyproject, "cli-upgrade") is None
+        assert _git_dependency(pyproject, "cli-upgrade") is None
 
     def test_spec_without_parseable_name_is_skipped(self, tmp_path: Any) -> None:
         pyproject = tmp_path / "pyproject.toml"
@@ -185,33 +221,98 @@ class TestDependencyGitSpec:
             '    "cli-upgrade @ git+https://github.com/foo/magic.git",\n'
             "]\n"
         )
-        spec = _dependency_git_spec(pyproject, "cli-upgrade")
-        assert spec is not None
-        assert "cli-upgrade @ git+" in spec
+        dependency = _git_dependency(pyproject, "cli-upgrade")
+        assert dependency is not None
+        assert dependency[0] == "inline"
+        assert "cli-upgrade @ git+" in dependency[1]
+
+    def test_non_git_sources_entry_is_ignored(self, tmp_path: Any) -> None:
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text(
+            '[project]\nname = "consumer"\ndependencies = ["cli-upgrade"]\n'
+            "\n[tool.uv.sources]\n"
+            'cli-upgrade = { path = "../cli-upgrade" }\n'
+        )
+        assert _git_dependency(pyproject, "cli-upgrade") is None
+
+    def test_unreadable_file_returns_none(self, tmp_path: Any) -> None:
+        assert _git_dependency(tmp_path, "cli-upgrade") is None
 
 
-class TestPinnedRevision:
-    @pytest.mark.parametrize(
-        ("spec_line", "expected"),
-        [
-            ('"cli-upgrade @ git+https://github.com/foo/magic.git",', None),
-            ('"cli-upgrade @ git+https://github.com/foo/magic.git@main",', "main"),
-            ('"cli-upgrade @ git+https://github.com/foo/magic.git@v1.2.3",', "v1.2.3"),
-            (
-                '"cli-upgrade @ git+https://github.com/foo/magic.git@'
-                + "a" * 40
-                + '",',
-                "a" * 40,
-            ),
-            ('cli-upgrade = { git = "https://github.com/foo/magic.git" }', None),
-            (
-                'cli-upgrade = { git = "https://github.com/foo/magic.git", rev = "v2" }',
-                "v2",
-            ),
-        ],
-    )
-    def test_extraction(self, spec_line: str, expected: str | None) -> None:
-        assert _pinned_revision(spec_line) == expected
+class TestRewriteDependencyRef:
+    def test_inline_without_rev_appends_tag(self, tmp_path: Any) -> None:
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text(
+            "[project]\ndependencies = [\n"
+            '    "cli-upgrade @ git+https://github.com/foo/magic.git",\n'
+            "]\n"
+        )
+        lines = pyproject.read_text().splitlines()
+        dependency = _git_dependency(pyproject, "cli-upgrade")
+        assert dependency is not None
+        changed = _rewrite_dependency_ref(
+            lines, dependency[0], dependency[1], dependency[2], "v0.1.4"
+        )
+        assert changed is True
+        assert (
+            '    "cli-upgrade @ git+https://github.com/foo/magic.git@v0.1.4",'
+            in "\n".join(lines)
+        )
+
+    def test_inline_existing_rev_is_replaced(self, tmp_path: Any) -> None:
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text(
+            "[project]\ndependencies = [\n"
+            '    "cli-upgrade @ git+https://github.com/foo/magic.git@main",\n'
+            "]\n"
+        )
+        lines = pyproject.read_text().splitlines()
+        dependency = _git_dependency(pyproject, "cli-upgrade")
+        assert dependency is not None
+        changed = _rewrite_dependency_ref(
+            lines, dependency[0], dependency[1], dependency[2], "v0.1.4"
+        )
+        assert changed is True
+        joined = "\n".join(lines)
+        assert "magic.git@v0.1.4" in joined
+        assert "@main" not in joined
+
+    def test_sources_entry_gets_a_tag(self, tmp_path: Any) -> None:
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text(
+            '[project]\nname = "consumer"\ndependencies = ["cli-upgrade"]\n'
+            "\n[tool.uv.sources]\n"
+            'cli-upgrade = { git = "https://github.com/foo/magic.git", branch = "main" }\n'
+        )
+        lines = pyproject.read_text().splitlines()
+        dependency = _git_dependency(pyproject, "cli-upgrade")
+        assert dependency is not None
+        changed = _rewrite_dependency_ref(
+            lines, dependency[0], dependency[1], dependency[2], "v0.1.4"
+        )
+        assert changed is True
+        joined = "\n".join(lines)
+        assert 'tag = "v0.1.4"' in joined
+        assert "branch" not in joined
+
+    def test_sources_subdirectory_is_preserved(self, tmp_path: Any) -> None:
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text(
+            '[project]\nname = "consumer"\ndependencies = ["usecli"]\n'
+            "\n[tool.uv.sources]\n"
+            'usecli = { git = "https://github.com/foo/magic.git", '
+            'subdirectory = "framework" }\n'
+        )
+        lines = pyproject.read_text().splitlines()
+        dependency = _git_dependency(pyproject, "usecli")
+        assert dependency is not None
+        changed = _rewrite_dependency_ref(
+            lines, dependency[0], dependency[1], dependency[2], "v0.1.4"
+        )
+        assert changed is True
+        joined = "\n".join(lines)
+        assert 'subdirectory = "framework"' in joined
+        assert 'tag = "v0.1.4"' in joined
 
 
 class TestReinstalledVersion:
@@ -257,6 +358,81 @@ class TestReinstalledVersion:
             assert _refind_running_distribution() is dist
         reset.assert_called_once()
         find.assert_called_once()
+
+
+class TestReinstalledCommit:
+    def test_reads_commit_from_direct_url(self) -> None:
+        commit = "b" * 40
+        payload = '{"vcs_info": {"vcs": "git", "commit_id": "' + commit + '"}}'
+        dist = Mock(
+            read_text=lambda name: payload if name == "direct_url.json" else None
+        )
+        with patch(
+            "usecli.shared.upgrades.pyproject._refind_running_distribution",
+            return_value=dist,
+        ):
+            assert _reinstalled_commit() == commit
+
+    def test_missing_distribution_returns_none(self) -> None:
+        with patch(
+            "usecli.shared.upgrades.pyproject._refind_running_distribution",
+            return_value=None,
+        ):
+            assert _reinstalled_commit() is None
+
+    def test_unreadable_metadata_returns_none(self) -> None:
+        dist = Mock(read_text=Mock(side_effect=OSError("boom")))
+        with patch(
+            "usecli.shared.upgrades.pyproject._refind_running_distribution",
+            return_value=dist,
+        ):
+            assert _reinstalled_commit() is None
+
+    def test_malformed_metadata_returns_none(self) -> None:
+        dist = Mock(read_text=lambda name: "{not json")
+        with patch(
+            "usecli.shared.upgrades.pyproject._refind_running_distribution",
+            return_value=dist,
+        ):
+            assert _reinstalled_commit() is None
+
+    def test_non_vcs_metadata_returns_none(self) -> None:
+        dist = Mock(read_text=lambda name: '{"url": "https://example.com/x.whl"}')
+        with patch(
+            "usecli.shared.upgrades.pyproject._refind_running_distribution",
+            return_value=dist,
+        ):
+            assert _reinstalled_commit() is None
+
+    def test_empty_direct_url_returns_none(self) -> None:
+        dist = Mock(read_text=Mock(return_value=None))
+        with patch(
+            "usecli.shared.upgrades.pyproject._refind_running_distribution",
+            return_value=dist,
+        ):
+            assert _reinstalled_commit() is None
+
+    def test_non_dict_direct_url_returns_none(self) -> None:
+        dist = Mock(
+            read_text=lambda name: "[1, 2]" if name == "direct_url.json" else None
+        )
+        with patch(
+            "usecli.shared.upgrades.pyproject._refind_running_distribution",
+            return_value=dist,
+        ):
+            assert _reinstalled_commit() is None
+
+    def test_vcs_info_without_commit_returns_none(self) -> None:
+        dist = Mock(
+            read_text=lambda name: (
+                '{"vcs_info": {}}' if name == "direct_url.json" else None
+            )
+        )
+        with patch(
+            "usecli.shared.upgrades.pyproject._refind_running_distribution",
+            return_value=dist,
+        ):
+            assert _reinstalled_commit() is None
 
 
 class TestGetTomllib:
@@ -335,11 +511,9 @@ class TestPersistUpgradeDispatch:
     ) -> None:
         project = _make_project(tmp_path, '[project]\nname = "magic-cli"\n')
         in_project_venv(project)
-        with (
-            patch(
-                "usecli.shared.upgrades.pyproject._reinstalled_version",
-                return_value="0.1.1",
-            ),
+        with patch(
+            "usecli.shared.upgrades.pyproject._reinstalled_version",
+            return_value="0.1.1",
         ):
             outcome = persist_upgrade(_install(package="magic-cli"))
         assert outcome.updated is False
@@ -376,7 +550,7 @@ class TestPersistUpgradeDispatch:
         assert outcome.reason == "version already matches"
         assert outcome.summary is None
 
-    def test_git_dependency_lock_is_refreshed(
+    def test_git_dependency_pin_moves_to_the_release_tag(
         self, tmp_path: Any, in_project_venv
     ) -> None:
         project = _make_project(
@@ -395,11 +569,15 @@ class TestPersistUpgradeDispatch:
                 return_value="0.1.2",
             ),
         ):
-            outcome = persist_upgrade(_install())
+            outcome = persist_upgrade(_install(), target_revision="v0.1.4")
         assert outcome.updated is True
         assert outcome.new_version == "0.1.2"
         assert outcome.summary is not None
-        assert "uv.lock" in outcome.summary
+        assert "v0.1.4" in outcome.summary
+        assert (
+            "cli-upgrade @ git+https://github.com/foo/magic.git@v0.1.4"
+            in (project / "pyproject.toml").read_text()
+        )
         assert run.call_args.args[0] == [
             "/usr/local/bin/uv",
             "lock",
@@ -408,7 +586,7 @@ class TestPersistUpgradeDispatch:
         ]
         assert run.call_args.kwargs["cwd"] == project
 
-    def test_statically_pinned_dependency_is_skipped(
+    def test_statically_pinned_dependency_moves_to_the_tag(
         self, tmp_path: Any, in_project_venv
     ) -> None:
         project = _make_project(
@@ -419,12 +597,86 @@ class TestPersistUpgradeDispatch:
             + '",\n]\n',
         )
         in_project_venv(project)
-        with patch("subprocess.run") as run:
-            outcome = persist_upgrade(_install())
-        run.assert_not_called()
-        assert outcome.updated is False
-        assert outcome.reason is not None
-        assert "pins revision" in outcome.reason
+        with (
+            patch("shutil.which", return_value="/usr/local/bin/uv"),
+            patch(
+                "subprocess.run", return_value=Mock(returncode=0, stdout="", stderr="")
+            ) as run,
+        ):
+            outcome = persist_upgrade(_install(), target_revision="v0.1.4")
+        assert outcome.updated is True
+        run.assert_called_once()
+        assert (
+            "cli-upgrade @ git+https://github.com/foo/magic.git@v0.1.4"
+            in (project / "pyproject.toml").read_text()
+        )
+
+    def test_usecli_rides_along_when_it_is_a_git_dependency(
+        self, tmp_path: Any, in_project_venv
+    ) -> None:
+        project = _make_project(
+            tmp_path,
+            '[project]\nname = "consumer"\ndependencies = [\n'
+            '    "cli-upgrade @ git+https://github.com/foo/magic.git",\n'
+            '    "usecli",\n]\n'
+            "\n[tool.uv.sources]\n"
+            'usecli = { git = "https://github.com/foo/magic.git", '
+            'subdirectory = "framework" }\n',
+        )
+        in_project_venv(project)
+        with (
+            patch("shutil.which", return_value="/usr/local/bin/uv"),
+            patch(
+                "subprocess.run", return_value=Mock(returncode=0, stdout="", stderr="")
+            ) as run,
+            patch(
+                "usecli.shared.upgrades.pyproject._reinstalled_version",
+                return_value="0.1.4",
+            ),
+        ):
+            outcome = persist_upgrade(_install(), target_revision="v0.1.4")
+        assert outcome.updated is True
+        assert run.call_args.args[0] == [
+            "/usr/local/bin/uv",
+            "lock",
+            "--upgrade-package",
+            "cli-upgrade",
+            "--upgrade-package",
+            "usecli",
+        ]
+        content = (project / "pyproject.toml").read_text()
+        assert "magic.git@v0.1.4" in content
+        usecli_line = next(
+            line for line in content.splitlines() if line.strip().startswith("usecli")
+        )
+        assert 'tag = "v0.1.4"' in usecli_line
+        assert 'subdirectory = "framework"' in usecli_line
+
+    def test_usecli_self_upgrade_does_not_duplicate_the_flag(
+        self, tmp_path: Any, in_project_venv
+    ) -> None:
+        project = _make_project(
+            tmp_path,
+            '[project]\nname = "consumer"\ndependencies = [\n'
+            '    "usecli @ git+https://github.com/foo/magic.git",\n]\n',
+        )
+        in_project_venv(project)
+        with (
+            patch("shutil.which", return_value="/usr/local/bin/uv"),
+            patch(
+                "subprocess.run", return_value=Mock(returncode=0, stdout="", stderr="")
+            ) as run,
+        ):
+            outcome = persist_upgrade(
+                _install(package="usecli"), target_revision="v0.1.4"
+            )
+        assert outcome.updated is True
+        assert run.call_args.args[0] == [
+            "/usr/local/bin/uv",
+            "lock",
+            "--upgrade-package",
+            "usecli",
+        ]
 
     def test_package_not_declared_as_dependency_is_skipped(
         self, tmp_path: Any, in_project_venv
@@ -445,12 +697,13 @@ class TestPersistUpgradeDispatch:
         )
         in_project_venv(project)
         with patch("shutil.which", return_value=None):
-            outcome = persist_upgrade(_install())
+            outcome = persist_upgrade(_install(), target_revision="v0.1.4")
         assert outcome.updated is False
         assert outcome.reason is not None
         assert "uv is required" in outcome.reason
+        assert "@v0.1.4" not in (project / "pyproject.toml").read_text()
 
-    def test_failed_uv_lock_reports_reason(
+    def test_failed_uv_lock_rolls_back_the_pin(
         self, tmp_path: Any, in_project_venv
     ) -> None:
         project = _make_project(
@@ -466,11 +719,12 @@ class TestPersistUpgradeDispatch:
                 return_value=Mock(returncode=2, stdout="", stderr="resolve failed"),
             ),
         ):
-            outcome = persist_upgrade(_install())
+            outcome = persist_upgrade(_install(), target_revision="v0.1.4")
         assert outcome.updated is False
         assert outcome.reason is not None
         assert "uv lock failed" in outcome.reason
         assert "resolve failed" in outcome.reason
+        assert "@v0.1.4" not in (project / "pyproject.toml").read_text()
 
     def test_uv_lock_subprocess_error_reports_reason(
         self, tmp_path: Any, in_project_venv
@@ -490,61 +744,10 @@ class TestPersistUpgradeDispatch:
                 side_effect=subprocess.SubprocessError("timeout"),
             ),
         ):
-            outcome = persist_upgrade(_install())
+            outcome = persist_upgrade(_install(), target_revision="v0.1.4")
         assert outcome.updated is False
         assert outcome.reason is not None
         assert "uv lock failed" in outcome.reason
-
-
-def test_pyproject_update_defaults() -> None:
-    outcome = PyprojectUpdate()
-    assert outcome.updated is False
-    assert outcome.path is None
-
-
-class TestReinstalledCommit:
-    def test_reads_commit_from_direct_url(self) -> None:
-        commit = "b" * 40
-        payload = '{"vcs_info": {"vcs": "git", "commit_id": "' + commit + '"}}'
-        dist = Mock(
-            read_text=lambda name: payload if name == "direct_url.json" else None
-        )
-        with patch(
-            "usecli.shared.upgrades.pyproject._refind_running_distribution",
-            return_value=dist,
-        ):
-            assert _reinstalled_commit() == commit
-
-    def test_missing_distribution_returns_none(self) -> None:
-        with patch(
-            "usecli.shared.upgrades.pyproject._refind_running_distribution",
-            return_value=None,
-        ):
-            assert _reinstalled_commit() is None
-
-    def test_unreadable_metadata_returns_none(self) -> None:
-        dist = Mock(read_text=Mock(side_effect=OSError("boom")))
-        with patch(
-            "usecli.shared.upgrades.pyproject._refind_running_distribution",
-            return_value=dist,
-        ):
-            assert _reinstalled_commit() is None
-
-    def test_malformed_metadata_returns_none(self) -> None:
-        dist = Mock(read_text=lambda name: "{not json")
-        with patch(
-            "usecli.shared.upgrades.pyproject._refind_running_distribution",
-            return_value=dist,
-        ):
-            assert _reinstalled_commit() is None
-
-    def test_non_vcs_metadata_returns_none(self) -> None:
-        dist = Mock(read_text=lambda name: '{"url": "https://example.com/x.whl"}')
-        with patch(
-            "usecli.shared.upgrades.pyproject._refind_running_distribution",
-            return_value=dist,
-        ):
-            assert _reinstalled_commit() is None
 
 
 class TestPersistRequirements:
@@ -680,7 +883,8 @@ class TestPersistRequirements:
         self, tmp_path: Any, in_project_venv
     ) -> None:
         project = self._requirements_project(
-            tmp_path, "cli-upgrade @ https://example.com/wheels/cli_upgrade-0.1.0.whl\n"
+            tmp_path,
+            "cli-upgrade @ https://example.com/wheels/cli_upgrade-0.1.0.whl\n",
         )
         in_project_venv(project)
         outcome = persist_upgrade(_install())
@@ -767,7 +971,6 @@ class TestPersistRequirements:
         ):
             outcome = persist_upgrade(_install())
         assert outcome.updated is True
-        assert "uv.lock" in (outcome.summary or "")
         assert (
             "git+https://github.com/foo/magic.git@main"
             in (project / "requirements.txt").read_text()
@@ -794,6 +997,15 @@ class TestPersistRequirements:
         assert outcome.updated is False
         assert outcome.reason == "could not write requirements.txt"
 
+    def test_unreadable_requirements_file_reports_reason(
+        self, tmp_path: Any, in_project_venv
+    ) -> None:
+        project = self._requirements_project(tmp_path, "cli-upgrade==0.1.0\n")
+        in_project_venv(project)
+        outcome = _persist_requirements(project, _install())
+        assert outcome.updated is False
+        assert outcome.reason == "could not read requirements.txt"
+
 
 class TestRemainingEdgeCases:
     def test_ghost_project_dir_is_skipped(
@@ -804,37 +1016,107 @@ class TestRemainingEdgeCases:
         assert outcome.updated is False
         assert outcome.reason == "not a project-managed environment"
 
-    def test_empty_direct_url_returns_none(self) -> None:
-        dist = Mock(read_text=Mock(return_value=None))
-        with patch(
-            "usecli.shared.upgrades.pyproject._refind_running_distribution",
-            return_value=dist,
-        ):
-            assert _reinstalled_commit() is None
 
-    def test_non_dict_direct_url_returns_none(self) -> None:
-        dist = Mock(
-            read_text=lambda name: "[1, 2]" if name == "direct_url.json" else None
+def test_pyproject_update_defaults() -> None:
+    outcome = PyprojectUpdate()
+    assert outcome.updated is False
+    assert outcome.path is None
+
+
+class TestRewriteDependencyRefEdges:
+    def test_inline_tag_already_present_is_a_noop(self, tmp_path: Any) -> None:
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text(
+            "[project]\ndependencies = [\n"
+            '    "cli-upgrade @ git+https://github.com/foo/magic.git@v0.1.4",\n'
+            "]\n"
         )
-        with patch(
-            "usecli.shared.upgrades.pyproject._refind_running_distribution",
-            return_value=dist,
-        ):
-            assert _reinstalled_commit() is None
-
-    def test_vcs_info_without_commit_returns_none(self) -> None:
-        dist = Mock(
-            read_text=lambda name: (
-                '{"vcs_info": {}}' if name == "direct_url.json" else None
-            )
+        lines = pyproject.read_text().splitlines()
+        dependency = _git_dependency(pyproject, "cli-upgrade")
+        assert dependency is not None
+        changed = _rewrite_dependency_ref(
+            lines, dependency[0], dependency[1], dependency[2], "v0.1.4"
         )
-        with patch(
-            "usecli.shared.upgrades.pyproject._refind_running_distribution",
-            return_value=dist,
-        ):
-            assert _reinstalled_commit() is None
+        assert changed is False
 
-    def test_other_package_git_lines_are_ignored(
+    def test_inline_line_missing_is_a_noop(self) -> None:
+        changed = _rewrite_dependency_ref(
+            ["unrelated = true"], "inline", "cli-upgrade @ git+https://x", None, "v1"
+        )
+        assert changed is False
+
+    def test_sources_tag_already_present_is_a_noop(self, tmp_path: Any) -> None:
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text(
+            '[project]\nname = "consumer"\ndependencies = ["cli-upgrade"]\n'
+            "\n[tool.uv.sources]\n"
+            'cli-upgrade = { git = "https://github.com/foo/magic.git", tag = "v0.1.4" }\n'
+        )
+        lines = pyproject.read_text().splitlines()
+        dependency = _git_dependency(pyproject, "cli-upgrade")
+        assert dependency is not None
+        changed = _rewrite_dependency_ref(
+            lines, dependency[0], dependency[1], dependency[2], "v0.1.4"
+        )
+        assert changed is False
+
+    def test_sources_line_missing_is_a_noop(self) -> None:
+        changed = _rewrite_dependency_ref(
+            ["unrelated = true"],
+            "sources",
+            "cli-upgrade",
+            {"git": "https://github.com/foo/magic.git"},
+            "v1",
+        )
+        assert changed is False
+
+
+class TestPersistDependencyEdgeCases:
+    def test_unreadable_pyproject_reports_reason(
+        self, tmp_path: Any, in_project_venv
+    ) -> None:
+        from usecli.shared.upgrades.pyproject import _persist_dependency
+
+        project = tmp_path / "proj"
+        (project / ".venv").mkdir(parents=True)
+        in_project_venv(project)
+        dependency = (
+            "inline",
+            "cli-upgrade @ git+https://github.com/foo/magic.git",
+            None,
+        )
+        outcome = _persist_dependency(
+            project,
+            dependency,
+            _install(),
+            "v0.1.4",  # type: ignore[arg-type]
+        )
+        assert outcome.updated is False
+        assert outcome.reason == "could not read pyproject.toml"
+
+    def test_unwritable_pyproject_reports_reason(
+        self, tmp_path: Any, in_project_venv
+    ) -> None:
+        import os
+
+        project = _make_project(
+            tmp_path,
+            '[project]\nname = "consumer"\ndependencies = [\n'
+            '    "cli-upgrade @ git+https://github.com/foo/magic.git",\n]\n',
+        )
+        in_project_venv(project)
+        os.chmod(project / "pyproject.toml", 0o444)
+        try:
+            with patch("shutil.which", return_value="/usr/local/bin/uv"):
+                outcome = persist_upgrade(_install(), target_revision="v0.1.4")
+        finally:
+            os.chmod(project / "pyproject.toml", 0o644)
+        assert outcome.updated is False
+        assert outcome.reason == "could not write pyproject.toml"
+
+
+class TestMatchRequirementEdge:
+    def test_other_package_lines_are_ignored(
         self, tmp_path: Any, in_project_venv
     ) -> None:
         project = tmp_path / "proj"
@@ -854,35 +1136,6 @@ class TestRemainingEdgeCases:
         content = (project / "requirements.txt").read_text()
         assert "other-pkg @ git+https://github.com/foo/other.git@dev" in content
 
-    def test_unpinned_git_line_with_comment_pins_before_comment(
-        self, tmp_path: Any, in_project_venv
-    ) -> None:
-        project = tmp_path / "proj"
-        (project / ".venv").mkdir(parents=True)
-        (project / "requirements.txt").write_text(
-            "cli-upgrade @ git+https://github.com/foo/magic.git  # installed via CI\n"
-        )
-        in_project_venv(project)
-        with patch(
-            "usecli.shared.upgrades.pyproject._reinstalled_commit",
-            return_value="b" * 40,
-        ):
-            outcome = persist_upgrade(_install())
-        assert outcome.updated is True
-        content = (project / "requirements.txt").read_text()
-        assert f"magic.git@{'b' * 40}  # installed via CI" in content
-
-    def test_unreadable_requirements_file_reports_reason(
-        self, tmp_path: Any, in_project_venv
-    ) -> None:
-        project = tmp_path / "proj"
-        (project / ".venv").mkdir(parents=True)
-        (project / "requirements.txt").write_text("cli-upgrade==0.1.0\n")
-        in_project_venv(project)
-        outcome = _persist_requirements(project, _install())
-        assert outcome.updated is False
-        assert outcome.reason == "could not read requirements.txt"
-
     def test_git_pin_already_matching_commit_is_a_noop(
         self, tmp_path: Any, in_project_venv
     ) -> None:
@@ -901,79 +1154,3 @@ class TestRemainingEdgeCases:
         assert outcome.updated is False
         assert outcome.reason == "pin already matches"
         assert outcome.previous_version == commit
-
-
-class TestUvSourcesDeclaration:
-    def test_sources_git_entry_is_recognized(self, tmp_path: Any) -> None:
-        pyproject = tmp_path / "pyproject.toml"
-        pyproject.write_text(
-            '[project]\nname = "consumer"\ndependencies = ["cli-upgrade"]\n'
-            "\n[tool.uv.sources]\n"
-            'cli-upgrade = { git = "https://github.com/foo/magic.git" }\n'
-        )
-        spec = _dependency_git_spec(pyproject, "cli-upgrade")
-        assert spec is not None
-        assert "git+https://github.com/foo/magic.git" in spec
-        assert "@" not in spec.replace("cli-upgrade @ ", "", 1)
-
-    def test_sources_branch_entry_is_movable(self, tmp_path: Any) -> None:
-        pyproject = tmp_path / "pyproject.toml"
-        pyproject.write_text(
-            '[project]\nname = "consumer"\ndependencies = ["cli-upgrade"]\n'
-            "\n[tool.uv.sources]\n"
-            'cli-upgrade = { git = "https://github.com/foo/magic.git", branch = "main" }\n'
-        )
-        spec = _dependency_git_spec(pyproject, "cli-upgrade")
-        assert spec is not None
-        assert spec.endswith("@main")
-        assert _pinned_revision(spec) == "main"
-
-    def test_sources_tag_entry_is_a_static_pin(self, tmp_path: Any) -> None:
-        pyproject = tmp_path / "pyproject.toml"
-        pyproject.write_text(
-            '[project]\nname = "consumer"\ndependencies = ["cli-upgrade"]\n'
-            "\n[tool.uv.sources]\n"
-            'cli-upgrade = { git = "https://github.com/foo/magic.git", tag = "v0.1.0" }\n'
-        )
-        spec = _dependency_git_spec(pyproject, "cli-upgrade")
-        assert spec is not None
-        assert _pinned_revision(spec) == "v0.1.0"
-
-    def test_non_git_sources_entry_is_ignored(self, tmp_path: Any) -> None:
-        pyproject = tmp_path / "pyproject.toml"
-        pyproject.write_text(
-            '[project]\nname = "consumer"\ndependencies = ["cli-upgrade"]\n'
-            "\n[tool.uv.sources]\n"
-            'cli-upgrade = { path = "../cli-upgrade" }\n'
-        )
-        assert _dependency_git_spec(pyproject, "cli-upgrade") is None
-
-    def test_sources_dispatch_refreshes_the_lock(
-        self, tmp_path: Any, in_project_venv
-    ) -> None:
-        project = tmp_path / "proj"
-        (project / ".venv").mkdir(parents=True)
-        (project / "pyproject.toml").write_text(
-            '[project]\nname = "consumer"\ndependencies = ["cli-upgrade"]\n'
-            "\n[tool.uv.sources]\n"
-            'cli-upgrade = { git = "https://github.com/foo/magic.git" }\n'
-        )
-        in_project_venv(project)
-        with (
-            patch("shutil.which", return_value="/usr/local/bin/uv"),
-            patch(
-                "subprocess.run", return_value=Mock(returncode=0, stdout="", stderr="")
-            ) as run,
-            patch(
-                "usecli.shared.upgrades.pyproject._reinstalled_version",
-                return_value="0.1.4",
-            ),
-        ):
-            outcome = persist_upgrade(_install())
-        assert outcome.updated is True
-        assert run.call_args.args[0] == [
-            "/usr/local/bin/uv",
-            "lock",
-            "--upgrade-package",
-            "cli-upgrade",
-        ]

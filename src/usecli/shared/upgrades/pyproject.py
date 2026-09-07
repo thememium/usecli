@@ -1,13 +1,16 @@
 """Persist upgraded versions into the owning project's dependency metadata.
 
 An environment-level upgrade does not survive a dependency reinstall by
-itself, so the upgraded version is written back into whichever metadata the
-project actually uses:
+itself, so the upgrade is persisted into whichever metadata the project
+actually uses:
 
 - The running package IS the project (``project.name`` matches) → the
   version is rewritten in ``pyproject.toml``.
-- The package is a git dependency of a uv project → ``uv.lock`` is
-  refreshed with ``uv lock --upgrade-package`` so sync keeps the upgrade.
+- The package is a git dependency of a uv project → the dependency's git
+  ref is moved to the resolved release tag (in both the app's spec and the
+  usecli framework's spec when the framework is a git dependency too) and
+  ``uv.lock`` is refreshed with ``uv lock --upgrade-package``, so sync
+  installs exactly the advertised release instead of reverting.
 - The project pins the package in ``requirements.txt`` → the git revision
   (or ``==`` version pin) is rewritten to what was installed.
 
@@ -23,7 +26,7 @@ import sys
 from dataclasses import dataclass
 from typing import Any
 
-from usecli.shared.upgrades.discovery import InstallInfo, _revision_kind
+from usecli.shared.upgrades.discovery import InstallInfo
 
 logger = logging.getLogger(__name__)
 
@@ -149,13 +152,18 @@ def update_project_version(
     return True, previous_version
 
 
-def _dependency_git_spec(pyproject_path: Any, package: str) -> str | None:
-    """Find the git source declaring ``package``, in either form uv writes.
+def _git_dependency(
+    pyproject_path: Any,
+    package: str,
+) -> tuple[str, str, dict[str, Any] | None] | None:
+    """Locate the git dependency declaring ``package``.
 
-    Recognizes inline PEP 508 direct URLs in ``project.dependencies`` and
-    ``[tool.uv.sources]`` git entries paired with a bare dependency name.
-    Returns a synthetic ``"<package> @ git+<url>[@ref]"`` descriptor for pin
-    analysis, or ``None`` when the package has no git source.
+    Recognizes both forms uv writes: inline PEP 508 direct URLs in
+    ``project.dependencies`` and ``[tool.uv.sources]`` git entries paired
+    with a bare dependency name. Returns ``(form, value, entry)`` where
+    form is ``"inline"`` (value = the spec string, entry = ``None``) or
+    ``"sources"`` (value = the sources key, entry = the parsed entry), or
+    ``None`` when the package has no git source.
     """
     try:
         with open(pyproject_path, "rb") as handle:
@@ -173,41 +181,89 @@ def _dependency_git_spec(pyproject_path: Any, package: str) -> str | None:
             if match is None:
                 continue
             if _normalize_name(match.group(1)) == target:
-                return spec
+                return ("inline", spec, None)
 
     sources = data.get("tool", {}).get("uv", {}).get("sources", {})
     if isinstance(sources, dict):
-        entry = None
         for source_name, source_entry in sources.items():
             if (
                 isinstance(source_entry, dict)
                 and _normalize_name(str(source_name)) == target
+                and isinstance(source_entry.get("git"), str)
             ):
-                entry = source_entry
-                break
-        if entry is not None and isinstance(entry.get("git"), str):
-            descriptor = f"{package} @ git+{entry['git']}"
-            ref = entry.get("rev") or entry.get("tag") or entry.get("branch")
-            if isinstance(ref, str) and ref.strip():
-                descriptor = f"{descriptor}@{ref.strip()}"
-            return descriptor
+                return ("sources", str(source_name), source_entry)
     return None
 
 
-def _pinned_revision(spec_line: str) -> str | None:
-    """Extract a static revision pin from a git dependency spec.
+def _rewrite_git_pin(line: str, new_ref: str) -> tuple[str, str | None]:
+    """Point a git requirement spec at ``new_ref``.
 
-    Returns the pinned revision when the spec fixes a tag or commit (which
-    ``uv lock --upgrade-package`` cannot move); ``None`` for unpinned or
-    branch-pinned specs.
+    Replaces an existing trailing ``@<rev>`` or appends one to the URL
+    token. Anchored after the last path segment so ``ssh://git@host`` style
+    URLs are not misread as pins; quote-aware so quoted TOML specs are
+    handled. Returns ``(new_line, previous_revision)``.
     """
-    inline = re.search(r"git\+\S*?@([A-Za-z0-9._-]+)", spec_line)
-    if inline is not None:
-        return inline.group(1)
-    sources = re.search(r'\brev\s*=\s*["\']([^"\']+)["\']', spec_line)
-    if sources is not None:
-        return sources.group(1)
-    return None
+    git_pos = line.index("git+")
+    pinned = re.search(r"@([A-Za-z0-9._-]+)(?=$|[\s#\"'])", line[git_pos:])
+    if pinned is not None:
+        start = git_pos + pinned.start(1)
+        end = git_pos + pinned.end(1)
+        return line[:start] + new_ref + line[end:], pinned.group(1)
+    token_end = len(line)
+    for position in range(git_pos, len(line)):
+        if line[position] in " \t#\"'":
+            token_end = position
+            break
+    return line[:token_end] + "@" + new_ref + line[token_end:], None
+
+
+def _sources_entry_line(
+    key: str,
+    entry: dict[str, Any],
+    tag: str | None,
+) -> str:
+    """Rebuild a ``[tool.uv.sources]`` inline-table entry pinned to ``tag``."""
+    items = []
+    for source_key, source_value in entry.items():
+        if source_key in ("branch", "tag", "rev"):
+            continue
+        value = source_value if isinstance(source_value, str) else str(source_value)
+        items.append(f'{source_key} = "{value}"')
+    if tag:
+        items.append(f'tag = "{tag}"')
+    joined = ", ".join(items)
+    return f"{key} = {{ {joined} }}"
+
+
+def _rewrite_dependency_ref(
+    lines: list[str],
+    form: str,
+    value: str,
+    entry: dict[str, Any] | None,
+    tag: str,
+) -> bool:
+    """Rewrite one dependency's git ref to ``tag`` in the pyproject lines.
+
+    Returns True when a line changed.
+    """
+    if form == "inline":
+        for index, line in enumerate(lines):
+            if value in line and "git+" in line:
+                new_line, _ = _rewrite_git_pin(line, tag)
+                if new_line != line:
+                    lines[index] = new_line
+                    return True
+                return False
+        return False
+    key_pattern = re.compile(rf"^\s*{re.escape(value)}\s*=")
+    for index, line in enumerate(lines):
+        if key_pattern.match(line):
+            new_line = _sources_entry_line(value, entry or {}, tag)
+            if new_line != line:
+                lines[index] = new_line
+                return True
+            return False
+    return False
 
 
 def _refind_running_distribution() -> Any | None:
@@ -260,55 +316,6 @@ def _reinstalled_commit() -> str | None:
     return None
 
 
-def _match_requirement(line: str, package: str) -> str | None:
-    """Classify a requirements.txt line declaring ``package``.
-
-    Returns ``"git"`` (direct URL or ``#egg=`` form), ``"pin"``
-    (``name==version``), ``"url"`` (non-git direct URL), or ``None`` when
-    the line does not declare the package.
-    """
-    stripped = line.strip()
-    if not stripped or stripped.startswith("#"):
-        return None
-    target = _normalize_name(package)
-    candidates = (
-        ("git", re.compile(r"^\s*(?:-e\s+)?git\+\S*#egg=([A-Za-z0-9._-]+)")),
-        ("git", re.compile(r"^\s*(?:-e\s+)?([A-Za-z0-9._-]+)\s*@")),
-        ("pin", re.compile(r"^\s*([A-Za-z0-9._-]+)\s*==")),
-    )
-    for kind, pattern in candidates:
-        match = pattern.match(line)
-        if match is None:
-            continue
-        if _normalize_name(match.group(1)) != target:
-            return None
-        if kind == "git" and "git+" not in line:
-            return "url"
-        return kind
-    return None
-
-
-def _rewrite_git_pin(line: str, new_commit: str) -> tuple[str, str | None]:
-    """Point a git requirement line at ``new_commit``.
-
-    Replaces an existing trailing ``@<rev>`` or appends one to the URL
-    token. Anchored after the last path segment so ``ssh://git@host`` style
-    URLs are not misread as pins. Returns ``(new_line, previous_revision)``.
-    """
-    git_pos = line.index("git+")
-    pinned = re.search(r"@([A-Za-z0-9._-]+)(?=$|[\s#])", line[git_pos:])
-    if pinned is not None:
-        start = git_pos + pinned.start(1)
-        end = git_pos + pinned.end(1)
-        return line[:start] + new_commit + line[end:], pinned.group(1)
-    token_end = len(line)
-    for position in range(git_pos, len(line)):
-        if line[position] in " \t#":
-            token_end = position
-            break
-    return line[:token_end] + "@" + new_commit + line[token_end:], None
-
-
 def _persist_self_version(pyproject_path: Any, install: InstallInfo) -> PyprojectUpdate:
     new_version = _reinstalled_version()
     if not new_version:
@@ -342,32 +349,72 @@ def _persist_self_version(pyproject_path: Any, install: InstallInfo) -> Pyprojec
 
 def _persist_dependency(
     pyproject_path: Any,
-    spec: str,
+    dependency: tuple[str, str, dict[str, Any] | None],
     install: InstallInfo,
+    target_tag: str | None,
 ) -> PyprojectUpdate:
+    """Persist a git-dependency upgrade.
+
+    Moves the dependency's git ref to the resolved release tag (in the
+    app's spec and in the usecli framework's spec when the framework is a
+    git dependency of the same project) and refreshes ``uv.lock`` so
+    ``uv sync`` installs exactly the advertised release instead of
+    reverting to the stale pin.
+    """
     import shutil
     import subprocess
 
-    pin = _pinned_revision(spec)
-    if pin is not None and _revision_kind(pin) in ("commit", "tag"):
+    try:
+        text = pyproject_path.read_text()
+    except OSError:
         return PyprojectUpdate(
             path=str(pyproject_path),
-            reason=(
-                f"dependency pins revision '{pin}'; move the pin in "
-                "pyproject.toml to upgrade"
-            ),
+            reason="could not read pyproject.toml",
         )
+
+    framework = None
+    if install.package != "usecli":
+        framework = _git_dependency(pyproject_path, "usecli")
+
+    lines = text.splitlines()
+    rewritten = False
+    if target_tag:
+        form, value, entry = dependency
+        rewritten = _rewrite_dependency_ref(lines, form, value, entry, target_tag)
+        if framework is not None:
+            framework_rewritten = _rewrite_dependency_ref(
+                lines, framework[0], framework[1], framework[2], target_tag
+            )
+            rewritten = framework_rewritten or rewritten
 
     uv = shutil.which("uv")
     if uv is None:
+        if rewritten:
+            pyproject_path.write_text(text)
         return PyprojectUpdate(
             path=str(pyproject_path),
             reason="uv is required to refresh uv.lock",
         )
 
+    if rewritten:
+        try:
+            pyproject_path.write_text(
+                "\n".join(lines) + ("\n" if text.endswith("\n") else "")
+            )
+        except OSError:
+            logger.debug("Failed to write pyproject.toml: %s", pyproject_path)
+            return PyprojectUpdate(
+                path=str(pyproject_path),
+                reason="could not write pyproject.toml",
+            )
+
+    lock_command = [uv, "lock", "--upgrade-package", install.package]
+    if framework is not None:
+        lock_command += ["--upgrade-package", "usecli"]
+
     try:
         result = subprocess.run(
-            [uv, "lock", "--upgrade-package", install.package],
+            lock_command,
             cwd=pyproject_path.parent,
             capture_output=True,
             text=True,
@@ -376,6 +423,8 @@ def _persist_dependency(
         )
     except (OSError, subprocess.SubprocessError) as error:
         logger.debug("uv lock failed: %s", error)
+        if rewritten:
+            pyproject_path.write_text(text)
         return PyprojectUpdate(
             path=str(pyproject_path),
             reason=f"uv lock failed: {error}",
@@ -383,19 +432,58 @@ def _persist_dependency(
 
     if result.returncode != 0:
         detail = (result.stderr or result.stdout or "").strip()[-300:]
+        if rewritten:
+            pyproject_path.write_text(text)
         return PyprojectUpdate(
             path=str(pyproject_path),
             reason=f"uv lock failed: {detail}",
         )
 
+    if target_tag:
+        summary = (
+            f"Pinned {install.package} to {target_tag} and refreshed uv.lock; "
+            "uv sync will keep the upgrade."
+        )
+    else:
+        summary = (
+            f"Refreshed uv.lock for {install.package}; uv sync will keep the upgrade."
+        )
+    if framework is not None:
+        summary = f"{summary} usecli refreshed alongside."
     return PyprojectUpdate(
         path=str(pyproject_path),
         new_version=_reinstalled_version(),
         updated=True,
-        summary=(
-            f"Refreshed uv.lock for {install.package}; uv sync will keep the upgrade."
-        ),
+        summary=summary,
     )
+
+
+def _match_requirement(line: str, package: str) -> str | None:
+    """Classify a requirements.txt line declaring ``package``.
+
+    Returns ``"git"`` (direct URL or ``#egg=`` form), ``"pin"``
+    (``name==version``), ``"url"`` (non-git direct URL), or ``None`` when
+    the line does not declare the package.
+    """
+    stripped = line.strip()
+    if not stripped or stripped.startswith("#"):
+        return None
+    target = _normalize_name(package)
+    candidates = (
+        ("git", re.compile(r"^\s*(?:-e\s+)?git\+\S*#egg=([A-Za-z0-9._-]+)")),
+        ("git", re.compile(r"^\s*(?:-e\s+)?([A-Za-z0-9._-]+)\s*@")),
+        ("pin", re.compile(r"^\s*([A-Za-z0-9._-]+)\s*==")),
+    )
+    for kind, pattern in candidates:
+        match = pattern.match(line)
+        if match is None:
+            continue
+        if _normalize_name(match.group(1)) != target:
+            return None
+        if kind == "git" and "git+" not in line:
+            return "url"
+        return kind
+    return None
 
 
 def _persist_requirements(
@@ -493,7 +581,10 @@ def _persist_requirements(
     )
 
 
-def persist_upgrade(install: InstallInfo) -> PyprojectUpdate:
+def persist_upgrade(
+    install: InstallInfo,
+    target_revision: str | None = None,
+) -> PyprojectUpdate:
     """Persist the upgrade into the owning project's dependency metadata.
 
     Best-effort: every failure mode degrades to an explanatory
@@ -512,9 +603,11 @@ def persist_upgrade(install: InstallInfo) -> PyprojectUpdate:
             project_name
         ) == _normalize_name(install.package):
             return _persist_self_version(pyproject_path, install)
-        git_spec = _dependency_git_spec(pyproject_path, install.package)
-        if git_spec is not None:
-            return _persist_dependency(pyproject_path, git_spec, install)
+        dependency = _git_dependency(pyproject_path, install.package)
+        if dependency is not None:
+            return _persist_dependency(
+                pyproject_path, dependency, install, target_revision
+            )
 
     requirements_path = project_dir / "requirements.txt"
     if requirements_path.is_file():

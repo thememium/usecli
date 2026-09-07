@@ -310,7 +310,7 @@ class TestPyprojectPersistence:
             ) as persist,
         ):
             result = upgrade(install)
-        persist.assert_called_once_with(install)
+        persist.assert_called_once_with(install, None)
         assert result.pyproject is outcome
 
     def test_failed_upgrade_skips_persistence(self) -> None:
