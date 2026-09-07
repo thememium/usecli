@@ -15,6 +15,7 @@ from usecli.shared.upgrades.installer import (
     _shutil_which,
     upgrade,
 )
+from usecli.shared.upgrades.pyproject import PyprojectUpdate
 
 
 def _install(**overrides: Any) -> InstallInfo:
@@ -290,3 +291,37 @@ class TestRunHelpers:
         assert "x" * 400 in result.message
         head = "y" * 400
         assert head not in result.message
+
+
+class TestPyprojectPersistence:
+    def test_successful_upgrade_persists_project_metadata(self) -> None:
+        install = _install(installer="pip")
+        outcome = PyprojectUpdate(
+            path="/p/pyproject.toml",
+            previous_version="0.1.0",
+            new_version="0.1.1",
+            updated=True,
+        )
+        with (
+            patch("subprocess.run", return_value=_mock_run()),
+            patch(
+                "usecli.shared.upgrades.installer.persist_upgrade",
+                return_value=outcome,
+            ) as persist,
+        ):
+            result = upgrade(install)
+        persist.assert_called_once_with(install)
+        assert result.pyproject is outcome
+
+    def test_failed_upgrade_skips_persistence(self) -> None:
+        install = _install(installer="pip")
+        with (
+            patch(
+                "subprocess.run",
+                return_value=_mock_run(returncode=1, stderr="boom"),
+            ),
+            patch("usecli.shared.upgrades.installer.persist_upgrade") as persist,
+        ):
+            result = upgrade(install)
+        persist.assert_not_called()
+        assert result.pyproject is None

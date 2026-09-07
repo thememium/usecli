@@ -14,6 +14,7 @@ from usecli.shared.config.manager import reset_config
 from usecli.shared.upgrades.checker import UpgradeStatus
 from usecli.shared.upgrades.discovery import InstallInfo
 from usecli.shared.upgrades.installer import UpgradeResult
+from usecli.shared.upgrades.pyproject import PyprojectUpdate
 
 
 @pytest.fixture(autouse=True)
@@ -385,6 +386,50 @@ class TestHumanApplyOutput:
             data = UpgradeCommand.__new__(UpgradeCommand).handle()
         confirm.assert_called_once()
         assert data["upgraded"] is True
+
+    def test_reports_pyproject_update_after_success(self) -> None:
+        install = _install()
+        outcome = PyprojectUpdate(
+            path="/p/pyproject.toml",
+            previous_version="0.1.0",
+            new_version="0.1.1",
+            updated=True,
+            summary="Refreshed uv.lock for magic-cli; uv sync will keep the upgrade.",
+        )
+        service = _patched_service(
+            install,
+            _status(install),
+            UpgradeResult(success=True, pyproject=outcome),
+        )
+        with (
+            patch(
+                "usecli.cli.commands.defaults.base.upgrade_command.UpgradeService",
+                service,
+            ),
+            patch(
+                "usecli.cli.commands.defaults.base.upgrade_command.Confirm.ask",
+                return_value=True,
+            ),
+            execution_context(json_mode=False),
+        ):
+            data = UpgradeCommand.__new__(UpgradeCommand).handle()
+        assert data["upgraded"] is True
+        assert data["pyproject_updated"] is True
+        assert data["pyproject_new_version"] == "0.1.1"
+
+    def test_pyproject_fields_absent_when_not_persisted(self) -> None:
+        install = _install()
+        service = _patched_service(install, _status(install))
+        with (
+            patch(
+                "usecli.cli.commands.defaults.base.upgrade_command.UpgradeService",
+                service,
+            ),
+            execution_context(json_mode=True),
+        ):
+            data = UpgradeCommand.__new__(UpgradeCommand).handle()
+        assert data["pyproject_updated"] is None
+        assert data["pyproject_path"] is None
 
     def test_confirm_no_aborts(self) -> None:
         install = _install()
