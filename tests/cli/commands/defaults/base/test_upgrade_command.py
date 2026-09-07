@@ -133,6 +133,8 @@ class TestCheckMode:
                 latest="b" * 40,
                 update_available=True,
                 detail="github.com/foo/magic",
+                latest_tag="v0.2.0",
+                latest_tag_commit="b" * 40,
             ),
         )
         with (
@@ -147,6 +149,8 @@ class TestCheckMode:
         assert data["revision"] == "main"
         assert data["commit"] == "a" * 40
         assert data["latest"] == "b" * 40
+        assert data["latest_tag"] == "v0.2.0"
+        assert data["latest_tag_commit"] == "b" * 40
 
     def test_check_error_raises(self) -> None:
         install = _install()

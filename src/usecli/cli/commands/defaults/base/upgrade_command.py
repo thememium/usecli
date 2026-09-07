@@ -40,10 +40,14 @@ console = _LazyConsole()
 
 
 def _short_commit(commit: str | None) -> str:
-    """Render a commit id for display (7-character short form)."""
+    """Render a commit id for display; version labels pass through intact."""
     if not commit:
         return "-"
-    return commit[:7]
+    import re
+
+    if re.fullmatch(r"[0-9a-fA-F]{8,40}", commit):
+        return commit[:7]
+    return commit
 
 
 class UpgradeCommand(BaseCommand):
@@ -103,6 +107,8 @@ class UpgradeCommand(BaseCommand):
             "update_available": status.update_available,
             "upgraded": None,
             "error": status.error,
+            "latest_tag": status.latest_tag,
+            "latest_tag_commit": status.latest_tag_commit,
         }
 
         if check:
@@ -144,7 +150,8 @@ class UpgradeCommand(BaseCommand):
         if not is_json_mode() and not force:
             confirmed = Confirm.ask(
                 f"[{COLOR.WARNING}]Upgrade {install.package} from "
-                f"{install.version} to {status.latest or 'latest'}?"
+                f"{install.version} to "
+                f"{_short_commit(status.latest) if status.latest else 'latest'}?"
                 f"[/{COLOR.WARNING}]",
                 default=False,
             )
@@ -226,8 +233,8 @@ class UpgradeCommand(BaseCommand):
 
             console.print(
                 f"[{COLOR.SUCCESS}]Update available: {install.version} → "
-                f"{status.latest}. Run `{get_project_name()} upgrade` to "
-                f"update.[/{COLOR.SUCCESS}]"
+                f"{_short_commit(status.latest)}. Run "
+                f"`{get_project_name()} upgrade` to update.[/{COLOR.SUCCESS}]"
             )
         else:
             console.print(f"[{COLOR.INFO}]You are up to date.[/{COLOR.INFO}]")

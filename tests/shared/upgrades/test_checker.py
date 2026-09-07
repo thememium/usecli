@@ -10,6 +10,7 @@ import pytest
 from usecli.shared.upgrades.checker import (
     _display_url,
     _fetch_git_head,
+    _fetch_latest_tag,
     _fetch_pypi_latest,
     _normalize_pypi_name,
     _version_is_newer,
@@ -121,15 +122,22 @@ class TestGitCheck:
             commit="a" * 40,
         )
         new_sha = "b" * 40
-        with patch(
-            "usecli.shared.upgrades.checker._fetch_git_head",
-            return_value=new_sha,
-        ) as fetch:
+        with (
+            patch(
+                "usecli.shared.upgrades.checker._fetch_git_head",
+                return_value=new_sha,
+            ) as fetch,
+            patch(
+                "usecli.shared.upgrades.checker._fetch_latest_tag",
+                return_value=None,
+            ),
+        ):
             status = check(install)
         fetch.assert_called_once_with("https://github.com/foo/magic.git", "main")
         assert status.latest == new_sha
         assert status.update_available is True
         assert status.detail == "github.com/foo/magic"
+        assert status.latest_tag is None
 
     def test_same_commit_is_up_to_date(self) -> None:
         sha = "a" * 40
@@ -139,12 +147,116 @@ class TestGitCheck:
             revision="main",
             commit=sha,
         )
-        with patch(
-            "usecli.shared.upgrades.checker._fetch_git_head",
-            return_value=sha,
+        with (
+            patch(
+                "usecli.shared.upgrades.checker._fetch_git_head",
+                return_value=sha,
+            ),
+            patch(
+                "usecli.shared.upgrades.checker._fetch_latest_tag",
+                return_value=None,
+            ),
         ):
             status = check(install)
         assert status.update_available is False
+
+    def test_latest_tag_version_shown_when_head_matches_tag(self) -> None:
+        install = _install(
+            source="git",
+            url="https://github.com/foo/magic.git",
+            revision="main",
+            version="0.1.0",
+            commit="a" * 40,
+        )
+        head = "b" * 40
+        with (
+            patch(
+                "usecli.shared.upgrades.checker._fetch_git_head",
+                return_value=head,
+            ),
+            patch(
+                "usecli.shared.upgrades.checker._fetch_latest_tag",
+                return_value=("v0.1.1", head),
+            ),
+        ):
+            status = check(install)
+        assert status.latest == "v0.1.1"
+        assert status.latest_tag == "v0.1.1"
+        assert status.latest_tag_commit == head
+        assert status.update_available is True
+
+    def test_up_to_date_when_version_equal_and_commit_matches(self) -> None:
+        head = "b" * 40
+        install = _install(
+            source="git",
+            url="https://github.com/foo/magic.git",
+            revision="main",
+            version="0.1.1",
+            commit=head,
+        )
+        with (
+            patch(
+                "usecli.shared.upgrades.checker._fetch_git_head",
+                return_value=head,
+            ),
+            patch(
+                "usecli.shared.upgrades.checker._fetch_latest_tag",
+                return_value=("v0.1.1", head),
+            ),
+        ):
+            status = check(install)
+        assert status.latest == "v0.1.1"
+        assert status.update_available is False
+
+    def test_hash_fallback_when_head_differs_from_tag(self) -> None:
+        install = _install(
+            source="git",
+            url="https://github.com/foo/magic.git",
+            revision="main",
+            version="0.1.0",
+            commit="a" * 40,
+        )
+        head = "b" * 40
+        with (
+            patch(
+                "usecli.shared.upgrades.checker._fetch_git_head",
+                return_value=head,
+            ),
+            patch(
+                "usecli.shared.upgrades.checker._fetch_latest_tag",
+                return_value=("v0.1.1", "c" * 40),
+            ),
+        ):
+            status = check(install)
+        assert status.latest == head
+        assert status.latest_tag == "v0.1.1"
+        assert status.update_available is True
+
+    def test_tag_lookup_failure_falls_back_to_hash(self) -> None:
+        import subprocess
+
+        install = _install(
+            source="git",
+            url="https://github.com/foo/magic.git",
+            revision="main",
+            commit="a" * 40,
+        )
+        head = "b" * 40
+        with (
+            patch(
+                "usecli.shared.upgrades.checker._fetch_git_head",
+                return_value=head,
+            ),
+            patch(
+                "usecli.shared.upgrades.checker._fetch_latest_tag",
+                side_effect=subprocess.SubprocessError("timeout"),
+            ),
+        ):
+            status = check(install)
+        assert status.latest == head
+        assert status.latest_tag is None
+        assert status.update_available is True
+        assert status.error is None
 
     def test_missing_url_is_reported(self) -> None:
         install = _install(source="git", revision="main")
@@ -195,9 +307,13 @@ class TestPinnedChecks:
             pinned=True,
             pinned_reason="Git tag (v1.2.0)",
         )
-        with patch("usecli.shared.upgrades.checker._fetch_git_head") as fetch:
+        with (
+            patch("usecli.shared.upgrades.checker._fetch_git_head") as fetch,
+            patch("usecli.shared.upgrades.checker._fetch_latest_tag") as fetch_tags,
+        ):
             status = check(install)
         fetch.assert_not_called()
+        fetch_tags.assert_not_called()
         assert status.latest is None
         assert status.update_available is False
         assert status.error is None
@@ -311,3 +427,66 @@ class TestUnsupportedSource:
         assert "Unsupported installation source" in status.error
         assert status.latest is None
         assert status.update_available is False
+
+
+class TestFetchLatestTag:
+    def test_picks_highest_version_preferring_peeled_commits(self) -> None:
+        stdout = "\n".join(
+            [
+                "1" * 40 + "\trefs/tags/v0.1.0",
+                "3" * 40 + "\trefs/tags/v0.1.1",
+                "4" * 40 + "\trefs/tags/v0.1.1^{}",
+                "5" * 40 + "\trefs/tags/build-42",
+                "6" * 40 + "\trefs/tags/d34db33",
+                "7" * 40 + "\trefs/tags/v10.0.2",
+                "8" * 40 + "\trefs/tags/v10.0.2^{}",
+                "9" * 40 + "\trefs/heads/main",
+                "\trefs/tags/orphan",
+            ]
+        )
+        with patch(
+            "subprocess.run",
+            return_value=Mock(returncode=0, stdout=stdout, stderr=""),
+        ) as run:
+            tag = _fetch_latest_tag("https://github.com/foo/magic.git")
+        assert tag == ("v10.0.2", "8" * 40)
+        assert run.call_args.args[0] == [
+            "git",
+            "ls-remote",
+            "--tags",
+            "https://github.com/foo/magic.git",
+        ]
+
+    def test_lightweight_tag_uses_ref_commit(self) -> None:
+        stdout = "a" * 40 + "\trefs/tags/v1.2"
+        with patch(
+            "subprocess.run",
+            return_value=Mock(returncode=0, stdout=stdout, stderr=""),
+        ):
+            tag = _fetch_latest_tag("https://github.com/foo/magic.git")
+        assert tag == ("v1.2", "a" * 40)
+
+    def test_no_version_tags_returns_none(self) -> None:
+        stdout = "1" * 40 + "\trefs/tags/build-42"
+        with patch(
+            "subprocess.run",
+            return_value=Mock(returncode=0, stdout=stdout, stderr=""),
+        ):
+            tag = _fetch_latest_tag("https://github.com/foo/magic.git")
+        assert tag is None
+
+    def test_empty_output_returns_none(self) -> None:
+        with patch(
+            "subprocess.run",
+            return_value=Mock(returncode=0, stdout="", stderr=""),
+        ):
+            tag = _fetch_latest_tag("https://github.com/foo/magic.git")
+        assert tag is None
+
+    def test_ls_remote_failure_returns_none(self) -> None:
+        with patch(
+            "subprocess.run",
+            return_value=Mock(returncode=128, stdout="", stderr="fatal:"),
+        ):
+            tag = _fetch_latest_tag("https://github.com/foo/magic.git")
+        assert tag is None
