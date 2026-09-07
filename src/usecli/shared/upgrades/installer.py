@@ -75,17 +75,18 @@ def _is_pipx_environment() -> bool:
     return "pipx" in parts
 
 
-def _pip_target(install: InstallInfo) -> str:
+def _pip_target(install: InstallInfo, target_revision: str | None = None) -> str:
     """Build the PEP 508 target for pip-style installers.
 
-    Git branch installs are reinstalled from the original URL and revision
-    so the upgrade re-resolves the branch head; index installs upgrade to
-    the latest compatible release.
+    Git installs are pinned to ``target_revision`` (the release tag the
+    check resolved) when given, falling back to the originally requested
+    revision; index installs upgrade to the latest compatible release.
     """
     if install.source == "git" and install.url:
+        revision = target_revision or install.revision
         target = f"{install.package} @ git+{install.url}"
-        if install.revision:
-            target = f"{target}@{install.revision}"
+        if revision:
+            target = f"{target}@{revision}"
         return target
     return install.package
 
@@ -141,11 +142,16 @@ def _persist_after_success(
     return replace(result, pyproject=persist_upgrade(install))
 
 
-def upgrade(install: InstallInfo) -> UpgradeResult:
+def upgrade(
+    install: InstallInfo,
+    target_revision: str | None = None,
+) -> UpgradeResult:
     """Upgrade the running installation.
 
     Args:
         install: The installation to upgrade (see ``discovery.discover``).
+        target_revision: Git revision to install (the release tag resolved
+            by the check). Falls back to the installation's own revision.
 
     Returns:
         An :class:`UpgradeResult`. Installations that must not be mutated
@@ -190,7 +196,7 @@ def upgrade(install: InstallInfo) -> UpgradeResult:
         )
 
     installer = install.installer or ""
-    target = _pip_target(install)
+    target = _pip_target(install, target_revision)
 
     if installer == "uv" or _is_uv_tool_environment():
         uv = _shutil_which("uv")
@@ -205,9 +211,10 @@ def upgrade(install: InstallInfo) -> UpgradeResult:
         if uv is not None:
             if _is_uv_tool_environment():
                 if install.source == "git":
-                    # Reinstall from the original source so uv re-resolves
-                    # the requested branch head. `uv tool upgrade` retains
-                    # the original settings for registry installs.
+                    # Reinstall at the resolved release tag so the upgrade
+                    # lands exactly on the advertised version. `uv tool
+                    # upgrade` retains the original settings for registry
+                    # installs.
                     command = [uv, "tool", "install", "--force", target]
                 else:
                     command = [uv, "tool", "upgrade", install.package]
@@ -234,7 +241,11 @@ def upgrade(install: InstallInfo) -> UpgradeResult:
                     f"manually: pipx upgrade {install.package}"
                 ),
             )
-        return _persist_after_success(install, _run([pipx, "upgrade", install.package]))
+        if install.source == "git" and target_revision:
+            command = [pipx, "install", "--force", target]
+        else:
+            command = [pipx, "upgrade", install.package]
+        return _persist_after_success(install, _run(command))
 
     command = [
         sys.executable,

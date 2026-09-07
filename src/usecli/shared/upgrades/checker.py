@@ -26,14 +26,16 @@ class UpgradeStatus:
 
     Attributes:
         install: The installation that was checked.
-        latest: Latest available version (index installs) or, for Git branch
-            installs, the release tag name when the branch head matches a
-            version tag — the commit id otherwise. ``None`` when unavailable.
+        latest: Latest available version — the release tag name for Git
+            installs, the PyPI version for index installs. ``None`` when
+            unavailable.
         update_available: Whether an update was found.
         detail: Human-readable source label (e.g. ``PyPI``).
         error: Description of why the check could not run, if it failed.
         latest_tag: Highest version-like tag on the remote, when one exists.
         latest_tag_commit: Commit the latest tag points at.
+        note: Non-fatal explanation shown alongside the result (e.g. no
+            releases published yet).
     """
 
     install: InstallInfo
@@ -43,6 +45,7 @@ class UpgradeStatus:
     error: str | None = None
     latest_tag: str | None = None
     latest_tag_commit: str | None = None
+    note: str | None = None
 
 
 def _normalize_pypi_name(name: str) -> str:
@@ -122,33 +125,6 @@ def _fetch_pypi_latest(package: str) -> str | None:
     return None
 
 
-def _fetch_git_head(url: str, revision: str | None) -> str | None:
-    """Fetch the current commit id of a remote branch via ``git ls-remote``.
-
-    No clone is performed. When ``revision`` is None the remote HEAD is
-    queried instead. Raises ``OSError``/``subprocess.SubprocessError`` on
-    failure; returns None when the ref does not exist.
-    """
-    import subprocess
-
-    ref = f"refs/heads/{revision}" if revision else "HEAD"
-    result = subprocess.run(
-        ["git", "ls-remote", url, ref],
-        capture_output=True,
-        text=True,
-        check=False,
-        timeout=_GIT_TIMEOUT_SECONDS,
-    )
-    if result.returncode != 0:
-        logger.debug("git ls-remote failed: %s", result.stderr.strip())
-        return None
-    for line in result.stdout.splitlines():
-        sha = line.split("\t", 1)[0].strip()
-        if sha:
-            return sha
-    return None
-
-
 def _fetch_latest_tag(url: str) -> tuple[str, str] | None:
     """Resolve the highest version-like tag on a remote and its commit.
 
@@ -156,8 +132,8 @@ def _fetch_latest_tag(url: str) -> tuple[str, str] | None:
     once as the tag object and once peeled (``refs/tags/v1^{}``) as the
     commit; the peeled commit wins so it can be compared against branch
     heads. Tags that do not look like versions (``build-42``, ...) are
-    ignored. Returns ``None`` when the remote has no version tags or the
-    query fails.
+    ignored. Returns ``None`` when the remote has no version tags. Raises
+    ``OSError`` (command failure) or ``subprocess.SubprocessError``.
     """
     import subprocess
 
@@ -169,8 +145,7 @@ def _fetch_latest_tag(url: str) -> tuple[str, str] | None:
         timeout=_GIT_TIMEOUT_SECONDS,
     )
     if result.returncode != 0:
-        logger.debug("git ls-remote --tags failed: %s", result.stderr.strip())
-        return None
+        raise OSError(f"git ls-remote --tags failed: {result.stderr.strip()}")
 
     tags: dict[str, str] = {}
     for line in result.stdout.splitlines():
@@ -264,56 +239,28 @@ def check(install: InstallInfo) -> UpgradeStatus:
                 error="The installation record does not include a Git URL.",
             )
         try:
-            latest = _fetch_git_head(install.url, install.revision)
+            tag = _fetch_latest_tag(install.url)
         except (OSError, subprocess.SubprocessError) as error:
-            logger.debug("git ls-remote failed: %s", error)
+            logger.debug("git ls-remote --tags failed: %s", error)
             return UpgradeStatus(
                 install=install,
                 detail=detail,
                 error=f"Could not query the remote Git repository: {error}",
             )
-        if not latest:
+        if tag is None:
             return UpgradeStatus(
                 install=install,
                 detail=detail,
-                error=(
-                    f"Could not resolve remote branch '{install.revision or 'HEAD'}'."
+                note=(
+                    "No release tags found on the remote; upgrade offers "
+                    "require release tags."
                 ),
             )
-
-        try:
-            tag = _fetch_latest_tag(install.url)
-        except (OSError, subprocess.SubprocessError) as error:
-            logger.debug("tag lookup failed: %s", error)
-            tag = None
-
-        latest_tag: str | None = None
-        latest_tag_commit: str | None = None
-        if tag is not None:
-            latest_tag, latest_tag_commit = tag
-        commit_changed = bool(install.commit and latest != install.commit)
-
-        # Prefer the release version over a raw hash, but only when the
-        # branch head IS the latest tag — that is the only case where the
-        # version of what an upgrade would install is known without a
-        # clone. The upgrade itself keeps tracking the branch; targeting
-        # the tag would pin the installation.
-        if latest_tag is not None and latest_tag_commit == latest:
-            return UpgradeStatus(
-                install=install,
-                latest=latest_tag,
-                update_available=(
-                    _version_is_newer(latest_tag, install.version) or commit_changed
-                ),
-                detail=detail,
-                latest_tag=latest_tag,
-                latest_tag_commit=latest_tag_commit,
-            )
-
+        latest_tag, latest_tag_commit = tag
         return UpgradeStatus(
             install=install,
-            latest=latest,
-            update_available=commit_changed,
+            latest=latest_tag,
+            update_available=_version_is_newer(latest_tag, install.version),
             detail=detail,
             latest_tag=latest_tag,
             latest_tag_commit=latest_tag_commit,

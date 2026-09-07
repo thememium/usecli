@@ -109,6 +109,7 @@ class UpgradeCommand(BaseCommand):
             "error": status.error,
             "latest_tag": status.latest_tag,
             "latest_tag_commit": status.latest_tag_commit,
+            "note": status.note,
             "pyproject_path": None,
             "pyproject_previous_version": None,
             "pyproject_new_version": None,
@@ -214,7 +215,11 @@ class UpgradeCommand(BaseCommand):
             spinner.update(
                 f"Upgrading {install.package} ({install.version} → {target})"
             )
-            return UpgradeService.upgrade(install, config)
+            return UpgradeService.upgrade(
+                install,
+                config,
+                target_revision=status.latest_tag,
+            )
 
     def _print_check(self, status: UpgradeStatus) -> None:
         """Render the non-mutating check report."""
@@ -227,7 +232,7 @@ class UpgradeCommand(BaseCommand):
         self._print_row("Source", status.detail or install.source)
         if install.source == "git":
             if install.revision:
-                self._print_row("Branch", install.revision)
+                self._print_row("Ref", install.revision)
             self._print_row("Commit", _short_commit(install.commit))
             if status.latest:
                 self._print_row("Latest", _short_commit(status.latest))
@@ -251,7 +256,10 @@ class UpgradeCommand(BaseCommand):
                 f"`{get_project_name()} upgrade` to update.[/{COLOR.SUCCESS}]"
             )
         else:
-            console.print(f"[{COLOR.INFO}]You are up to date.[/{COLOR.INFO}]")
+            if status.note:
+                console.print(f"[{COLOR.INFO}]{status.note}[/{COLOR.INFO}]")
+            else:
+                console.print(f"[{COLOR.INFO}]You are up to date.[/{COLOR.INFO}]")
         console.print()
 
     def _print_row(self, label: str, value: str) -> None:

@@ -36,11 +36,12 @@ class UpgradeService:
     def upgrade(
         install: InstallInfo | None = None,
         config: Any | None = None,
+        target_revision: str | None = None,
     ) -> UpgradeResult:
-        """Apply an upgrade to the running installation."""
+        """Apply an upgrade, installing ``target_revision`` for git sources."""
         if install is None:
             install = discovery.discover(config)
-        return installer.upgrade(install)
+        return installer.upgrade(install, target_revision)
 
 
 __all__ = ["UpgradeService"]

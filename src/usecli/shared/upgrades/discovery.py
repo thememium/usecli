@@ -36,7 +36,8 @@ class InstallInfo:
             installs, when recorded.
         commit: Installed VCS commit id for Git installs, when recorded.
         pinned: Whether the installation is fixed and must not auto-upgrade
-            (tags, commit SHAs, direct URLs, editable installs, bundles).
+            (commit SHAs, direct URLs, editable installs, bundles). Branch
+            and tag revisions track releases and are not pinned.
         pinned_reason: Human-readable explanation when ``pinned`` is true.
         frozen: Whether the app runs from a frozen bundle (e.g. PyInstaller).
     """
@@ -249,7 +250,7 @@ def discover(config: Any | None = None) -> InstallInfo:
                 pinned_reason=f"{vcs} VCS install",
             )
         kind = _revision_kind(revision)
-        if kind in ("commit", "tag"):
+        if kind == "commit":
             return InstallInfo(
                 package=package,
                 version=version,
@@ -259,8 +260,11 @@ def discover(config: Any | None = None) -> InstallInfo:
                 revision=revision,
                 commit=commit,
                 pinned=True,
-                pinned_reason=f"Git {kind} ({revision})",
+                pinned_reason=f"Git commit ({revision})",
             )
+        # Branch and tag revisions both track releases: branch installs
+        # upgrade to the latest tag, and tag installs upgrade to the next
+        # one — so neither is pinned.
         return InstallInfo(
             package=package,
             version=version,
