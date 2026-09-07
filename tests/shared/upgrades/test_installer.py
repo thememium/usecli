@@ -89,9 +89,9 @@ class TestBlockedUpgrades:
         result = upgrade(
             _install(
                 source="git",
-                revision="v1.2.0",
+                revision="d" * 40,
                 pinned=True,
-                pinned_reason="Git tag (v1.2.0)",
+                pinned_reason=f"Git commit ({'d' * 40})",
             )
         )
         assert result.success is False
@@ -325,3 +325,92 @@ class TestPyprojectPersistence:
             result = upgrade(install)
         persist.assert_not_called()
         assert result.pyproject is None
+
+
+class TestTargetRevision:
+    def test_git_target_prefers_target_revision(self) -> None:
+        install = _install(
+            source="git",
+            url="https://github.com/foo/magic.git",
+            revision="main",
+        )
+        assert (
+            _pip_target(install, target_revision="v0.1.4")
+            == "magic-cli @ git+https://github.com/foo/magic.git@v0.1.4"
+        )
+
+    def test_git_target_falls_back_to_install_revision(self) -> None:
+        install = _install(
+            source="git",
+            url="https://github.com/foo/magic.git",
+            revision="main",
+        )
+        assert (
+            _pip_target(install)
+            == "magic-cli @ git+https://github.com/foo/magic.git@main"
+        )
+
+    def test_uv_pip_upgrade_installs_the_release_tag(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            sys,
+            "executable",
+            "/home/dev/projects/magic/.venv/bin/python",
+        )
+        install = _install(
+            source="git",
+            url="https://github.com/foo/magic.git",
+            revision="main",
+        )
+        with (
+            patch(
+                "usecli.shared.upgrades.installer._shutil_which",
+                return_value="/usr/local/bin/uv",
+            ),
+            patch("subprocess.run", return_value=_mock_run()) as run,
+        ):
+            result = upgrade(install, target_revision="v0.1.4")
+        assert result.success is True
+        assert run.call_args.args[0][-1] == (
+            "magic-cli @ git+https://github.com/foo/magic.git@v0.1.4"
+        )
+
+    def test_pipx_git_upgrade_installs_the_release_tag(self) -> None:
+        install = _install(
+            installer="pipx",
+            source="git",
+            url="https://github.com/foo/magic.git",
+            revision="main",
+        )
+        with (
+            patch(
+                "usecli.shared.upgrades.installer._shutil_which",
+                return_value="/usr/local/bin/pipx",
+            ),
+            patch("subprocess.run", return_value=_mock_run()) as run,
+        ):
+            result = upgrade(install, target_revision="v0.1.4")
+        assert result.success is True
+        assert run.call_args.args[0] == [
+            "/usr/local/bin/pipx",
+            "install",
+            "--force",
+            "magic-cli @ git+https://github.com/foo/magic.git@v0.1.4",
+        ]
+
+    def test_pipx_index_upgrade_still_uses_upgrade(self) -> None:
+        install = _install(installer="pipx")
+        with (
+            patch(
+                "usecli.shared.upgrades.installer._shutil_which",
+                return_value="/usr/local/bin/pipx",
+            ),
+            patch("subprocess.run", return_value=_mock_run()) as run,
+        ):
+            upgrade(install)
+        assert run.call_args.args[0] == [
+            "/usr/local/bin/pipx",
+            "upgrade",
+            "magic-cli",
+        ]

@@ -186,7 +186,38 @@ class TestApplyMode:
         assert data["upgraded"] is True
         assert data["mode"] == "apply"
         service.upgrade.assert_called_once_with(
-            install, service.discover.call_args.args[0]
+            install, service.discover.call_args.args[0], target_revision=None
+        )
+
+    def test_git_tag_target_is_passed_to_the_upgrader(self) -> None:
+        install = _install(
+            source="git",
+            url="https://github.com/foo/magic.git",
+            revision="main",
+            commit="a" * 40,
+        )
+        service = _patched_service(
+            install,
+            UpgradeStatus(
+                install=install,
+                latest="v0.1.4",
+                update_available=True,
+                detail="github.com/foo/magic",
+                latest_tag="v0.1.4",
+                latest_tag_commit="b" * 40,
+            ),
+        )
+        with (
+            patch(
+                "usecli.cli.commands.defaults.base.upgrade_command.UpgradeService",
+                service,
+            ),
+            execution_context(json_mode=True),
+        ):
+            data = UpgradeCommand.__new__(UpgradeCommand).handle()
+        assert data["upgraded"] is True
+        service.upgrade.assert_called_once_with(
+            install, service.discover.call_args.args[0], target_revision="v0.1.4"
         )
 
     def test_confirmation_skipped_with_force(self) -> None:
@@ -469,3 +500,66 @@ class TestHumanApplyOutput:
         confirm.assert_not_called()
         assert data["message"] == "Already up to date."
         service.upgrade.assert_not_called()
+
+
+class TestNoteDisplay:
+    def test_note_is_reported_when_no_releases_exist(self) -> None:
+        install = _install(
+            source="git",
+            url="https://github.com/foo/magic.git",
+            revision="main",
+            commit="a" * 40,
+        )
+        service = _patched_service(
+            install,
+            UpgradeStatus(
+                install=install,
+                latest=None,
+                update_available=False,
+                detail="github.com/foo/magic",
+                note="No release tags found on the remote; upgrade offers require release tags.",
+            ),
+        )
+        with (
+            patch(
+                "usecli.cli.commands.defaults.base.upgrade_command.UpgradeService",
+                service,
+            ),
+            execution_context(json_mode=True),
+        ):
+            data = UpgradeCommand.__new__(UpgradeCommand).handle(check=True)
+        assert data["update_available"] is False
+        assert data["note"] == (
+            "No release tags found on the remote; upgrade offers require release tags."
+        )
+        assert data["latest"] is None
+
+
+class TestNoteHumanOutput:
+    def test_note_is_printed_in_human_check(self) -> None:
+        install = _install(
+            source="git",
+            url="https://github.com/foo/magic.git",
+            revision="main",
+            commit="a" * 40,
+        )
+        service = _patched_service(
+            install,
+            UpgradeStatus(
+                install=install,
+                latest=None,
+                update_available=False,
+                detail="github.com/foo/magic",
+                note="No release tags found on the remote; upgrade offers require release tags.",
+            ),
+        )
+        with (
+            patch(
+                "usecli.cli.commands.defaults.base.upgrade_command.UpgradeService",
+                service,
+            ),
+            execution_context(json_mode=False),
+        ):
+            data = UpgradeCommand.__new__(UpgradeCommand).handle(check=True)
+        assert data["update_available"] is False
+        assert data["note"] is not None

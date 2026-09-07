@@ -68,7 +68,7 @@ class TestUpgrade:
         ):
             outcome = UpgradeService.upgrade(config="cfg")
         discover.assert_called_once_with("cfg")
-        upgrade.assert_called_once_with(install)
+        upgrade.assert_called_once_with(install, None)
         assert outcome is result
 
     def test_uses_provided_install(self) -> None:
@@ -79,7 +79,7 @@ class TestUpgrade:
                 "usecli.shared.upgrades.installer.upgrade", return_value="result"
             ) as upgrade,
         ):
-            outcome = UpgradeService.upgrade(install)
+            outcome = UpgradeService.upgrade(install, target_revision="v0.1.4")
         discover.assert_not_called()
-        upgrade.assert_called_once_with(install)
+        upgrade.assert_called_once_with(install, "v0.1.4")
         assert outcome == "result"

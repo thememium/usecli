@@ -110,7 +110,7 @@ class TestGitInstalls:
         assert install.commit is not None
         assert install.pinned is False
 
-    def test_tag_install_is_pinned(self) -> None:
+    def test_tag_install_tracks_releases(self) -> None:
         dist = FakeDist(
             files={
                 "direct_url.json": _direct_url(
@@ -118,7 +118,7 @@ class TestGitInstalls:
                         "url": "https://github.com/foo/magic.git",
                         "vcs_info": {
                             "vcs": "git",
-                            "requested_revision": "v1.2.0",
+                            "requested_revision": "v0.1.1",
                             "commit_id": "abc123" + "0" * 34,
                         },
                     }
@@ -127,9 +127,8 @@ class TestGitInstalls:
         )
         install = _install(dist)
         assert install.source == "git"
-        assert install.pinned is True
-        assert install.pinned_reason is not None
-        assert "tag" in install.pinned_reason
+        assert install.revision == "v0.1.1"
+        assert install.pinned is False
 
     def test_commit_install_is_pinned(self) -> None:
         sha = "d34db33f" * 5
