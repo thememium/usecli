@@ -284,6 +284,8 @@ class ConfigManager:
         "environment": "prod",
         "command_name": "usecli",
         "hide_inspire": False,
+        # Users disable the built-in `upgrade` command via [usecli.upgrade].
+        "upgrade": {"enabled": True},
     }
 
     def __init__(
@@ -320,7 +322,8 @@ class ConfigManager:
         # find_project_root discovery (up-walk + bounded rglob tree search) that
         # would otherwise be spent rediscovering it. Derive the project root
         # from the config's own directory instead.
-        if usecli_config_path is None:
+        # Unreachable: the normalization above guarantees a Path here.
+        if usecli_config_path is None:  # pragma: no cover
             detected_root = find_project_root(start_dir)
         else:
             detected_root = None
@@ -328,7 +331,7 @@ class ConfigManager:
             config_parent = self.usecli_config_path.parent
             if detected_root is None:
                 detected_root = config_parent
-            else:
+            else:  # pragma: no cover - detected_root is always None here
                 root_config = detected_root / USECLI_CONFIG_TOML
                 if self.usecli_config_path.resolve() != root_config.resolve():
                     detected_root = config_parent
