@@ -114,6 +114,7 @@ class UpgradeCommand(BaseCommand):
             "pyproject_previous_version": None,
             "pyproject_new_version": None,
             "pyproject_updated": None,
+            "pyproject_reason": None,
         }
 
         if check:
@@ -178,6 +179,7 @@ class UpgradeCommand(BaseCommand):
             data["pyproject_previous_version"] = result.pyproject.previous_version
             data["pyproject_new_version"] = result.pyproject.new_version
             data["pyproject_updated"] = result.pyproject.updated
+            data["pyproject_reason"] = result.pyproject.reason
 
         if not result.success:
             raise UsecliError(
@@ -190,8 +192,13 @@ class UpgradeCommand(BaseCommand):
 
         console.print(f"[{COLOR.SUCCESS}]✓ Upgrade complete.[/{COLOR.SUCCESS}]")
 
-        if result.pyproject is not None and result.pyproject.updated:
-            console.print(result.pyproject.summary)
+        if result.pyproject is not None:
+            if result.pyproject.updated:
+                console.print(result.pyproject.summary)
+            elif result.pyproject.reason:
+                console.print(
+                    f"[{COLOR.WARNING}]⚠ {result.pyproject.reason}[/{COLOR.WARNING}]"
+                )
 
         from usecli.cli.core.ui.title import get_project_name
 

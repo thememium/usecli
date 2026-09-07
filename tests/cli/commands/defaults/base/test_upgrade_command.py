@@ -563,3 +563,54 @@ class TestNoteHumanOutput:
             data = UpgradeCommand.__new__(UpgradeCommand).handle(check=True)
         assert data["update_available"] is False
         assert data["note"] is not None
+
+
+class TestPersistenceFailureReporting:
+    def test_reason_is_reported_in_json_payload(self) -> None:
+        install = _install()
+        outcome = PyprojectUpdate(
+            path="/p/pyproject.toml",
+            reason="uv lock failed: resolve error",
+        )
+        service = _patched_service(
+            install,
+            _status(install),
+            UpgradeResult(success=True, pyproject=outcome),
+        )
+        with (
+            patch(
+                "usecli.cli.commands.defaults.base.upgrade_command.UpgradeService",
+                service,
+            ),
+            execution_context(json_mode=True),
+        ):
+            data = UpgradeCommand.__new__(UpgradeCommand).handle()
+        assert data["upgraded"] is True
+        assert data["pyproject_updated"] is False
+        assert data["pyproject_reason"] == "uv lock failed: resolve error"
+
+    def test_reason_is_printed_in_human_output(self) -> None:
+        install = _install()
+        outcome = PyprojectUpdate(
+            path="/p/pyproject.toml",
+            reason="uv lock failed: resolve error",
+        )
+        service = _patched_service(
+            install,
+            _status(install),
+            UpgradeResult(success=True, pyproject=outcome),
+        )
+        with (
+            patch(
+                "usecli.cli.commands.defaults.base.upgrade_command.UpgradeService",
+                service,
+            ),
+            patch(
+                "usecli.cli.commands.defaults.base.upgrade_command.Confirm.ask",
+                return_value=True,
+            ),
+            execution_context(json_mode=False),
+        ):
+            data = UpgradeCommand.__new__(UpgradeCommand).handle()
+        assert data["pyproject_updated"] is False
+        assert data["pyproject_reason"] == "uv lock failed: resolve error"

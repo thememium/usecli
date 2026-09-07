@@ -901,3 +901,79 @@ class TestRemainingEdgeCases:
         assert outcome.updated is False
         assert outcome.reason == "pin already matches"
         assert outcome.previous_version == commit
+
+
+class TestUvSourcesDeclaration:
+    def test_sources_git_entry_is_recognized(self, tmp_path: Any) -> None:
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text(
+            '[project]\nname = "consumer"\ndependencies = ["cli-upgrade"]\n'
+            "\n[tool.uv.sources]\n"
+            'cli-upgrade = { git = "https://github.com/foo/magic.git" }\n'
+        )
+        spec = _dependency_git_spec(pyproject, "cli-upgrade")
+        assert spec is not None
+        assert "git+https://github.com/foo/magic.git" in spec
+        assert "@" not in spec.replace("cli-upgrade @ ", "", 1)
+
+    def test_sources_branch_entry_is_movable(self, tmp_path: Any) -> None:
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text(
+            '[project]\nname = "consumer"\ndependencies = ["cli-upgrade"]\n'
+            "\n[tool.uv.sources]\n"
+            'cli-upgrade = { git = "https://github.com/foo/magic.git", branch = "main" }\n'
+        )
+        spec = _dependency_git_spec(pyproject, "cli-upgrade")
+        assert spec is not None
+        assert spec.endswith("@main")
+        assert _pinned_revision(spec) == "main"
+
+    def test_sources_tag_entry_is_a_static_pin(self, tmp_path: Any) -> None:
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text(
+            '[project]\nname = "consumer"\ndependencies = ["cli-upgrade"]\n'
+            "\n[tool.uv.sources]\n"
+            'cli-upgrade = { git = "https://github.com/foo/magic.git", tag = "v0.1.0" }\n'
+        )
+        spec = _dependency_git_spec(pyproject, "cli-upgrade")
+        assert spec is not None
+        assert _pinned_revision(spec) == "v0.1.0"
+
+    def test_non_git_sources_entry_is_ignored(self, tmp_path: Any) -> None:
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text(
+            '[project]\nname = "consumer"\ndependencies = ["cli-upgrade"]\n'
+            "\n[tool.uv.sources]\n"
+            'cli-upgrade = { path = "../cli-upgrade" }\n'
+        )
+        assert _dependency_git_spec(pyproject, "cli-upgrade") is None
+
+    def test_sources_dispatch_refreshes_the_lock(
+        self, tmp_path: Any, in_project_venv
+    ) -> None:
+        project = tmp_path / "proj"
+        (project / ".venv").mkdir(parents=True)
+        (project / "pyproject.toml").write_text(
+            '[project]\nname = "consumer"\ndependencies = ["cli-upgrade"]\n'
+            "\n[tool.uv.sources]\n"
+            'cli-upgrade = { git = "https://github.com/foo/magic.git" }\n'
+        )
+        in_project_venv(project)
+        with (
+            patch("shutil.which", return_value="/usr/local/bin/uv"),
+            patch(
+                "subprocess.run", return_value=Mock(returncode=0, stdout="", stderr="")
+            ) as run,
+            patch(
+                "usecli.shared.upgrades.pyproject._reinstalled_version",
+                return_value="0.1.4",
+            ),
+        ):
+            outcome = persist_upgrade(_install())
+        assert outcome.updated is True
+        assert run.call_args.args[0] == [
+            "/usr/local/bin/uv",
+            "lock",
+            "--upgrade-package",
+            "cli-upgrade",
+        ]

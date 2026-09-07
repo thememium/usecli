@@ -150,23 +150,47 @@ def update_project_version(
 
 
 def _dependency_git_spec(pyproject_path: Any, package: str) -> str | None:
-    """Find the PEP 508 spec declaring ``package`` from a git source."""
+    """Find the git source declaring ``package``, in either form uv writes.
+
+    Recognizes inline PEP 508 direct URLs in ``project.dependencies`` and
+    ``[tool.uv.sources]`` git entries paired with a bare dependency name.
+    Returns a synthetic ``"<package> @ git+<url>[@ref]"`` descriptor for pin
+    analysis, or ``None`` when the package has no git source.
+    """
     try:
         with open(pyproject_path, "rb") as handle:
             data = _get_tomllib().load(handle)
     except (OSError, ValueError):
         return None
+    target = _normalize_name(package)
+
     dependencies = data.get("project", {}).get("dependencies", [])
-    if not isinstance(dependencies, list):
-        return None
-    for spec in dependencies:
-        if not isinstance(spec, str) or "git+" not in spec:
-            continue
-        match = re.match(r"\s*([A-Za-z0-9._-]+)", spec)
-        if match is None:
-            continue
-        if _normalize_name(match.group(1)) == _normalize_name(package):
-            return spec
+    if isinstance(dependencies, list):
+        for spec in dependencies:
+            if not isinstance(spec, str) or "git+" not in spec:
+                continue
+            match = re.match(r"\s*([A-Za-z0-9._-]+)", spec)
+            if match is None:
+                continue
+            if _normalize_name(match.group(1)) == target:
+                return spec
+
+    sources = data.get("tool", {}).get("uv", {}).get("sources", {})
+    if isinstance(sources, dict):
+        entry = None
+        for source_name, source_entry in sources.items():
+            if (
+                isinstance(source_entry, dict)
+                and _normalize_name(str(source_name)) == target
+            ):
+                entry = source_entry
+                break
+        if entry is not None and isinstance(entry.get("git"), str):
+            descriptor = f"{package} @ git+{entry['git']}"
+            ref = entry.get("rev") or entry.get("tag") or entry.get("branch")
+            if isinstance(ref, str) and ref.strip():
+                descriptor = f"{descriptor}@{ref.strip()}"
+            return descriptor
     return None
 
 
