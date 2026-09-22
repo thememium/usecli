@@ -44,6 +44,7 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
+  "dagger-io>=0.21.9",
   "deptry>=0.25.1",
   "isort>=8.0.1",
   "poethepoet>=0.48.0",
@@ -56,6 +57,14 @@ dev = [
 
 [tool.deptry]
 known_first_party = ["usecli"]
+extend_exclude = [".dagger"]
+
+[tool.ruff]
+extend-exclude = [".dagger"]
+
+[tool.isort]
+profile = "black"
+skip_glob = [".dagger/*"]
 
 [tool.deptry.package_module_name_map]
 case-converter = "caseconverter"
