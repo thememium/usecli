@@ -229,3 +229,7 @@ openspec/
 .codex/
 .claude/
 /cli/
+/**/__pycache__
+
+# Dagger: generated SDK client (regenerate with `dagger generate`)
+.dagger/modules/*/sdk/
