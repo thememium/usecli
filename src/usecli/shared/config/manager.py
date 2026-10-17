@@ -284,8 +284,16 @@ class ConfigManager:
         "environment": "prod",
         "command_name": "usecli",
         "hide_inspire": False,
-        # Users disable the built-in `upgrade` command via [usecli.upgrade].
-        "upgrade": {"enabled": True},
+        # The built-in `upgrade` command reads [usecli.upgrade]. `source`
+        # overrides install-source detection: "auto" (packaging metadata),
+        # "pypi", or "git" (with `package`/`url`/`ref` overrides).
+        "upgrade": {
+            "enabled": True,
+            "source": "auto",
+            "package": None,
+            "url": None,
+            "ref": None,
+        },
     }
 
     def __init__(
