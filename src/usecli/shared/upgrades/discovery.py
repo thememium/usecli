@@ -13,9 +13,13 @@ import logging
 import os
 import sys
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from usecli.shared.config.manager import _find_distribution_for_console_script
+from usecli.shared.upgrades.settings import config_error, from_config
+
+if TYPE_CHECKING:
+    from usecli.shared.upgrades.settings import UpgradeSettings
 
 logger = logging.getLogger(__name__)
 
@@ -170,29 +174,8 @@ def _revision_kind(revision: str | None) -> Literal["commit", "tag", "branch"] |
     return "branch"
 
 
-def discover(config: Any | None = None) -> InstallInfo:
-    """Build an :class:`InstallInfo` for the running application.
-
-    Args:
-        config: Optional ConfigManager used for the version fallback when no
-            distribution can be identified. Defaults to the global config.
-
-    Returns:
-        The discovered installation details. ``source`` is ``"unknown"`` and
-        ``pinned`` is true when the installation cannot be classified (frozen
-        bundles, unidentified distributions).
-    """
-    if getattr(sys, "frozen", False):
-        return InstallInfo(
-            package=_running_command_name() or "application",
-            version=_fallback_version(config),
-            source="unknown",
-            pinned=True,
-            pinned_reason="frozen bundle",
-            frozen=True,
-        )
-
-    dist = _find_running_distribution()
+def _from_distribution(dist: Any | None, config: Any | None) -> InstallInfo:
+    """Classify an installation from its distribution metadata."""
     if dist is None:
         logger.debug("No distribution found for the running console script")
         return InstallInfo(
@@ -285,3 +268,103 @@ def discover(config: Any | None = None) -> InstallInfo:
         pinned=True,
         pinned_reason="direct URL install",
     )
+
+
+def _override_package(
+    install: InstallInfo,
+    settings: UpgradeSettings,
+    config: Any | None,
+) -> str:
+    """Resolve the distribution name for a configured source."""
+    if settings.package:
+        return settings.package
+    if install.source != "unknown" and install.package:
+        return install.package
+    raise config_error(
+        "upgrade.source is set but the package name could not be discovered.",
+        'Set \\[usecli.upgrade] package = "<distribution name>".',
+        config,
+    )
+
+
+def _apply_settings(
+    install: InstallInfo,
+    settings: UpgradeSettings,
+    config: Any | None,
+) -> InstallInfo:
+    """Replace the discovered source with the configured one."""
+    package = _override_package(install, settings, config)
+
+    if settings.source == "pypi":
+        return InstallInfo(
+            package=package,
+            version=install.version,
+            source="index",
+            installer=install.installer,
+        )
+
+    # settings.source == "git": prefer the configured remote, then the
+    # discovered Git URL. Direct-URL and editable records are not remotes.
+    url = settings.url or (install.url if install.source == "git" else None)
+    if not url:
+        raise config_error(
+            'upgrade.source = "git" requires a repository URL.',
+            'Set \\[usecli.upgrade] url = "https://github.com/owner/repo.git".',
+            config,
+        )
+
+    # The installed revision and commit only describe ``url`` when the
+    # configured remote is the one the package was installed from.
+    same_remote = install.source == "git" and (
+        settings.url is None or settings.url == install.url
+    )
+    revision = settings.ref or (install.revision if same_remote else None)
+    pinned = _revision_kind(revision) == "commit"
+    return InstallInfo(
+        package=package,
+        version=install.version,
+        source="git",
+        installer=install.installer,
+        url=url,
+        revision=revision,
+        commit=install.commit if same_remote else None,
+        pinned=pinned,
+        pinned_reason=f"Git commit ({revision})" if pinned else None,
+    )
+
+
+def discover(config: Any | None = None) -> InstallInfo:
+    """Build an :class:`InstallInfo` for the running application.
+
+    Args:
+        config: Optional ConfigManager used for ``[usecli.upgrade]`` source
+            overrides and for the version fallback when no distribution can
+            be identified. Defaults to the global config.
+
+    Returns:
+        The discovered installation details. ``source`` is ``"unknown"`` and
+        ``pinned`` is true when the installation cannot be classified (frozen
+        bundles, unidentified distributions).
+
+    Raises:
+        UsecliConfigError: When ``[usecli.upgrade]`` configures an invalid
+            source, or omits a value that source requires.
+    """
+    if getattr(sys, "frozen", False):
+        return InstallInfo(
+            package=_running_command_name() or "application",
+            version=_fallback_version(config),
+            source="unknown",
+            pinned=True,
+            pinned_reason="frozen bundle",
+            frozen=True,
+        )
+
+    install = _from_distribution(_find_running_distribution(), config)
+    settings = from_config(config)
+    if not settings.overrides_source:
+        return install
+    return _apply_settings(install, settings, config)
+
+
+__all__ = ["InstallInfo", "InstallSource", "discover"]
