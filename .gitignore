@@ -229,3 +229,4 @@ openspec/
 .codex/
 .claude/
 /cli/
+.dagger
