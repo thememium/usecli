@@ -1537,6 +1537,8 @@ class TestUpgradeConfigSection:
         content = config_path.read_text()
         assert "[usecli.upgrade]" in content
         assert "enabled = true" in content
+        assert 'source = "auto"' in content
+        assert "# url = " in content
 
     def test_upgrade_section_round_trips_through_config_manager(
         self, temp_project_dir, init_command, monkeypatch
@@ -1551,5 +1553,7 @@ class TestUpgradeConfigSection:
         try:
             manager = ConfigManager(start_dir=config_path.parent)
             assert manager.get("upgrade.enabled") is True
+            assert manager.get("upgrade.source") == "auto"
+            assert manager.get("upgrade.url") is None
         finally:
             reset_config()
