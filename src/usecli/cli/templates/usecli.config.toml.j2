@@ -12,3 +12,10 @@ hide_inspire = {{ hide_inspire | default(false) | lower }}
 
 [usecli.upgrade]
 enabled = {{ upgrade_enabled | default(true) | lower }}
+# Where upgrades come from: "auto" (detect from install metadata), "pypi", or "git".
+source = "{{ upgrade_source | default('auto') }}"
+# Git only: repository URL. Falls back to the URL in the install metadata.
+# url = "https://github.com/owner/repo.git"
+# Optional: distribution name and Git ref (branch, tag, or commit) overrides.
+# package = "my-cli"
+# ref = "main"
