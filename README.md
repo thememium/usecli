@@ -221,6 +221,35 @@ make:theme   Create new theme (usecli only)
 make:bundle  Build a standalone executable with PyInstaller (usecli only)
 ```
 
+### Upgrades
+
+Every CLI built on usecli ships `upgrade`, which detects how the running
+package was installed and delegates to the same package manager — `uv tool`,
+`pipx`, or `pip` — instead of creating a second installation:
+
+```bash
+mycli upgrade --check   # show installed/latest versions and the source
+mycli upgrade           # confirm and install the latest release
+mycli upgrade --force   # skip the prompt and the up-to-date check
+```
+
+The source comes from packaging metadata: PyPI for index installs, and the
+Git remote for PEP 610 `direct_url.json` installs. Override it in
+`usecli.config.toml` when metadata is not enough (private mirrors, missing
+`direct_url.json`, a package name that differs from the command name):
+
+```toml
+[usecli.upgrade]
+enabled = true
+source = "git"                                  # "auto" (default) | "pypi" | "git"
+package = "mycli"                               # optional
+url = "https://github.com/owner/mycli.git"      # required for "git" unless detected
+ref = "main"                                    # branch, tag, or commit
+```
+
+Frozen bundles, editable installs, and commit-pinned installs are reported
+as non-upgradeable with an explanation and manual next step.
+
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 <!-- ENTRY POINTS & PACKAGING -->
