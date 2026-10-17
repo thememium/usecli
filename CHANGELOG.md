@@ -1,6 +1,34 @@
 # Changelog
 
 
+## v0.1.80
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.79...v0.1.80)
+
+### 🚀 Enhancements
+
+- **config:** Add upgrade settings parsing ([b3d2dc4](https://github.com/thememium/usecli/commit/b3d2dc4))
+- **upgrades/discovery:** Support configurable upgrade source with settings ([5999988](https://github.com/thememium/usecli/commit/5999988))
+- **config:** Add source, package, url, ref fields to upgrade config ([5049e63](https://github.com/thememium/usecli/commit/5049e63))
+- **usecli:** Support upgrade source config ([744580a](https://github.com/thememium/usecli/commit/744580a))
+- **cli:init:** Add default source=auto and url comment to upgrade ([c0b26f1](https://github.com/thememium/usecli/commit/c0b26f1))
+
+### 📖 Documentation
+
+- Add upgrade instructions for usecli CLI ([8d9f7fb](https://github.com/thememium/usecli/commit/8d9f7fb))
+
+### 🏡 Chore
+
+- **.gitignore:** Add .dagger to ignore list ([9be58c6](https://github.com/thememium/usecli/commit/9be58c6))
+
+### ✅ Tests
+
+- **upgrades:** Add config parsing and source override tests ([0ca8827](https://github.com/thememium/usecli/commit/0ca8827))
+
+### ❤️ Contributors
+
+- Edward Boswell <thememium@gmail.com>
+
 ## v0.1.79
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.78...v0.1.79)
