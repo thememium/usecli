@@ -10,8 +10,9 @@ from unittest.mock import patch
 
 import pytest
 
+from usecli.cli.core.exceptions.config import UsecliConfigError
 from usecli.shared.config.manager import reset_config
-from usecli.shared.upgrades.discovery import InstallInfo, _revision_kind, discover
+from usecli.shared.upgrades.discovery import InstallInfo, discover
 
 
 class FakeDist:
@@ -237,9 +238,13 @@ class TestRevisionKind:
         ],
     )
     def test_classification(self, revision: str | None, expected: str | None) -> None:
+        from usecli.shared.upgrades.discovery import _revision_kind
+
         assert _revision_kind(revision) == expected
 
     def test_whitespace_revision_is_unclassified(self) -> None:
+        from usecli.shared.upgrades.discovery import _revision_kind
+
         assert _revision_kind("   ") is None
 
 
@@ -361,3 +366,211 @@ class TestVersionFallback:
         with patch("importlib.metadata.version", side_effect=OSError("no metadata")):
             install = _install_dist(RunningVersionDist(), config=BrokenConfig())
         assert install.version == "0.0.0"
+
+
+class SettingsConfig(FakeConfig):
+    """FakeConfig with ``[usecli.upgrade]`` overrides."""
+
+    def __init__(self, values: dict[str, Any] | None = None) -> None:
+        super().__init__()
+        self.values = values or {}
+        self.usecli_config_path = "/project/usecli.config.toml"
+
+    def get(self, key: str, default: Any = None) -> Any:
+        return self.values.get(key, default)
+
+
+def _discover_with(dist: FakeDist | None, settings: dict[str, Any]) -> InstallInfo:
+    with (
+        patch(
+            "usecli.shared.upgrades.discovery._find_distribution_for_console_script",
+            return_value=dist,
+        ),
+        patch(
+            "usecli.cli.core.ui.title.get_script_command_name",
+            return_value=None,
+        ),
+    ):
+        return discover(config=SettingsConfig(settings))
+
+
+class TestConfiguredPypiSource:
+    def test_overrides_git_install(self) -> None:
+        dist = FakeDist(
+            files={
+                "INSTALLER": "uv\n",
+                "direct_url.json": _direct_url(
+                    {
+                        "url": "https://github.com/foo/magic.git",
+                        "vcs_info": {"vcs": "git", "requested_revision": "main"},
+                    }
+                ),
+            }
+        )
+        install = _discover_with(dist, {"upgrade.source": "pypi"})
+        assert install.source == "index"
+        assert install.package == "magic-cli"
+        assert install.installer == "uv"
+        assert install.url is None
+        assert install.pinned is False
+
+    def test_unpins_direct_url_install(self) -> None:
+        dist = FakeDist(
+            files={
+                "direct_url.json": _direct_url(
+                    {"url": "https://example.com/magic-1.0-py3-none-any.whl"}
+                )
+            }
+        )
+        install = _discover_with(dist, {"upgrade.source": "pypi"})
+        assert install.source == "index"
+        assert install.pinned is False
+
+    def test_package_override_wins(self) -> None:
+        install = _discover_with(
+            FakeDist(),
+            {"upgrade.source": "pypi", "upgrade.package": "magic-cli-pro"},
+        )
+        assert install.package == "magic-cli-pro"
+
+    def test_tolerates_unknown_install_when_package_given(self) -> None:
+        install = _discover_with(
+            None,
+            {"upgrade.source": "pypi", "upgrade.package": "magic-cli"},
+        )
+        assert install.source == "index"
+        assert install.package == "magic-cli"
+        assert install.version == "9.9.9"
+
+    def test_unknown_install_without_package_raises(self) -> None:
+        with pytest.raises(UsecliConfigError) as error:
+            _discover_with(None, {"upgrade.source": "pypi"})
+        assert "package" in str(error.value)
+
+
+class TestConfiguredGitSource:
+    def test_uses_configured_url_and_ref(self) -> None:
+        install = _discover_with(
+            FakeDist(),
+            {
+                "upgrade.source": "git",
+                "upgrade.url": "https://github.com/foo/magic.git",
+                "upgrade.ref": "main",
+            },
+        )
+        assert install.source == "git"
+        assert install.url == "https://github.com/foo/magic.git"
+        assert install.revision == "main"
+        assert install.pinned is False
+
+    def test_inherits_discovered_url_and_revision(self) -> None:
+        dist = FakeDist(
+            files={
+                "direct_url.json": _direct_url(
+                    {
+                        "url": "https://github.com/foo/magic.git",
+                        "vcs_info": {
+                            "vcs": "git",
+                            "requested_revision": "develop",
+                            "commit_id": "abc123" + "0" * 34,
+                        },
+                    }
+                )
+            }
+        )
+        install = _discover_with(dist, {"upgrade.source": "git"})
+        assert install.source == "git"
+        assert install.url == "https://github.com/foo/magic.git"
+        assert install.revision == "develop"
+        assert install.commit == "abc123" + "0" * 34
+        assert install.pinned is False
+
+    def test_configured_ref_overrides_discovered_revision(self) -> None:
+        dist = FakeDist(
+            files={
+                "direct_url.json": _direct_url(
+                    {
+                        "url": "https://github.com/foo/magic.git",
+                        "vcs_info": {"vcs": "git", "requested_revision": "main"},
+                    }
+                )
+            }
+        )
+        install = _discover_with(
+            dist,
+            {"upgrade.source": "git", "upgrade.ref": "release-2"},
+        )
+        assert install.revision == "release-2"
+
+    def test_different_remote_does_not_inherit_revision(self) -> None:
+        dist = FakeDist(
+            files={
+                "direct_url.json": _direct_url(
+                    {
+                        "url": "https://github.com/foo/magic.git",
+                        "vcs_info": {
+                            "vcs": "git",
+                            "requested_revision": "develop",
+                            "commit_id": "abc123" + "0" * 34,
+                        },
+                    }
+                )
+            }
+        )
+        install = _discover_with(
+            dist,
+            {
+                "upgrade.source": "git",
+                "upgrade.url": "https://github.com/bar/magic.git",
+            },
+        )
+        assert install.url == "https://github.com/bar/magic.git"
+        assert install.revision is None
+        assert install.commit is None
+        assert install.pinned is False
+
+    def test_commit_ref_is_pinned(self) -> None:
+        sha = "d34db33f" * 5
+        install = _discover_with(
+            FakeDist(),
+            {
+                "upgrade.source": "git",
+                "upgrade.url": "https://github.com/foo/magic.git",
+                "upgrade.ref": sha,
+            },
+        )
+        assert install.pinned is True
+        assert install.pinned_reason is not None
+        assert "commit" in install.pinned_reason
+
+    def test_ignores_non_git_discovered_url(self) -> None:
+        dist = FakeDist(
+            files={
+                "direct_url.json": _direct_url(
+                    {"url": "https://example.com/magic-1.0-py3-none-any.whl"}
+                )
+            }
+        )
+        with pytest.raises(UsecliConfigError) as error:
+            _discover_with(dist, {"upgrade.source": "git"})
+        assert "URL" in str(error.value)
+
+    def test_unknown_install_without_url_raises(self) -> None:
+        with pytest.raises(UsecliConfigError):
+            _discover_with(
+                None,
+                {"upgrade.source": "git", "upgrade.package": "magic-cli"},
+            )
+
+
+class TestConfiguredSourceValidation:
+    def test_invalid_source_raises(self) -> None:
+        with pytest.raises(UsecliConfigError) as error:
+            _discover_with(FakeDist(), {"upgrade.source": "github"})
+        assert "github" in str(error.value)
+
+    def test_auto_keeps_metadata_classification(self) -> None:
+        dist = FakeDist(files={"INSTALLER": "uv\n"})
+        install = _discover_with(dist, {"upgrade.source": "auto"})
+        assert install.source == "index"
+        assert install.installer == "uv"
