@@ -1,6 +1,22 @@
 # Changelog
 
 
+## v0.1.81
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.80...v0.1.81)
+
+### 💅 Refactors
+
+- **core:** Improve app name extraction for commands ([bd182c0](https://github.com/thememium/usecli/commit/bd182c0))
+
+### ✅ Tests
+
+- **cli:** Add tests for collect_commands_data usage name fallback and explicit name ([8a4d93c](https://github.com/thememium/usecli/commit/8a4d93c))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.80
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.79...v0.1.80)
