@@ -150,8 +150,12 @@ def collect_commands_data(
             or any(alias.startswith(prefix_filter) for alias in g["aliases"])
         ]
 
-    app_name = getattr(app, "info", None)
-    app_name = getattr(app_name, "name", "usecli") or "usecli"
+    info = getattr(app, "info", None)
+    app_name = (
+        getattr(info, "name", None)
+        or get_script_command_name(default="usecli")
+        or "usecli"
+    )
 
     return {
         "usage": f"{app_name} [COMMAND] [OPTIONS] [ARGUMENTS]",
