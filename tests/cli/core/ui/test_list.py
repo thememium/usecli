@@ -14,7 +14,11 @@ from unittest.mock import Mock, patch
 import click
 
 from usecli.cli.config.colors import COLOR
-from usecli.cli.core.ui.list import list_commands, list_group_commands
+from usecli.cli.core.ui.list import (
+    collect_commands_data,
+    list_commands,
+    list_group_commands,
+)
 
 # =============================================================================
 # list_commands() Tests
@@ -936,6 +940,40 @@ class TestListCommands:
 
         # Should either show command name or fallback to "unknown"
         assert "cmd-with-no-callback" in combined_output or "unknown" in combined_output
+
+
+class TestCollectCommandsDataUsageName:
+    @patch("usecli.cli.core.ui.list.typer.main.get_command")
+    def test_falls_back_to_running_command_name(self, mock_get_command, monkeypatch):
+        """Usage names the executable, not the framework, when Typer has no name."""
+        app = Mock()
+        app.registered_commands = []
+        app.info.name = None
+
+        click_group = Mock()
+        click_group.params = []
+        mock_get_command.return_value = click_group
+
+        monkeypatch.setattr(
+            "usecli.cli.core.ui.list.get_script_command_name",
+            lambda default=None: "ssgrep",
+        )
+
+        data = collect_commands_data(app)
+
+        assert data["usage"] == "ssgrep [COMMAND] [OPTIONS] [ARGUMENTS]"
+
+    @patch("usecli.cli.core.ui.list.typer.main.get_command")
+    def test_prefers_explicit_typer_app_name(self, mock_get_command):
+        app = Mock()
+        app.registered_commands = []
+        app.info.name = "explicit"
+
+        click_group = Mock()
+        click_group.params = []
+        mock_get_command.return_value = click_group
+
+        assert collect_commands_data(app)["usage"].startswith("explicit ")
 
 
 # =============================================================================
