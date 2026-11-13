@@ -15,6 +15,7 @@ from typer._click.formatting import HelpFormatter
 from typer.core import TyperArgument, TyperCommand, TyperOption
 
 from usecli.cli.config.colors import COLOR
+from usecli.cli.core._typer_compat import make_option
 
 
 class _LazyConsole:
@@ -210,7 +211,7 @@ class CustomHelpCommand(TyperCommand):
             self.params = []
         if not self._has_interactive_option():
             self.params.append(
-                TyperOption(
+                make_option(
                     param_decls=["--interactive", "-i"],
                     is_flag=True,
                     help="Run in interactive mode.",
@@ -219,7 +220,7 @@ class CustomHelpCommand(TyperCommand):
             self._usecli_injected_interactive = True
         if not self._has_json_option():
             self.params.append(
-                TyperOption(
+                make_option(
                     param_decls=["--json"],
                     is_flag=True,
                     help="Emit one machine-readable JSON document.",
