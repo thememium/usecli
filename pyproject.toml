@@ -77,6 +77,9 @@ typecheck = "uv run ty check"
 build = "uv build --no-sources"
 release = "bash scripts/release.sh"
 
+[tool.coverage.report]
+fail_under = 100
+
 [tool.ty]
 
 [tool.ty.environment]
