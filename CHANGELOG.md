@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.1.82
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.81...v0.1.82)
+
+### 🩹 Fixes
+
+- Typer compatibility 0.29.0+ ([#14](https://github.com/thememium/usecli/pull/14))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.81
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.80...v0.1.81)
