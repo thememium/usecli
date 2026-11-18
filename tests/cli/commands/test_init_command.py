@@ -1557,3 +1557,74 @@ class TestUpgradeConfigSection:
             assert manager.get("upgrade.url") is None
         finally:
             reset_config()
+
+
+class TestOptionalFiglet:
+    def test_get_figlet_fonts_without_pyfiglet(self, init_cmd):
+        with patch("usecli.cli.commands.init_command.get_figlet", return_value=None):
+            assert init_cmd._get_figlet_fonts() == []
+
+    def test_prompt_title_font_without_pyfiglet_returns_default(self, init_cmd):
+        with patch("usecli.cli.commands.init_command.get_figlet", return_value=None):
+            assert init_cmd._prompt_title_font("Demo") == "big"
+
+    def test_project_version_from_pyproject(self, init_cmd, tmp_path):
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text('[project]\nname = "x"\nversion = "1.2.3"\n')
+
+        assert init_cmd._get_project_version_from_pyproject(pyproject) == "1.2.3"
+
+    def test_project_version_missing_file(self, init_cmd, tmp_path):
+        assert (
+            init_cmd._get_project_version_from_pyproject(tmp_path / "none.toml") is None
+        )
+
+    def test_project_version_invalid_toml(self, init_cmd, tmp_path):
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text("[project\n")
+
+        assert init_cmd._get_project_version_from_pyproject(pyproject) is None
+
+    def test_project_version_absent(self, init_cmd, tmp_path):
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text('[project]\nname = "x"\n')
+
+        assert init_cmd._get_project_version_from_pyproject(pyproject) is None
+
+    def test_interactive_init_without_figlet_renders_text_banner(
+        self, temp_project_dir, init_command
+    ):
+        pyproject = temp_project_dir / "pyproject.toml"
+        pyproject.write_text('[project]\nname = "demo"\nversion = "1.2.3"\n')
+
+        with (
+            patch("usecli.cli.commands.init_command.get_figlet", return_value=None),
+            patch("usecli.cli.commands.init_command.console") as mock_console,
+        ):
+            init_command.handle("Demo", "A demo CLI", DEFAULT_COMMANDS_DIR, force=True)
+
+        config_path = _config_path(temp_project_dir, DEFAULT_COMMANDS_DIR)
+        assert "title_font" not in config_path.read_text()
+        printed = "\n".join(
+            str(call.args[0]) for call in mock_console.print.call_args_list if call.args
+        )
+        assert "Demo" in printed
+        assert "v1.2.3" in printed
+        assert "A demo CLI" in printed
+
+    def test_new_project_without_figlet_uses_plain_usecli_dependency(
+        self, temp_project_dir, init_command
+    ):
+        with (
+            patch("usecli.cli.commands.init_command.get_figlet", return_value=None),
+            patch("usecli.cli.commands.init_command.console") as mock_console,
+        ):
+            init_command.handle("Demo", "A demo CLI", DEFAULT_COMMANDS_DIR, force=True)
+
+        pyproject = (temp_project_dir / "pyproject.toml").read_text()
+        assert '"usecli",' in pyproject
+        assert "usecli[figlet]" not in pyproject
+        printed = "\n".join(
+            str(call.args[0]) for call in mock_console.print.call_args_list if call.args
+        )
+        assert "v0.1.0" in printed
