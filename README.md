@@ -67,10 +67,16 @@ pip install usecli
 usecli init
 ```
 
-ASCII-art titles are optional: install the extra with
-`uv add "usecli[figlet]"` (or `pip install "usecli[figlet]"`). Without it,
-`usecli init` skips the figlet font picker and banners render as colored
-text (title + version, then description).
+### ASCII-art titles (optional)
+
+```sh
+uv add "usecli[figlet]"         # or: pip install "usecli[figlet]"
+```
+
+The extra installs [pyfiglet](https://github.com/pwaller/pyfiglet). With it,
+`usecli init` offers a figlet font picker and banners are rendered in the
+chosen font. Without it, the picker is skipped and banners print as colored
+text: title and version on one line, description below.
 
 ### Create a command
 
