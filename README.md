@@ -70,7 +70,8 @@ usecli init
 ### ASCII-art titles (optional)
 
 ```sh
-uv add "usecli[figlet]"         # or: pip install "usecli[figlet]"
+uv add "usecli[figlet]"
+# or: pip install "usecli[figlet]"
 ```
 
 The extra installs [pyfiglet](https://github.com/pwaller/pyfiglet). With it,
