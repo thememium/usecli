@@ -272,9 +272,11 @@ class TestRunCommandMenu:
         assert result == "hello"
         kwargs = mock_menu.call_args.kwargs
         assert kwargs["search"] is True
-        assert kwargs["search_key"] is None
+        assert kwargs["search_key"] == "/"
+        assert kwargs["vim_search"] is True
         assert kwargs["title"] == "usecli » commands"
-        assert "type to filter" in kwargs["status_bar"]
+        assert "/ search" in kwargs["status_bar"]
+        assert "ctrl-u clear" in kwargs["status_bar"]
 
     @patch(f"{_FZF}.terminal_menu", return_value=[])
     @patch(f"{_FZF}.sys")

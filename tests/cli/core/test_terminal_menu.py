@@ -8,6 +8,18 @@ from unittest.mock import MagicMock, Mock, patch
 from usecli.cli.utils.interactive.terminal_menu import terminal_menu
 
 
+def _set_vim_input_active(search, active):
+    """Set the runtime flag the vim-search patch adds to Search instances."""
+    attr = "_vim_input_active"
+    setattr(search, attr, active)
+
+
+def _vim_input_active(search):
+    """Read the runtime flag the vim-search patch adds to Search instances."""
+    attr = "_vim_input_active"
+    return getattr(search, attr)
+
+
 class TestTerminalMenuEmptyOptions:
     """Test cases for terminal_menu with empty options list."""
 
@@ -683,3 +695,189 @@ class TestVimPageKeysPatch:
     def test_no_search_key_returns_key_unchanged(self):
         menu = self._make_menu(search_key=None)
         assert self._call(menu, b"d") == "d"
+
+
+class TestVimSearchSetting:
+    @patch("usecli.cli.utils.interactive.terminal_menu.TerminalMenu")
+    def test_vim_search_configures_menu(self, mock_menu_class):
+        mock_menu_instance = Mock()
+        mock_menu_instance.show.return_value = 0
+        mock_menu_instance._search = Mock()
+        mock_menu_class.return_value = mock_menu_instance
+
+        terminal_menu(["A", "B"], vim_search=True)
+
+        assert mock_menu_instance._vim_search_mode is True
+        assert mock_menu_instance._search._vim_input_active is False
+        assert mock_menu_instance._show_search_hint_text == '(Press "/" to search)'
+
+    @patch("usecli.cli.utils.interactive.terminal_menu.TerminalMenu")
+    def test_vim_search_without_search_object(self, mock_menu_class):
+        mock_menu_instance = Mock()
+        mock_menu_instance.show.return_value = 0
+        mock_menu_instance._search = None
+        mock_menu_class.return_value = mock_menu_instance
+
+        terminal_menu(["A", "B"], vim_search=True)
+
+        assert mock_menu_instance._vim_search_mode is True
+
+
+class TestVimSearchState:
+    def _make_menu(self, text=None, input_active=False):
+        menu = MagicMock()
+        menu._search = tm.TerminalMenu.Search(["about", "help"], search_text=text)
+        _set_vim_input_active(menu._search, input_active)
+        menu._show_search_hint_text = ""
+        return menu
+
+    def test_search_bool_without_vim_flag_uses_library_semantics(self):
+        search = tm.TerminalMenu.Search(["a"], search_text="a")
+        assert bool(search) is True
+
+    def test_search_bool_tracks_vim_input_mode(self):
+        search = tm.TerminalMenu.Search(["a"], search_text="a")
+        _set_vim_input_active(search, False)
+        assert bool(search) is False
+        _set_vim_input_active(search, True)
+        assert bool(search) is True
+
+    def test_search_bool_is_false_without_text(self):
+        search = tm.TerminalMenu.Search(["a"])
+        _set_vim_input_active(search, True)
+        assert bool(search) is False
+
+    def test_view_still_filters_with_retained_query(self):
+        view = MagicMock()
+        view._search = tm.TerminalMenu.Search(["about", "help"], search_text="help")
+        _set_vim_input_active(view._search, False)
+        view._menu_entries = ["about", "help"]
+        view._viewport = MagicMock()
+
+        tm.TerminalMenu.View.update_view(view)
+
+        assert view._displayed_index_to_menu_index == (1,)
+        assert _vim_input_active(view._search) is False
+
+    def test_view_shows_all_entries_without_query(self):
+        view = MagicMock()
+        view._search = tm.TerminalMenu.Search(["about", "help"])
+        _set_vim_input_active(view._search, False)
+        view._menu_entries = ["about", "help"]
+        view._viewport = MagicMock()
+
+        tm.TerminalMenu.View.update_view(view)
+
+        assert view._displayed_index_to_menu_index == (0, 1)
+
+
+class TestVimSearchKeys:
+    def test_patch_is_idempotent(self):
+        tm._apply_vim_search_patch()
+
+    def _make_menu(self, text=None, input_active=False):
+        menu = MagicMock()
+        menu._search = tm.TerminalMenu.Search(["about", "help"], search_text=text)
+        _set_vim_input_active(menu._search, input_active)
+        menu._show_search_hint_text = ""
+        return menu
+
+    def test_slash_starts_search(self):
+        menu = self._make_menu()
+        assert tm._vim_search_key(menu, "/") == ""
+        assert menu._search.search_text == ""
+        assert menu._search._vim_input_active is True
+        assert "Press" in menu._show_search_hint_text
+
+    def test_slash_reuses_retained_filter(self):
+        menu = self._make_menu(text="help")
+        assert tm._vim_search_key(menu, "/") == ""
+        assert menu._search.search_text == "help"
+        assert menu._search._vim_input_active is True
+        assert "filter: help" in menu._show_search_hint_text
+        assert "/ edit" in menu._show_search_hint_text
+
+    def test_slash_while_searching_is_typed(self):
+        menu = self._make_menu(text="", input_active=True)
+        assert tm._vim_search_key(menu, "/") == "/"
+
+    def test_escape_exits_search_and_keeps_filter(self):
+        menu = self._make_menu(text="insp", input_active=True)
+        assert tm._vim_search_key(menu, "escape") == ""
+        assert menu._search.search_text == "insp"
+        assert menu._search._vim_input_active is False
+        assert "filter: insp" in menu._show_search_hint_text
+
+    def test_escape_in_normal_mode_quits(self):
+        menu = self._make_menu(text="insp", input_active=False)
+        assert tm._vim_search_key(menu, "escape") == "escape"
+        assert menu._search.search_text == "insp"
+
+    def test_ctrl_u_clears_retained_filter(self):
+        menu = self._make_menu(text="insp", input_active=False)
+        assert tm._vim_search_key(menu, "ctrl-u") == ""
+        assert menu._search.search_text is None
+        assert menu._search._vim_input_active is False
+        assert "Press" in menu._show_search_hint_text
+
+    def test_raw_ctrl_u_clears_retained_filter(self):
+        menu = self._make_menu(text="insp", input_active=False)
+        assert tm._vim_search_key(menu, "\x15") == ""
+        assert menu._search.search_text is None
+        assert menu._search._vim_input_active is False
+
+    def test_ctrl_u_without_filter_is_a_noop(self):
+        menu = self._make_menu(input_active=False)
+        assert tm._vim_search_key(menu, "ctrl-u") == ""
+        assert menu._search.search_text is None
+
+    def test_normal_mode_letter_passes_through(self):
+        menu = self._make_menu(text="insp", input_active=False)
+        assert tm._vim_search_key(menu, "j") == "j"
+
+    def test_stale_input_flag_without_text_is_reset(self):
+        menu = self._make_menu(input_active=True)
+        assert tm._vim_search_key(menu, "escape") == "escape"
+        assert menu._search._vim_input_active is False
+
+    def test_hint_escapes_format_braces(self):
+        menu = self._make_menu(text="{", input_active=True)
+        assert tm._vim_search_key(menu, "j") == "j"
+        assert "filter: {{" in menu._show_search_hint_text
+
+
+class TestVimSearchReadNextKey:
+    def _make_menu(self, text=None, input_active=False):
+        menu = MagicMock()
+        menu._terminal_code_to_codename = {"\x1b": "escape"}
+        menu._tty_in = MagicMock()
+        menu._tty_in.fileno.return_value = 0
+        menu._reading_next_key = False
+        menu._paint_before_next_read = False
+        menu._paint_menu = MagicMock()
+        menu._search_key = "/"
+        menu._search = tm.TerminalMenu.Search(["about", "help"], search_text=text)
+        _set_vim_input_active(menu._search, input_active)
+        menu._vim_search_mode = True
+        menu._show_search_hint_text = ""
+        return menu
+
+    def _call(self, menu, key_bytes, ignore_case=True):
+        with patch("simple_term_menu.os.read", return_value=key_bytes):
+            return tm.TerminalMenu._read_next_key(menu, ignore_case)
+
+    def test_vim_mode_routes_slash(self):
+        menu = self._make_menu()
+        assert self._call(menu, b"/") == ""
+        assert menu._search._vim_input_active is True
+
+    def test_vim_mode_keeps_filter_on_escape(self):
+        menu = self._make_menu(text="help", input_active=True)
+        assert self._call(menu, b"\x1b") == ""
+        assert menu._search.search_text == "help"
+        assert menu._search._vim_input_active is False
+
+    def test_non_vim_mode_passes_key_through(self):
+        menu = self._make_menu()
+        menu._vim_search_mode = False
+        assert self._call(menu, b"x") == "x"
