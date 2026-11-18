@@ -30,6 +30,7 @@ PyInstaller is an optional dependency — install it with
 
 from __future__ import annotations
 
+import importlib.util
 import os
 import sys
 import zipfile
@@ -100,11 +101,10 @@ def _build_args(
         args += ["--distpath", str(distpath)]
     if workpath is not None:
         args += ["--workpath", str(workpath)]
+    args += ["--collect-all", "usecli"]
+    if importlib.util.find_spec("pyfiglet") is not None:
+        args += ["--collect-all", "pyfiglet"]
     args += [
-        "--collect-all",
-        "usecli",
-        "--collect-all",
-        "pyfiglet",
         "--add-data",
         f"{data_root}{os.pathsep}{BUNDLE_DATA_DIR}",
         "--paths",
