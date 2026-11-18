@@ -21,17 +21,18 @@ if sys.version_info >= (3, 11):
 else:
     import tomli as tomllib  # pragma: no cover - only on Python < 3.11
 
-import pyfiglet
-
 from usecli.cli.config.colors import COLOR
 from usecli.cli.core.base_command import BaseCommand
 from usecli.cli.core.exceptions import UsecliBadParameter
+from usecli.cli.core.ui.title import get_figlet, render_plain_title
 from usecli.cli.core.validators import validate_command_name
 from usecli.cli.utils.interactive.terminal_menu import terminal_menu
 from usecli.shared.config.globals import TEMPLATES_DIR, THEMES_DIR, USECLI_CONFIG_TOML
 from usecli.shared.config.manager import ConfigManager
 
 console = Console()
+
+DEFAULT_PROJECT_VERSION = "0.1.0"
 
 
 class InitCommand(BaseCommand):
@@ -367,6 +368,18 @@ class InitCommand(BaseCommand):
 
         return data.get("project", {}).get("name")
 
+    def _get_project_version_from_pyproject(self, pyproject_path: Path) -> str | None:
+        if not pyproject_path.exists():
+            return None
+
+        try:
+            data = tomllib.loads(pyproject_path.read_text())
+        except (tomllib.TOMLDecodeError, OSError):
+            return None
+
+        version = data.get("project", {}).get("version")
+        return version if isinstance(version, str) and version.strip() else None
+
     def _prompt_command_name(self, command_name: str) -> str:
         prompt_text = (
             f"[bold {COLOR.SECONDARY}]CLI command name[/bold {COLOR.SECONDARY}]"
@@ -384,10 +397,12 @@ class InitCommand(BaseCommand):
                 error.show()
 
     def _get_figlet_fonts(self) -> list[str]:
-        """Get a list of available figlet fonts."""
+        """Get a list of available figlet fonts; empty when pyfiglet is absent."""
 
-        fonts = pyfiglet.FigletFont.getFonts()
-        return sorted(fonts)
+        figlet = get_figlet()
+        if figlet is None:
+            return []
+        return sorted(figlet.FigletFont.getFonts())
 
     def _hex_to_rgb(self, value: str) -> tuple[int, int, int] | None:
         if not isinstance(value, str):
@@ -522,6 +537,9 @@ class InitCommand(BaseCommand):
         return selected_theme
 
     def _prompt_title_font(self, title: str, default_font: str = "big") -> str:
+        figlet = get_figlet()
+        if figlet is None:
+            return default_font
         fonts = self._get_figlet_fonts()
         console.print(
             f"[bold {COLOR.SECONDARY}]Select a figlet font for your CLI title[/bold {COLOR.SECONDARY}]"
@@ -532,9 +550,7 @@ class InitCommand(BaseCommand):
             search_key="/",
             show_search_hint=False,
             status_bar="Enter = select | / = search | J/K = move | D/U = page | Esc = quit",
-            preview_command=lambda value: (
-                f"{pyfiglet.figlet_format(title, font=value)}"
-            ),
+            preview_command=lambda value: f"{figlet.figlet_format(title, font=value)}",
             preview_size=0.70,
         )
         selected_font = selection[0] if selection else default_font
@@ -551,19 +567,21 @@ class InitCommand(BaseCommand):
         title: str,
         description: str,
         commands_dir: str,
+        title_font: str | None = None,
     ) -> None:
         parts = Path(commands_dir).parts
         root_package = parts[0] if parts else "src"
         project_name = pyproject_path.parent.name
+        usecli_dependency = "usecli[figlet]" if title_font else "usecli"
 
         pyproject_content = f'''[project]
 name = "{project_name}"
-version = "0.1.0"
+version = "{DEFAULT_PROJECT_VERSION}"
 description = "{description}"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "usecli",
+    "{usecli_dependency}",
 ]
 license = "MIT"
 
@@ -609,7 +627,7 @@ include = ["{root_package}*"]
             missing.append("--description")
         if not theme:
             missing.append("--theme")
-        if not title_font:
+        if get_figlet() is not None and not title_font:
             missing.append("--title-font")
         if missing:
             raise NonInteractiveError(
@@ -682,6 +700,7 @@ include = ["{root_package}*"]
                 title,
                 description,
                 commands_dir,
+                title_font=title_font,
             )
             scripts_status = "added"
             self._sync_environment(project_root, command_name)
@@ -783,7 +802,7 @@ include = ["{root_package}*"]
         title_font: str = typer.Option(
             None,
             "--title-font",
-            help="Figlet font for title (JSON mode only, default: 'big')",
+            help="Figlet font for title (requires usecli[figlet]; JSON mode only, default: 'big')",
         ),
     ) -> dict[str, object] | None:
         from usecli.cli.core.runtime import is_json_mode
@@ -892,11 +911,27 @@ include = ["{root_package}*"]
         console.print()
         theme = self._prompt_theme(themes_path)
         console.print()
-        title_font = self._prompt_title_font(title)
-        raw_title = pyfiglet.figlet_format(text=title, font=title_font)
-        title_text = "\n".join(" " + line for line in raw_title.split("\n"))
-        console.print()
-        console.print(f"[{COLOR.PRIMARY}]{title_text}")
+        figlet = get_figlet()
+        title_font: str | None = None
+        if figlet is not None:
+            title_font = self._prompt_title_font(title)
+            raw_title = figlet.figlet_format(text=title, font=title_font)
+            title_text = "\n".join(" " + line for line in raw_title.split("\n"))
+            console.print()
+            console.print(f"[{COLOR.PRIMARY}]{title_text}")
+        else:
+            version = (
+                self._get_project_version_from_pyproject(pyproject_path)
+                or DEFAULT_PROJECT_VERSION
+            )
+            console.print(
+                f"[{COLOR.FOREGROUND_MUTED}]pyfiglet is not installed; "
+                "the title is rendered as text. Install "
+                "usecli\\[figlet] for ASCII art fonts.[/]"
+            )
+            console.print()
+            console.print(render_plain_title(title, description, version))
+            console.print()
 
         # Create the commands directory
         if not commands_path.exists():
@@ -999,6 +1034,7 @@ include = ["{root_package}*"]
                 title,
                 description,
                 commands_dir,
+                title_font=title_font,
             )
             console.print(
                 f"[{COLOR.SUCCESS}]Created {pyproject_path}[/{COLOR.SUCCESS}]"
