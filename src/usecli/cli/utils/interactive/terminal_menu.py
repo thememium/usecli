@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 import shutil
 from collections.abc import Callable
 from typing import Any, TypeVar, cast
@@ -15,6 +16,24 @@ T = TypeVar("T")
 _PATCHED_SEARCH_LEN = False
 _PATCHED_VIM_PAGE_KEYS = False
 _PATCHED_VIM_SEARCH = False
+_PATCHED_THEME_STYLES = False
+_PATCHED_ANSI_WIDTH = False
+_PATCHED_COLORED_ENTRIES = False
+
+_ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;?]*[ -/]*[@-~]")
+
+# simple-term-menu styles are terminfo capability names, so theme colors are
+# registered as extra style names that emit the theme's truecolor sequences.
+_THEME_STYLE_NAMES = (
+    "usecli_primary",
+    "usecli_secondary",
+    "usecli_accent",
+    "usecli_muted",
+    "usecli_background",
+    "usecli_bg_primary",
+    "usecli_bg_secondary",
+    "usecli_bg_accent",
+)
 
 
 def _apply_safe_search_len_patch() -> None:
@@ -169,9 +188,100 @@ def _apply_vim_search_patch() -> None:
     _PATCHED_VIM_SEARCH = True
 
 
+def _theme_style_codes() -> dict[str, str]:
+    """Map custom style names to the active theme's ANSI sequences."""
+    from usecli.cli.config.colors import COLOR
+
+    return {
+        "usecli_primary": COLOR.ANSI.PRIMARY,
+        "usecli_secondary": COLOR.ANSI.SECONDARY,
+        "usecli_accent": COLOR.ANSI.ACCENT,
+        "usecli_muted": COLOR.ANSI.FOREGROUND_MUTED,
+        "usecli_background": COLOR.ANSI.BACKGROUND,
+        "usecli_bg_primary": COLOR.ANSI.BG_PRIMARY,
+        "usecli_bg_secondary": COLOR.ANSI.BG_SECONDARY,
+        "usecli_bg_accent": COLOR.ANSI.BG_ACCENT,
+    }
+
+
+def _apply_theme_style_patch() -> None:
+    """Register theme colors as simple-term-menu style names."""
+    global _PATCHED_THEME_STYLES
+    if _PATCHED_THEME_STYLES:
+        return
+
+    for name in _THEME_STYLE_NAMES:
+        TerminalMenu._codename_to_capname.setdefault(name, "")
+
+    original_init_terminal_codes = TerminalMenu.__dict__[
+        "_init_terminal_codes"
+    ].__func__
+
+    def _init_terminal_codes_with_theme(cls: Any) -> None:
+        original_init_terminal_codes(cls)
+        if cls._codename_to_terminal_code is not None:
+            cls._codename_to_terminal_code.update(_theme_style_codes())
+
+    init_codes_attr = "_init_terminal_codes"
+    setattr(
+        TerminalMenu,
+        init_codes_attr,
+        classmethod(_init_terminal_codes_with_theme),
+    )
+    if TerminalMenu._codename_to_terminal_code is not None:
+        TerminalMenu._codename_to_terminal_code.update(_theme_style_codes())
+    _PATCHED_THEME_STYLES = True
+
+
+def _apply_ansi_width_patch() -> None:
+    """Measure styled text by its visible width, not its escape sequences."""
+    global _PATCHED_ANSI_WIDTH
+    if _PATCHED_ANSI_WIDTH:
+        return
+
+    original_wcswidth = simple_term_menu.wcswidth
+
+    def _wcswidth_without_ansi(text: str) -> int:
+        return original_wcswidth(_ANSI_ESCAPE_RE.sub("", text))
+
+    width_attr = "wcswidth"
+    setattr(simple_term_menu, width_attr, _wcswidth_without_ansi)
+    _PATCHED_ANSI_WIDTH = True
+
+
+def _apply_colored_entries_patch() -> None:
+    """Render per-entry colors except on the active row and during search."""
+    global _PATCHED_COLORED_ENTRIES
+    if _PATCHED_COLORED_ENTRIES:
+        return
+
+    original_iter = TerminalMenu.View.__dict__["__iter__"]
+
+    def _iter_with_colored_entries(self: Any) -> Any:
+        renderer = getattr(self, "_usecli_entry_renderer", None)
+        if renderer is None:
+            yield from original_iter(self)
+            return
+
+        searching = bool(self._search and self._search.search_text)
+        active_index = self.active_menu_index
+        for displayed_index, menu_index, menu_entry in original_iter(self):
+            if searching or menu_index == active_index:
+                yield displayed_index, menu_index, menu_entry
+            else:
+                yield displayed_index, menu_index, renderer(menu_entry)
+
+    iter_attr = "__iter__"
+    setattr(TerminalMenu.View, iter_attr, _iter_with_colored_entries)
+    _PATCHED_COLORED_ENTRIES = True
+
+
 _apply_safe_search_len_patch()
 _apply_vim_page_keys_patch()
 _apply_vim_search_patch()
+_apply_theme_style_patch()
+_apply_ansi_width_patch()
+_apply_colored_entries_patch()
 
 
 def terminal_menu(
@@ -186,6 +296,8 @@ def terminal_menu(
     status_bar: str | None = None,
     preview_command: Callable[[str], str] | str | None = None,
     preview_size: float | None = 0.70,
+    title_style: str | None = None,
+    entry_renderer: Callable[[str], str] | None = None,
     clear_screen: bool | None = None,
     clear_menu_on_exit: bool | None = None,
 ) -> list[T]:
@@ -205,6 +317,9 @@ def terminal_menu(
         status_bar: Optional status bar text shown below the menu.
         preview_command: Optional preview command or callable to render a preview.
         preview_size: Optional preview size as a fraction of terminal height.
+        title_style: Optional ANSI sequence used to color the title.
+        entry_renderer: Optional callable that styles a menu entry for display.
+            It is skipped for the active row and while a search is active.
 
     Returns:
         List of selected items (empty if cancelled or nothing selected).
@@ -282,10 +397,12 @@ def terminal_menu(
         title=title,
         multi_select=multi_select,
         show_multi_select_hint=multi_select,
-        menu_cursor_style=("fg_cyan", "bold"),
-        menu_highlight_style=("bg_cyan", "fg_black"),
-        status_bar_style=("fg_cyan", "bold"),
-        multi_select_cursor_style=("fg_cyan", "bold"),
+        menu_cursor_style=("usecli_primary", "bold"),
+        menu_highlight_style=("usecli_bg_primary", "usecli_background", "bold"),
+        search_highlight_style=("usecli_bg_accent", "usecli_background", "bold"),
+        status_bar_style=("usecli_secondary", "bold"),
+        multi_select_cursor_style=("usecli_primary", "bold"),
+        multi_select_cursor_brackets_style=("usecli_muted",),
         multi_select_select_on_accept=False,
         multi_select_empty_ok=True,
         status_bar=status_bar,
@@ -303,6 +420,16 @@ def terminal_menu(
         if search_obj is not None:
             search_obj._vim_input_active = False
             menu._show_search_hint_text = '(Press "/" to search)'
+
+    if title_style:
+        title_lines = getattr(menu, "_title_lines", None)
+        if isinstance(title_lines, (list, tuple)):
+            menu._title_lines = [f"{title_style}{line}\033[0m" for line in title_lines]
+
+    if entry_renderer is not None:
+        view_obj = getattr(menu, "_view", None)
+        if view_obj is not None:
+            view_obj._usecli_entry_renderer = entry_renderer
 
     result = menu.show()
 
