@@ -115,9 +115,11 @@ usecli --interactive    # Searchable picker for all commands
 usecli -i hello         # Run 'hello' command interactively
 ```
 
-The picker opens in-place: start typing to filter commands, use the arrow keys
-to move, and press enter to run. A preview pane shows the highlighted command's
-usage, arguments and options.
+The picker opens in-place with vim-style keys: `j`/`k` or the arrow keys move,
+`/` starts search, and enter runs the highlighted command. `esc` leaves search
+mode but keeps the filter active (normal-mode navigation still works); `ctrl-u`
+clears the filter. A preview pane shows the command's usage, arguments and
+options.
 
 ### Command Groups
 
