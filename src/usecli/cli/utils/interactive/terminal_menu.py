@@ -14,6 +14,7 @@ from usecli.cli.core.runtime import NonInteractiveError, is_json_mode
 T = TypeVar("T")
 _PATCHED_SEARCH_LEN = False
 _PATCHED_VIM_PAGE_KEYS = False
+_PATCHED_VIM_SEARCH = False
 
 
 def _apply_safe_search_len_patch() -> None:
@@ -64,8 +65,113 @@ def _apply_vim_page_keys_patch() -> None:
     _PATCHED_VIM_PAGE_KEYS = True
 
 
+def _update_vim_search_hint(menu: Any) -> None:
+    """Show the retained filter in normal mode.
+
+    simple-term-menu only renders the search line while search input is active.
+    This keeps the query visible after ``esc`` so the filter is not silent.
+    """
+    search_text = menu._search.search_text
+    if search_text:
+        safe_text = search_text.replace("{", "{{").replace("}", "}}")
+        menu._show_search_hint_text = f"filter: {safe_text}   (/ edit · ctrl-u clear)"
+    else:
+        menu._show_search_hint_text = '(Press "/" to search)'
+
+
+def _vim_search_key(menu: Any, key: str) -> str:
+    """Apply vim search-mode transitions and return the key for the menu loop.
+
+    Returns an empty string (a no-op for the library) when the key only changes
+    modes. ``escape`` leaves search input but keeps the filter applied; ``/``
+    re-enters input on the same query; ``ctrl-u`` clears the filter.
+    """
+    search = menu._search
+    if getattr(search, "_vim_input_active", False) and search.search_text is None:
+        search._vim_input_active = False
+
+    input_active = bool(getattr(search, "_vim_input_active", False))
+
+    if key == "escape":
+        if input_active:
+            search._vim_input_active = False
+            _update_vim_search_hint(menu)
+            return ""
+        return key
+
+    # simple-term-menu does not map ctrl-u to a codename, so the raw control
+    # character is what comes back from the terminal in that case.
+    if key in ("ctrl-u", "\x15"):
+        if search.search_text is not None:
+            search.search_text = None
+            search._vim_input_active = False
+            _update_vim_search_hint(menu)
+        return ""
+
+    if key == "/" and not input_active:
+        search._vim_input_active = True
+        if search.search_text is None:
+            search.search_text = ""
+        _update_vim_search_hint(menu)
+        return ""
+
+    _update_vim_search_hint(menu)
+    return key
+
+
+def _apply_vim_search_patch() -> None:
+    """Let ``escape`` exit search input while keeping the active filter."""
+    global _PATCHED_VIM_SEARCH
+    if _PATCHED_VIM_SEARCH:
+        return
+
+    original_read_next_key = cast(
+        Callable[[TerminalMenu, bool], str], TerminalMenu._read_next_key
+    )
+    search_class = cast(Any, TerminalMenu.Search)
+    view_class = cast(Any, TerminalMenu.View)
+    original_search_bool = search_class.__bool__
+    original_update_view = view_class.update_view
+
+    def _search_bool(self: Any) -> bool:
+        input_active = getattr(self, "_vim_input_active", None)
+        if input_active is None:
+            return original_search_bool(self)
+        return bool(input_active and self._search_text is not None)
+
+    def _update_view(self: Any) -> None:
+        # The menu loop treats a falsy Search as "normal mode"; the view must
+        # still filter on the retained query, so make it truthy just for the
+        # duration of the library's own update logic.
+        search = self._search
+        if getattr(search, "_vim_input_active", None) is False and (
+            search.search_text is not None
+        ):
+            search._vim_input_active = True
+            try:
+                original_update_view(self)
+            finally:
+                search._vim_input_active = False
+        else:
+            original_update_view(self)
+
+    def _read_next_key_with_vim_search(
+        self: TerminalMenu, ignore_case: bool = True
+    ) -> str:
+        key = original_read_next_key(self, ignore_case)
+        if getattr(self, "_vim_search_mode", False) is not True:
+            return key
+        return _vim_search_key(self, key)
+
+    search_class.__bool__ = _search_bool
+    view_class.update_view = _update_view
+    TerminalMenu._read_next_key = _read_next_key_with_vim_search
+    _PATCHED_VIM_SEARCH = True
+
+
 _apply_safe_search_len_patch()
 _apply_vim_page_keys_patch()
+_apply_vim_search_patch()
 
 
 def terminal_menu(
@@ -75,6 +181,7 @@ def terminal_menu(
     multi_select: bool = False,
     search: bool = False,
     search_key: str | None = "/",
+    vim_search: bool = False,
     show_search_hint: bool = True,
     status_bar: str | None = None,
     preview_command: Callable[[str], str] | str | None = None,
@@ -92,6 +199,9 @@ def terminal_menu(
                      If False, only single selection allowed.
         search: If True, enable interactive search.
         search_key: Key to activate search. Use None to search on any letter key.
+        vim_search: If True, vim-style search input: escape exits search but
+            keeps the filter, ``/`` edits it again and ``ctrl-u`` clears it.
+            j/k navigate while search input is inactive.
         show_search_hint: If True, show the search hint text when search is enabled.
         status_bar: Optional status bar text shown below the menu.
         preview_command: Optional preview command or callable to render a preview.
@@ -189,6 +299,13 @@ def terminal_menu(
         clear_screen=clear_screen_value,
         clear_menu_on_exit=clear_menu_on_exit_value,
     )
+
+    if vim_search:
+        menu._vim_search_mode = True
+        search_obj = getattr(menu, "_search", None)
+        if search_obj is not None:
+            search_obj._vim_input_active = False
+            menu._show_search_hint_text = '(Press "/" to search)'
 
     result = menu.show()
 
