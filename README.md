@@ -118,7 +118,8 @@ usecli -i hello         # Run 'hello' command interactively
 The picker opens in-place with vim-style keys: `j`/`k` or the arrow keys move,
 `/` starts search, and enter runs the highlighted command. `esc` leaves search
 mode but keeps the filter active (normal-mode navigation still works); `ctrl-u`
-clears the filter.
+clears the filter. Command names, descriptions, the title and the status bar use
+your theme colors; the highlighted row switches to the theme's highlight style.
 
 ### Command Groups
 
