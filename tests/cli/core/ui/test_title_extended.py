@@ -6,11 +6,14 @@ from importlib.metadata import PackageNotFoundError
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+from usecli.cli.config.colors import COLOR
 from usecli.cli.core.ui.title import (
     _get_script_command_name,
     get_project_name,
+    get_project_version,
     get_script_command_name,
     print_title,
+    render_plain_title,
 )
 
 # ---------------------------------------------------------------------------
@@ -296,3 +299,65 @@ class TestPrintTitle:
         )
         print_title()
         assert mock_console.print.called
+
+
+# ---------------------------------------------------------------------------
+# render_plain_title / get_project_version
+# ---------------------------------------------------------------------------
+
+
+class TestRenderPlainTitle:
+    def test_renders_title_version_and_description(self):
+        markup = render_plain_title("cogrep", "A custom CLI tool", "v0.1.0")
+
+        first_line, second_line = markup.split("\n")
+        assert "cogrep" in first_line
+        assert f"[{COLOR.SECONDARY}]v0.1.0[/{COLOR.SECONDARY}]" in first_line
+        assert second_line == (
+            f"[{COLOR.FOREGROUND_MUTED}]A custom CLI tool[/{COLOR.FOREGROUND_MUTED}]"
+        )
+
+    def test_omits_version_and_description_when_missing(self):
+        assert render_plain_title("cogrep") == (
+            f"[bold {COLOR.PRIMARY}]cogrep[/bold {COLOR.PRIMARY}]"
+        )
+
+
+class TestGetProjectVersion:
+    @patch("usecli.cli.core.ui.title.get_config")
+    @patch("usecli.cli.core.ui.title.get_script_command_name", return_value=None)
+    def test_falls_back_to_project_version(self, mock_command, mock_config):
+        mock_config.return_value = MagicMock(
+            get_project_version=MagicMock(return_value="2.0.0")
+        )
+
+        assert get_project_version() == "2.0.0"
+
+    @patch("usecli.shared.config.manager._find_distribution_for_console_script")
+    @patch("usecli.cli.core.ui.title.get_script_command_name", return_value="cogrep")
+    @patch("usecli.cli.core.ui.title.get_config")
+    def test_unreadable_distribution_version_falls_back(
+        self, mock_config, mock_command, mock_find
+    ):
+        class _BadDist:
+            @property
+            def version(self):
+                raise AttributeError("missing version")
+
+        mock_find.return_value = _BadDist()
+        mock_config.return_value = MagicMock(
+            get_project_version=MagicMock(return_value="3.1.0")
+        )
+
+        assert get_project_version() == "3.1.0"
+
+    @patch("usecli.cli.core.ui.title.get_config")
+    @patch("usecli.cli.core.ui.title.get_script_command_name", return_value=None)
+    def test_returns_none_when_project_version_unreadable(
+        self, mock_command, mock_config
+    ):
+        mock_config.return_value = MagicMock(
+            get_project_version=MagicMock(side_effect=OSError("unreadable"))
+        )
+
+        assert get_project_version() is None
