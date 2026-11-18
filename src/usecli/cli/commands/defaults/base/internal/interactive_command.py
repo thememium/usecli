@@ -3,7 +3,7 @@
 The picker is built on :mod:`simple_term_menu` — the same widget used elsewhere
 in usecli — so ``--interactive`` works without an external fuzzy-finder binary.
 It keeps the fzf feel: vim-style navigation (``j``/``k`` or arrows), ``/`` to
-search, a styled cursor and a live preview of the highlighted command.
+search and a styled cursor.
 """
 
 from __future__ import annotations
@@ -13,7 +13,6 @@ import os
 import shutil
 import subprocess
 import sys
-from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
@@ -33,10 +32,6 @@ if TYPE_CHECKING:
 
 console = Console()
 
-# simple-term-menu uses the unit separator to attach a hidden preview argument
-# to a menu entry. We reuse it to carry the command name, so display padding
-# never has to be parsed back out of the selected line.
-_ENTRY_DELIMITER = "\x1f"
 _STATUS_BAR = "↑↓/j/k move · / search · ctrl-u clear · ⏎ run · esc cancel"
 
 
@@ -148,24 +143,19 @@ def _fit(text: str, width: int) -> str:
 
 
 def _menu_entry(name: str, description: str, name_width: int) -> str:
-    """Render one two-column menu entry with a hidden command-name argument."""
+    """Render one two-column menu entry."""
     if description:
         display = f"{name:<{name_width}}  {description}".rstrip()
     else:
         display = name
 
-    # simple-term-menu treats an unescaped ``|`` as the preview separator.
-    display = display.replace("|", "\\|")
-    return f"{display}{_ENTRY_DELIMITER}{name}"
+    # simple-term-menu treats an unescaped ``|`` as a preview-argument
+    # separator, so escape it to keep it visible in the row.
+    return display.replace("|", "\\|")
 
 
-def _run_command_menu(
-    entries: list[str],
-    *,
-    title: str,
-    preview_command: Callable[[str], str] | None = None,
-) -> str | None:
-    """Show the interactive picker and return the selected command name.
+def _run_command_menu(entries: list[str], *, title: str) -> str | None:
+    """Show the interactive picker and return the selected entry.
 
     Returns ``None`` when the user cancels. Raises :class:`UsecliError` when
     there is no terminal to draw the menu on.
@@ -189,76 +179,16 @@ def _run_command_menu(
         search_key="/",
         vim_search=True,
         status_bar=_STATUS_BAR,
-        preview_command=preview_command,
-        preview_title="command help",
-        preview_size=0.4,
     )
     if not selection:
         return None
 
-    return selection[0].rsplit(_ENTRY_DELIMITER, 1)[-1]
-
-
-def _build_preview(
-    entry: dict[str, Any],
-    app: typer.Typer,
-    script_name: str,
-) -> str:
-    """Render the help pane for the highlighted command."""
-    name = entry["name"]
-    description = _clean_text(entry["help"]) or _humanize_name(name)
-    lines = [name]
-    if description:
-        lines.append(description)
-    lines.append("")
-
-    if entry.get("is_group"):
-        lines.append(f"Usage: {script_name} {name} <command>")
-        subcommands = _get_group_subcommands(app, name)
-        if subcommands:
-            lines.append("")
-            lines.append("Commands:")
-            width = max(len(sub["name"]) for sub in subcommands)
-            for sub in subcommands:
-                sub_help = _clean_text(sub["help"]) or _humanize_name(sub["name"])
-                lines.append(f"  {sub['name']:<{width}}  {sub_help}".rstrip())
-        return "\n".join(lines)
-
-    command = entry.get("command")
-    required = _get_required_arguments(command) if command is not None else []
-
-    usage = f"Usage: {script_name} {name}"
-    if required:
-        usage += " " + " ".join(f"<{arg_name}>" for arg_name, _, _ in required)
-    usage += " [OPTIONS]"
-    lines.append(usage)
-
-    if required:
-        lines.append("")
-        lines.append("Arguments:")
-        for arg_name, help_text, _ in required:
-            arg_help = _clean_text(help_text)
-            lines.append(f"  {arg_name}" + (f"  {arg_help}" if arg_help else ""))
-
-    options = _get_optional_options(command) if command is not None else []
-    if options:
-        lines.append("")
-        lines.append("Options:")
-        flag_width = max(len(flags) for _, flags, _, _ in options)
-        for _, flags, help_text, _ in options:
-            opt_help = _clean_text(help_text)
-            lines.append(
-                f"  {flags:<{flag_width}}" + (f"  {opt_help}" if opt_help else "")
-            )
-
-    return "\n".join(lines)
+    return selection[0]
 
 
 def _select_command(
     commands: list[dict[str, Any]],
     *,
-    app: typer.Typer,
-    script_name: str,
     title: str,
 ) -> str | None:
     """Show a picker for ``commands`` and return the selected name."""
@@ -270,25 +200,19 @@ def _select_command(
     description_width = max(20, terminal_width - name_width - 6)
 
     entries: list[str] = []
-    by_name: dict[str, dict[str, Any]] = {}
+    name_by_entry: dict[str, str] = {}
     for cmd in commands:
         description = _clean_text(cmd["help"]) or _humanize_name(cmd["name"])
-        entries.append(
-            _menu_entry(cmd["name"], _fit(description, description_width), name_width)
+        entry = _menu_entry(
+            cmd["name"], _fit(description, description_width), name_width
         )
-        by_name[cmd["name"]] = cmd
+        entries.append(entry)
+        name_by_entry[entry] = cmd["name"]
 
-    preview_cache: dict[str, str] = {}
-
-    def preview(name: str) -> str:
-        if name not in preview_cache:
-            entry = by_name.get(name)
-            preview_cache[name] = (
-                _build_preview(entry, app, script_name) if entry else name
-            )
-        return preview_cache[name]
-
-    return _run_command_menu(entries, title=title, preview_command=preview)
+    selected = _run_command_menu(entries, title=title)
+    if selected is None:
+        return None
+    return name_by_entry.get(selected)
 
 
 def _resolve_group_alias(app: typer.Typer, group_name: str) -> str:
@@ -384,8 +308,6 @@ def run_interactive(
     if not cmd_parts:
         cmd_name = _select_command(
             ordered_commands,
-            app=app,
-            script_name=script_name,
             title=f"{script_name} » select a command",
         )
         if cmd_name is None:
@@ -428,8 +350,6 @@ def run_interactive(
         else:
             sub_name = _select_command(
                 subcommands,
-                app=app,
-                script_name=script_name,
                 title=f"{script_name} {cmd_name} » select a subcommand",
             )
             if sub_name is None:
