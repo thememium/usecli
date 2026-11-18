@@ -5,6 +5,7 @@ from __future__ import annotations
 import sys
 from importlib.metadata import PackageNotFoundError, metadata
 from pathlib import Path
+from typing import Any
 
 if sys.version_info >= (3, 11):
     import tomllib
@@ -89,8 +90,67 @@ def get_project_name() -> str:
         return "useCli"
 
 
+def get_figlet() -> Any | None:
+    """Return the optional ``pyfiglet`` module, or None when it is not installed."""
+    try:
+        import pyfiglet
+    except ImportError:
+        return None
+    return pyfiglet
+
+
+def get_project_version() -> str | None:
+    """Best-effort version of the running CLI.
+
+    Resolves the distribution that owns the invoked console script first, then
+    falls back to ``[project].version`` in the project's pyproject.toml.
+    """
+    command_name = get_script_command_name()
+    if command_name:
+        from usecli.shared.config.manager import _find_distribution_for_console_script
+
+        dist = _find_distribution_for_console_script(command_name)
+        if dist is not None:
+            try:
+                version = dist.version
+            except (AttributeError, OSError, TypeError):
+                version = None
+            if version:
+                return str(version)
+
+    try:
+        return get_config().get_project_version()
+    except (AttributeError, OSError, ValueError):
+        return None
+
+
+def render_plain_title(
+    title: str,
+    description: str | None = None,
+    version: str | None = None,
+) -> str:
+    """Render the non-figlet banner as Rich markup.
+
+    The title and version share the first line in different colors; the
+    description follows on the next line.
+    """
+    header = f"[bold {COLOR.PRIMARY}]{title}[/bold {COLOR.PRIMARY}]"
+    if version:
+        header += (
+            f" [{COLOR.SECONDARY}]v{version.removeprefix('v')}[/{COLOR.SECONDARY}]"
+        )
+    if not description:
+        return header
+    return (
+        f"{header}\n[{COLOR.FOREGROUND_MUTED}]{description}[/{COLOR.FOREGROUND_MUTED}]"
+    )
+
+
 def print_title(title: str | None = None) -> None:
-    """Print an ASCII art title, otherwise plain text.
+    """Print the CLI banner.
+
+    Uses figlet art when pyfiglet is installed; otherwise prints the title and
+    version as colored text with the description on the next line.
 
     Args:
         title: Optional custom title text. If not provided, uses ASCII art.
@@ -120,29 +180,26 @@ def print_title(title: str | None = None) -> None:
         except OSError:
             pass
 
-    try:
-        if title is None or title.lower() == "usecli":
-            console.print(f"[{COLOR.PRIMARY}]{default_title_text}")
-            return
+    if title is None or title.lower() == "usecli":
+        console.print(f"[{COLOR.PRIMARY}]{default_title_text}")
+        return
 
-        # Print Title using pyfiglet if available and non title is provided, otherwise print plain text
-        import pyfiglet
-
+    figlet = get_figlet()
+    if figlet is not None:
         title_font = config.get("title_font", "big") or "big"
         is_figlet = False
         try:
-            raw_title = pyfiglet.figlet_format(text=title, font=title_font).rstrip()
+            raw_title = figlet.figlet_format(text=title, font=title_font).rstrip()
             title_text = "\n".join(" " + line for line in raw_title.split("\n"))
             is_figlet = True
-        except pyfiglet.FontNotFound:
+        except figlet.FontNotFound:
             title_text = title
         console.print()
         console.print(f"[{COLOR.PRIMARY}]{title_text}")
         if is_figlet:
             console.print()
-    except (ImportError, ModuleNotFoundError):
-        if title is None or title.lower() == "usecli":  # pragma: no cover - unreachable
-            console.print(f"[{COLOR.PRIMARY}]{default_title_text}")
-            return
+        return
 
-        console.print(f"[{COLOR.PRIMARY}]{title}")
+    description = config.get("description") if config.has_key("description") else None
+    console.print(render_plain_title(title, description, get_project_version()))
+    console.print()
