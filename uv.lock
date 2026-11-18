@@ -205,24 +205,6 @@ wheels = [
 ]
 
 [[package]]
-name = "fzf-bin"
-version = "0.74.1"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/4e/23/16e9f38ba1c05b5458f54610dbb9eb0c60478487aefeb0cc53b14b7ef450/fzf_bin-0.74.1.tar.gz", hash = "sha256:98a9d87d941415c0960bfde96ac9618850d7d9446b78d77138aedb960701b98b", size = 455775, upload-time = "2026-07-20T04:29:55.229Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/a4/d4/ae2d85cbffd459d01f477995f0f618be0f16aadd0a78aa4e758d3dd2cfd0/fzf_bin-0.74.1-py3-none-android_33_arm64_v8a.whl", hash = "sha256:28698f8ee9fed9407589bec54700987cf8aecf1e02d5a2c1771da785ec80e00a", size = 1876488, upload-time = "2026-07-20T04:29:40.152Z" },
-    { url = "https://files.pythonhosted.org/packages/aa/6c/306d11f70783999b2ea12f41afc858692b8879d589fd17a6e6bd38656cf9/fzf_bin-0.74.1-py3-none-macosx_12_0_arm64.whl", hash = "sha256:307905e527998e2b75cf0ea2054d5ad308296f9c674c0bf4c70406593a82827d", size = 1846909, upload-time = "2026-07-20T04:29:41.684Z" },
-    { url = "https://files.pythonhosted.org/packages/ba/95/b477f3f0b62d12c552f66eea447fc42a55e6f6cf5b6a0f5c060cf69049d8/fzf_bin-0.74.1-py3-none-macosx_12_0_x86_64.whl", hash = "sha256:feda604d1cee971de74b854f039521f8bca053fe7e62f173b14d24a44d59fc9f", size = 1984895, upload-time = "2026-07-20T04:29:43.49Z" },
-    { url = "https://files.pythonhosted.org/packages/f8/2d/43cb64b897f004fa44dc02cfe36729fc2d3b4997c46588b3799e984d4164/fzf_bin-0.74.1-py3-none-manylinux_2_28_aarch64.musllinux_1_2_aarch64.whl", hash = "sha256:3c66894c1bb6fd8c57035184dc2b8dd65067e9ce608486d9a5917d291455982d", size = 1796998, upload-time = "2026-07-20T04:29:44.919Z" },
-    { url = "https://files.pythonhosted.org/packages/ec/4a/1fd346468a80f10da908b30303034037e8a4a0d40d0eb93b86ba578b7871/fzf_bin-0.74.1-py3-none-manylinux_2_28_ppc64le.musllinux_1_2_ppc64le.whl", hash = "sha256:ded55d63a178b6dd3dc476d51a801425df24d4a93e45791c20535e68d06f4fb1", size = 1827653, upload-time = "2026-07-20T04:29:46.344Z" },
-    { url = "https://files.pythonhosted.org/packages/de/78/e2ad09d1b77b5e8515a74ae51454a5956a0fb7412899b8b297823a5ef039/fzf_bin-0.74.1-py3-none-manylinux_2_28_riscv64.musllinux_1_2_riscv64.whl", hash = "sha256:a80059694fea9151e8263c3814003a769071993a8648e5bddae2570581a59e6e", size = 1835218, upload-time = "2026-07-20T04:29:47.77Z" },
-    { url = "https://files.pythonhosted.org/packages/8e/7d/a7a17859eeafecdba0f101544e4d7fbe4db0794e79007e5cd659ab96184d/fzf_bin-0.74.1-py3-none-manylinux_2_28_s390x.musllinux_1_2_s390x.whl", hash = "sha256:84bf265c3fe74e337441df73ae60147140c0ff76fb3b84aa765749dc3af37875", size = 1939629, upload-time = "2026-07-20T04:29:49.201Z" },
-    { url = "https://files.pythonhosted.org/packages/4f/ae/b488ebdb22e97a3f4616061e44fafb01dc745512eb896664cb5c37a8cb1b/fzf_bin-0.74.1-py3-none-manylinux_2_28_x86_64.musllinux_1_2_x86_64.whl", hash = "sha256:83b33bce2e05b36bfcda433b275864177568e64da61d338713470c3fc1384309", size = 1975477, upload-time = "2026-07-20T04:29:50.856Z" },
-    { url = "https://files.pythonhosted.org/packages/29/fa/97a9c70d0375fc0e6e751a7bb8776cec8e1bb1fce58c3e64c1049ad8d674/fzf_bin-0.74.1-py3-none-win_amd64.whl", hash = "sha256:240dbca8ef5c05f58cb4492f3d4509c1faa87b12c1bdfe21fbf8f5360a12d720", size = 2147590, upload-time = "2026-07-20T04:29:52.364Z" },
-    { url = "https://files.pythonhosted.org/packages/79/c1/ec9dea3406283ab4529facd3c59c8e9be60e88eed460b3eb9a18f8eb240d/fzf_bin-0.74.1-py3-none-win_arm64.whl", hash = "sha256:b74aa249b012436f918e2496b9fb8d4a6ab7d40b2cd90c4170486b72b9a907a7", size = 1936780, upload-time = "2026-07-20T04:29:53.92Z" },
-]
-
-[[package]]
 name = "iniconfig"
 version = "2.3.0"
 source = { registry = "https://pypi.org/simple" }
@@ -948,7 +930,6 @@ source = { editable = "." }
 dependencies = [
     { name = "case-converter" },
     { name = "click" },
-    { name = "fzf-bin" },
     { name = "jinja2" },
     { name = "pyfiglet" },
     { name = "rich" },
@@ -978,7 +959,6 @@ dev = [
 requires-dist = [
     { name = "case-converter", specifier = ">=1.2.0" },
     { name = "click", specifier = ">=8.4.2" },
-    { name = "fzf-bin", specifier = ">=0.74.1" },
     { name = "jinja2", specifier = ">=3.1.6" },
     { name = "pyfiglet", specifier = ">=1.0.4" },
     { name = "pyinstaller", marker = "extra == 'pyinstaller'", specifier = ">=6.21.0" },
