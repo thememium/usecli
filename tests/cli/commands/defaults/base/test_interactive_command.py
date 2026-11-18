@@ -11,7 +11,6 @@ import pytest
 import typer
 
 from usecli.cli.commands.defaults.base.internal.interactive_command import (
-    _build_preview,
     _fit,
     _get_optional_options,
     _get_required_arguments,
@@ -263,13 +262,13 @@ class TestResolveGroupAlias:
 
 
 class TestRunCommandMenu:
-    @patch(f"{_FZF}.terminal_menu", return_value=["hello\x1fhello"])
+    @patch(f"{_FZF}.terminal_menu", return_value=["hello  Say hello"])
     @patch(f"{_FZF}.sys")
-    def test_returns_selected_command_name(self, mock_sys, mock_menu):
+    def test_returns_selected_entry(self, mock_sys, mock_menu):
         mock_sys.stdin.isatty.return_value = True
         mock_sys.stdout.isatty.return_value = True
-        result = _run_command_menu(["hello\x1fhello"], title="usecli » commands")
-        assert result == "hello"
+        result = _run_command_menu(["hello  Say hello"], title="usecli » commands")
+        assert result == "hello  Say hello"
         kwargs = mock_menu.call_args.kwargs
         assert kwargs["search"] is True
         assert kwargs["search_key"] == "/"
@@ -277,13 +276,14 @@ class TestRunCommandMenu:
         assert kwargs["title"] == "usecli » commands"
         assert "/ search" in kwargs["status_bar"]
         assert "ctrl-u clear" in kwargs["status_bar"]
+        assert "preview_command" not in kwargs
 
     @patch(f"{_FZF}.terminal_menu", return_value=[])
     @patch(f"{_FZF}.sys")
     def test_returns_none_when_cancelled(self, mock_sys, mock_menu):
         mock_sys.stdin.isatty.return_value = True
         mock_sys.stdout.isatty.return_value = True
-        assert _run_command_menu(["hello\x1fhello"], title="t") is None
+        assert _run_command_menu(["hello"], title="t") is None
 
     @patch(f"{_FZF}.terminal_menu")
     @patch(f"{_FZF}.sys")
@@ -293,17 +293,8 @@ class TestRunCommandMenu:
         from usecli.cli.core.exceptions import UsecliError
 
         with pytest.raises(UsecliError):
-            _run_command_menu(["hello\x1fhello"], title="t")
+            _run_command_menu(["hello"], title="t")
         mock_menu.assert_not_called()
-
-    @patch(f"{_FZF}.terminal_menu", return_value=["hello\x1fhello"])
-    @patch(f"{_FZF}.sys")
-    def test_passes_preview_callable(self, mock_sys, mock_menu):
-        mock_sys.stdin.isatty.return_value = True
-        mock_sys.stdout.isatty.return_value = True
-        preview = MagicMock(return_value="help")
-        _run_command_menu(["hello\x1fhello"], title="t", preview_command=preview)
-        assert mock_menu.call_args.kwargs["preview_command"] is preview
 
     @patch(f"{_FZF}.terminal_menu")
     def test_returns_none_without_entries(self, mock_menu):
@@ -318,43 +309,43 @@ class TestRunCommandMenu:
 
 class TestSelectCommand:
     def test_builds_aligned_entries_with_fallbacks(self):
-        app = MagicMock()
         commands = [
             {"name": "hello", "help": "Say hello"},
             {"name": "db:migrate", "help": ""},
         ]
-        with patch(f"{_FZF}._run_command_menu", return_value="hello") as menu:
-            result = _select_command(
-                commands,
-                app=app,
-                script_name="usecli",
-                title="usecli » select a command",
-            )
+        with patch(
+            f"{_FZF}._run_command_menu", side_effect=lambda entries, **_: entries[0]
+        ) as menu:
+            result = _select_command(commands, title="usecli » select a command")
         assert result == "hello"
         entries = menu.call_args.args[0]
-        assert entries[0].endswith("\x1fhello")
+        assert entries[0].startswith("hello")
         assert "Say hello" in entries[0]
-        assert entries[1].endswith("\x1fdb:migrate")
+        assert "\x1f" not in entries[0]
         assert "Db migrate" in entries[1]
 
-    def test_preview_is_built_lazily_and_cached(self):
-        app = MagicMock()
-        commands = [{"name": "hello", "help": "Say hello"}]
-        with (
-            patch(f"{_FZF}._run_command_menu") as menu,
-            patch(f"{_FZF}._build_preview", return_value="preview") as build,
+    def test_maps_selected_entry_back_to_its_name(self):
+        commands = [
+            {"name": "alpha", "help": "A"},
+            {"name": "beta", "help": "B"},
+        ]
+        with patch(
+            f"{_FZF}._run_command_menu", side_effect=lambda entries, **_: entries[1]
         ):
-            _select_command(commands, app=app, script_name="usecli", title="t")
-            preview = menu.call_args.kwargs["preview_command"]
-            assert preview("hello") == "preview"
-            assert preview("hello") == "preview"
-        build.assert_called_once()
+            assert _select_command(commands, title="t") == "beta"
+
+    def test_returns_none_when_cancelled(self):
+        commands = [{"name": "alpha", "help": "A"}]
+        with patch(f"{_FZF}._run_command_menu", return_value=None):
+            assert _select_command(commands, title="t") is None
+
+    def test_returns_none_for_unknown_selection(self):
+        commands = [{"name": "alpha", "help": "A"}]
+        with patch(f"{_FZF}._run_command_menu", return_value="not an entry"):
+            assert _select_command(commands, title="t") is None
 
     def test_returns_none_without_commands(self):
-        assert (
-            _select_command([], app=MagicMock(), script_name="usecli", title="t")
-            is None
-        )
+        assert _select_command([], title="t") is None
 
     def test_humanize_name(self):
         assert _humanize_name("db:migrate-all") == "Db migrate all"
@@ -367,43 +358,12 @@ class TestSelectCommand:
         assert _fit("abc", 0) == ""
         assert _fit("abc", 1) == "…"
 
-    def test_menu_entry_escapes_preview_separator(self):
+    def test_menu_entry_escapes_pipe(self):
         entry = _menu_entry("cmd", "a | b", 4)
         assert "a \\| b" in entry
-        assert entry.endswith("\x1fcmd")
 
     def test_menu_entry_without_description_is_just_the_name(self):
-        assert _menu_entry("cmd", "", 8) == "cmd\x1fcmd"
-
-
-class TestBuildPreview:
-    def test_leaf_preview_includes_usage_args_and_options(self):
-        entry = {"name": "hello", "help": "Say hello", "command": MagicMock()}
-        with (
-            patch(
-                f"{_FZF}._get_required_arguments",
-                return_value=[("name", "who to greet", str)],
-            ),
-            patch(
-                f"{_FZF}._get_optional_options",
-                return_value=[("loud", "--loud", "shout", bool)],
-            ),
-        ):
-            text = _build_preview(entry, MagicMock(), "usecli")
-        assert "Say hello" in text
-        assert "Usage: usecli hello <name> [OPTIONS]" in text
-        assert "who to greet" in text
-        assert "--loud" in text
-        assert "shout" in text
-
-    def test_group_preview_lists_subcommands(self):
-        entry = {"name": "db", "help": "Database commands", "is_group": True}
-        subs = [{"name": "migrate", "help": "Run migrations"}]
-        with patch(f"{_FZF}._get_group_subcommands", return_value=subs):
-            text = _build_preview(entry, MagicMock(), "usecli")
-        assert "Usage: usecli db <command>" in text
-        assert "migrate" in text
-        assert "Run migrations" in text
+        assert _menu_entry("cmd", "", 8) == "cmd"
 
 
 # ---------------------------------------------------------------------------
