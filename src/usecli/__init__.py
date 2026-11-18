@@ -572,7 +572,7 @@ def _get_run_app_callback():
             raise NonInteractiveError("Interactive mode is unavailable in JSON mode")
 
         if interactive_requested:
-            from usecli.cli.commands.defaults.base.internal.fzf_command import (
+            from usecli.cli.commands.defaults.base.internal.interactive_command import (
                 run_interactive,
             )
 

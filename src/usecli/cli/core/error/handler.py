@@ -1,7 +1,7 @@
 """Centralized error handling for usecli CLI.
 
 Provides consistent error styling and formatting across the application,
-matching your existing help and fzf command styling.
+matching your existing help and interactive command styling.
 """
 
 from __future__ import annotations

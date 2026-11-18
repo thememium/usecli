@@ -874,7 +874,7 @@ class COLOR(metaclass=_ColorMeta):
     PANEL_ACCENT: Final[str] = _THEME_COLORS["panel_accent"]
 
     # ==========================================================================
-    # Nested: ANSI Escape Sequences (for non-Rich outputs like fzf)
+    # Nested: ANSI Escape Sequences (for non-Rich terminal output)
     # ==========================================================================
 
     @final
@@ -882,7 +882,7 @@ class COLOR(metaclass=_ColorMeta):
         """ANSI escape sequences for terminal styling.
 
         Use these when you need to output styled text directly to the terminal
-        without using Rich console (e.g., for fzf integration).
+        without using Rich console (e.g., for terminal menus).
 
         Examples:
             >>> print(f"{COLOR.ANSI.SECONDARY}text{COLOR.ANSI.RESET}")
