@@ -2,8 +2,8 @@
 
 The picker is built on :mod:`simple_term_menu` — the same widget used elsewhere
 in usecli — so ``--interactive`` works without an external fuzzy-finder binary.
-It keeps the fzf feel: type-to-filter search, a styled cursor and a live
-preview of the highlighted command.
+It keeps the fzf feel: vim-style navigation (``j``/``k`` or arrows), ``/`` to
+search, a styled cursor and a live preview of the highlighted command.
 """
 
 from __future__ import annotations
@@ -37,7 +37,7 @@ console = Console()
 # to a menu entry. We reuse it to carry the command name, so display padding
 # never has to be parsed back out of the selected line.
 _ENTRY_DELIMITER = "\x1f"
-_STATUS_BAR = "↑↓ move · type to filter · ⏎ run · esc cancel"
+_STATUS_BAR = "↑↓/j/k move · / search · ctrl-u clear · ⏎ run · esc cancel"
 
 
 def _get_required_arguments(command: ClickCommand) -> list[tuple[str, str, type]]:
@@ -186,7 +186,8 @@ def _run_command_menu(
         entries,
         title=title,
         search=True,
-        search_key=None,
+        search_key="/",
+        vim_search=True,
         status_bar=_STATUS_BAR,
         preview_command=preview_command,
         preview_title="command help",
