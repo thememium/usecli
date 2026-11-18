@@ -290,5 +290,7 @@ class TestPrintTitlePyfigletUnavailable:
             else:
                 sys.modules.pop("pyfiglet", None)
 
-        call_args = mock_console.print.call_args[0][0]
-        assert "My Custom Title" in call_args
+        printed = "\n".join(
+            str(call.args[0]) for call in mock_console.print.call_args_list if call.args
+        )
+        assert "My Custom Title" in printed
