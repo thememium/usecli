@@ -13,6 +13,7 @@ import os
 import shutil
 import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
@@ -154,7 +155,12 @@ def _menu_entry(name: str, description: str, name_width: int) -> str:
     return display.replace("|", "\\|")
 
 
-def _run_command_menu(entries: list[str], *, title: str) -> str | None:
+def _run_command_menu(
+    entries: list[str],
+    *,
+    title: str,
+    entry_renderer: Callable[[str], str] | None = None,
+) -> str | None:
     """Show the interactive picker and return the selected entry.
 
     Returns ``None`` when the user cancels. Raises :class:`UsecliError` when
@@ -179,6 +185,8 @@ def _run_command_menu(entries: list[str], *, title: str) -> str | None:
         search_key="/",
         vim_search=True,
         status_bar=_STATUS_BAR,
+        title_style=COLOR.ANSI.PRIMARY,
+        entry_renderer=entry_renderer,
     )
     if not selection:
         return None
@@ -197,19 +205,45 @@ def _select_command(
 
     name_width = max(len(cmd["name"]) for cmd in commands)
     terminal_width = shutil.get_terminal_size((80, 24)).columns
-    description_width = max(20, terminal_width - name_width - 6)
+
+    name_color = COLOR.ANSI.PRIMARY
+    description_color = COLOR.ANSI.FOREGROUND_MUTED
+    reset = COLOR.ANSI.RESET
+    color_overhead = len(name_color) + len(description_color) + 2 * len(reset)
+    plain_description_width = max(20, terminal_width - name_width - 6)
+    available_for_description = plain_description_width - color_overhead
+    use_colors = bool(name_color and description_color and reset) and (
+        available_for_description >= 20
+    )
+    description_width = (
+        available_for_description if use_colors else plain_description_width
+    )
 
     entries: list[str] = []
     name_by_entry: dict[str, str] = {}
+    colored_entries: dict[str, str] = {}
     for cmd in commands:
-        description = _clean_text(cmd["help"]) or _humanize_name(cmd["name"])
-        entry = _menu_entry(
-            cmd["name"], _fit(description, description_width), name_width
+        description = _fit(
+            _clean_text(cmd["help"]) or _humanize_name(cmd["name"]),
+            description_width,
         )
+        entry = _menu_entry(cmd["name"], description, name_width)
         entries.append(entry)
         name_by_entry[entry] = cmd["name"]
+        if use_colors:
+            padded_name = f"{cmd['name']:<{name_width}}"
+            if description:
+                colored_entries[entry] = (
+                    f"{name_color}{padded_name}{reset}  "
+                    f"{description_color}{description}{reset}"
+                )
+            else:
+                colored_entries[entry] = f"{name_color}{padded_name}{reset}"
 
-    selected = _run_command_menu(entries, title=title)
+    entry_renderer = (
+        (lambda entry: colored_entries.get(entry, entry)) if colored_entries else None
+    )
+    selected = _run_command_menu(entries, title=title, entry_renderer=entry_renderer)
     if selected is None:
         return None
     return name_by_entry.get(selected)
