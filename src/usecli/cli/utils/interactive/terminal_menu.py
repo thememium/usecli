@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import builtins
 import re
 import shutil
+import sys
 from collections.abc import Callable
 from typing import Any, TypeVar, cast
 
@@ -19,6 +21,7 @@ _PATCHED_VIM_SEARCH = False
 _PATCHED_THEME_STYLES = False
 _PATCHED_ANSI_WIDTH = False
 _PATCHED_COLORED_ENTRIES = False
+_PATCHED_TTY_FALLBACK = False
 
 _ANSI_ESCAPE_RE = re.compile(r"\x1b\[[0-9;?]*[ -/]*[@-~]")
 
@@ -36,6 +39,25 @@ _THEME_STYLE_NAMES = (
     "usecli_bg_secondary",
     "usecli_bg_accent",
 )
+
+
+class _NonClosingStream:
+    """Proxy a standard stream so simple-term-menu cannot close it."""
+
+    def __init__(self, stream: Any) -> None:
+        self._stream = stream
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._stream, name)
+
+    def __enter__(self) -> _NonClosingStream:  # noqa: PYI034
+        return self
+
+    def __exit__(self, *exc_info: object) -> None:
+        self.close()
+
+    def close(self) -> None:
+        self._stream.flush()
 
 
 def _apply_safe_search_len_patch() -> None:
@@ -280,12 +302,46 @@ def _apply_colored_entries_patch() -> None:
     _PATCHED_COLORED_ENTRIES = True
 
 
+def _open_tty_with_fallback(
+    file: Any, mode: str = "r", *args: Any, **kwargs: Any
+) -> Any:
+    """Open ``file``, falling back to stdio when ``/dev/tty`` is unreachable."""
+    if str(file) != "/dev/tty":
+        return builtins.open(file, mode, *args, **kwargs)
+    try:
+        return builtins.open(file, mode, *args, **kwargs)
+    except OSError:
+        stream = sys.stdin if "r" in mode else sys.stdout
+        if stream is None or not stream.isatty():
+            raise
+        return _NonClosingStream(stream)
+
+
+def _apply_tty_fallback_patch() -> None:
+    """Fall back to stdio when ``/dev/tty`` is unavailable.
+
+    Process runners such as poethepoet start tasks in a new session
+    (``start_new_session=True``). That drops the controlling terminal while
+    stdin/stdout still point at the pty, so ``isatty()`` is true but opening
+    ``/dev/tty`` fails with ``ENXIO``. simple-term-menu opens ``/dev/tty``
+    unconditionally, so reroute that open to the standard streams. The
+    returned proxy is never closed, because the streams outlive the menu.
+    """
+    global _PATCHED_TTY_FALLBACK
+    if _PATCHED_TTY_FALLBACK:
+        return
+
+    setattr(simple_term_menu, "open", _open_tty_with_fallback)  # noqa: B010
+    _PATCHED_TTY_FALLBACK = True
+
+
 _apply_safe_search_len_patch()
 _apply_vim_page_keys_patch()
 _apply_vim_search_patch()
 _apply_theme_style_patch()
 _apply_ansi_width_patch()
 _apply_colored_entries_patch()
+_apply_tty_fallback_patch()
 
 
 def terminal_menu(
