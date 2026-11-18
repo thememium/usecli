@@ -38,7 +38,7 @@
 useCli A powerful Python CLI framework for building beautiful, developer-friendly command-line tools. It gives you:
 
 - **Prefix matching** — Type `he` instead of `help`
-- **Interactive mode** — Fuzzy finder for commands
+- **Interactive mode** — Searchable command picker with live help preview
 - **Auto-generated help** — Clean, styled output
 - **Command scaffolding** — `make:command` generates boilerplate
 - **UI components** — Prompts, menus, styled console output
@@ -111,9 +111,13 @@ usecli ma:co       # make:command
 ### Interactive Mode
 
 ```sh
-usecli --interactive    # Fuzzy finder for all commands
+usecli --interactive    # Searchable picker for all commands
 usecli -i hello         # Run 'hello' command interactively
 ```
+
+The picker opens in-place: start typing to filter commands, use the arrow keys
+to move, and press enter to run. A preview pane shows the highlighted command's
+usage, arguments and options.
 
 ### Command Groups
 
