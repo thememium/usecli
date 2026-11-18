@@ -185,7 +185,7 @@ def _run_command_menu(
         search_key="/",
         vim_search=True,
         status_bar=_STATUS_BAR,
-        title_style=COLOR.ANSI.PRIMARY,
+        title_style=COLOR.ANSI.SECONDARY,
         entry_renderer=entry_renderer,
     )
     if not selection:
