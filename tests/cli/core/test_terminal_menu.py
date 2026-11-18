@@ -4,6 +4,8 @@ import importlib
 import os
 from unittest.mock import MagicMock, Mock, patch
 
+import pytest
+
 # Import the function to test
 from usecli.cli.utils.interactive.terminal_menu import terminal_menu
 
@@ -1018,3 +1020,100 @@ class TestTitleAndEntryStyling:
         terminal_menu(["A"], title="Title", title_style="\033[36m")
 
         assert isinstance(mock_menu_instance._title_lines, Mock)
+
+
+class _FakeStream:
+    """Minimal stand-in for a standard stream."""
+
+    def __init__(self, tty=True):
+        self._tty = tty
+        self.closed = False
+        self.flushes = 0
+        self.written = []
+        self.read_data = "x"
+
+    def isatty(self):
+        return self._tty
+
+    def flush(self):
+        self.flushes += 1
+
+    def close(self):
+        self.closed = True
+
+    def read(self, size=-1):
+        return self.read_data
+
+    def write(self, text):
+        self.written.append(text)
+        return len(text)
+
+
+class TestTtyFallbackPatch:
+    def test_patch_is_idempotent(self):
+        tm._apply_tty_fallback_patch()
+        assert tm._PATCHED_TTY_FALLBACK is True
+        assert getattr(tm.simple_term_menu, "open", None) is tm._open_tty_with_fallback
+
+    @staticmethod
+    def _fail_dev_tty_only(monkeypatch):
+        original_open = tm.builtins.open
+
+        def _open(file, mode="r", *args, **kwargs):
+            if str(file) == "/dev/tty":
+                raise OSError(6, "Device not configured", str(file))
+            return original_open(file, mode, *args, **kwargs)
+
+        monkeypatch.setattr(tm.builtins, "open", _open)
+
+    def test_read_falls_back_to_stdin(self, monkeypatch):
+        fake = _FakeStream()
+        monkeypatch.setattr(tm.sys, "stdin", fake)
+        self._fail_dev_tty_only(monkeypatch)
+
+        stream = tm._open_tty_with_fallback("/dev/tty", "r", encoding="utf-8")
+        assert stream.read() == "x"
+
+        with stream as entered:
+            assert entered is stream
+        stream.close()
+        assert fake.flushes == 2
+        assert fake.closed is False
+
+    def test_write_falls_back_to_stdout(self, monkeypatch):
+        fake = _FakeStream()
+        monkeypatch.setattr(tm.sys, "stdout", fake)
+        self._fail_dev_tty_only(monkeypatch)
+
+        stream = tm._open_tty_with_fallback(
+            "/dev/tty", "w", encoding="utf-8", errors="replace"
+        )
+        stream.write("hi")
+        stream.close()
+        assert fake.written == ["hi"]
+        assert fake.flushes == 1
+        assert fake.closed is False
+
+    def test_reraises_when_stdio_is_not_a_tty(self, monkeypatch):
+        monkeypatch.setattr(tm.sys, "stdin", _FakeStream(tty=False))
+        self._fail_dev_tty_only(monkeypatch)
+
+        with pytest.raises(OSError, match="Device not configured"):
+            tm._open_tty_with_fallback("/dev/tty", "r")
+
+    def test_real_tty_open_is_used_when_available(self, monkeypatch):
+        handle = object()
+        real_open = tm.builtins.open
+
+        def _open(file, mode="r", *args, **kwargs):
+            if str(file) == "/dev/tty":
+                return handle
+            return real_open(file, mode, *args, **kwargs)
+
+        monkeypatch.setattr(tm.builtins, "open", _open)
+
+        assert tm._open_tty_with_fallback("/dev/tty", "r") is handle
+
+    def test_other_paths_are_opened_directly(self):
+        with tm._open_tty_with_fallback(__file__) as handle:
+            assert "TestTtyFallbackPatch" in handle.read()
