@@ -4,8 +4,22 @@ import importlib
 import os
 from unittest.mock import MagicMock, Mock, patch
 
+import pytest
+
 # Import the function to test
 from usecli.cli.utils.interactive.terminal_menu import terminal_menu
+
+
+def _set_vim_input_active(search, active):
+    """Set the runtime flag the vim-search patch adds to Search instances."""
+    attr = "_vim_input_active"
+    setattr(search, attr, active)
+
+
+def _vim_input_active(search):
+    """Read the runtime flag the vim-search patch adds to Search instances."""
+    attr = "_vim_input_active"
+    return getattr(search, attr)
 
 
 class TestTerminalMenuEmptyOptions:
@@ -208,10 +222,26 @@ class TestTerminalMenuMenuConfiguration:
         terminal_menu(["A", "B"])
         call_kwargs = mock_menu_class.call_args.kwargs
 
-        assert call_kwargs["menu_cursor_style"] == ("fg_cyan", "bold")
-        assert call_kwargs["menu_highlight_style"] == ("bg_cyan", "fg_black")
-        assert call_kwargs["status_bar_style"] == ("fg_cyan", "bold")
-        assert call_kwargs["multi_select_cursor_style"] == ("fg_cyan", "bold")
+        assert call_kwargs["menu_cursor_style"] == ("usecli_primary", "bold")
+        assert call_kwargs["menu_highlight_style"] == (
+            "usecli_bg_primary",
+            "usecli_background",
+            "bold",
+        )
+        assert call_kwargs["search_highlight_style"] == (
+            "usecli_bg_accent",
+            "usecli_background",
+            "bold",
+        )
+        assert call_kwargs["status_bar_style"] == (
+            "usecli_dim",
+            "usecli_foreground",
+        )
+        assert call_kwargs["multi_select_cursor_style"] == (
+            "usecli_primary",
+            "bold",
+        )
+        assert call_kwargs["multi_select_cursor_brackets_style"] == ("usecli_muted",)
 
     @patch("usecli.cli.utils.interactive.terminal_menu.TerminalMenu")
     def test_multi_select_options_configuration(self, mock_menu_class):
@@ -683,3 +713,427 @@ class TestVimPageKeysPatch:
     def test_no_search_key_returns_key_unchanged(self):
         menu = self._make_menu(search_key=None)
         assert self._call(menu, b"d") == "d"
+
+
+class TestVimSearchSetting:
+    @patch("usecli.cli.utils.interactive.terminal_menu.TerminalMenu")
+    def test_vim_search_configures_menu(self, mock_menu_class):
+        mock_menu_instance = Mock()
+        mock_menu_instance.show.return_value = 0
+        mock_menu_instance._search = Mock()
+        mock_menu_class.return_value = mock_menu_instance
+
+        terminal_menu(["A", "B"], vim_search=True)
+
+        assert mock_menu_instance._vim_search_mode is True
+        assert mock_menu_instance._search._vim_input_active is False
+        assert mock_menu_instance._show_search_hint_text == '(Press "/" to search)'
+
+    @patch("usecli.cli.utils.interactive.terminal_menu.TerminalMenu")
+    def test_vim_search_without_search_object(self, mock_menu_class):
+        mock_menu_instance = Mock()
+        mock_menu_instance.show.return_value = 0
+        mock_menu_instance._search = None
+        mock_menu_class.return_value = mock_menu_instance
+
+        terminal_menu(["A", "B"], vim_search=True)
+
+        assert mock_menu_instance._vim_search_mode is True
+
+
+class TestVimSearchState:
+    def _make_menu(self, text=None, input_active=False):
+        menu = MagicMock()
+        menu._search = tm.TerminalMenu.Search(["about", "help"], search_text=text)
+        _set_vim_input_active(menu._search, input_active)
+        menu._show_search_hint_text = ""
+        return menu
+
+    def test_search_bool_without_vim_flag_uses_library_semantics(self):
+        search = tm.TerminalMenu.Search(["a"], search_text="a")
+        assert bool(search) is True
+
+    def test_search_bool_tracks_vim_input_mode(self):
+        search = tm.TerminalMenu.Search(["a"], search_text="a")
+        _set_vim_input_active(search, False)
+        assert bool(search) is False
+        _set_vim_input_active(search, True)
+        assert bool(search) is True
+
+    def test_search_bool_is_false_without_text(self):
+        search = tm.TerminalMenu.Search(["a"])
+        _set_vim_input_active(search, True)
+        assert bool(search) is False
+
+    def test_view_still_filters_with_retained_query(self):
+        view = MagicMock()
+        view._search = tm.TerminalMenu.Search(["about", "help"], search_text="help")
+        _set_vim_input_active(view._search, False)
+        view._menu_entries = ["about", "help"]
+        view._viewport = MagicMock()
+
+        tm.TerminalMenu.View.update_view(view)
+
+        assert view._displayed_index_to_menu_index == (1,)
+        assert _vim_input_active(view._search) is False
+
+    def test_view_shows_all_entries_without_query(self):
+        view = MagicMock()
+        view._search = tm.TerminalMenu.Search(["about", "help"])
+        _set_vim_input_active(view._search, False)
+        view._menu_entries = ["about", "help"]
+        view._viewport = MagicMock()
+
+        tm.TerminalMenu.View.update_view(view)
+
+        assert view._displayed_index_to_menu_index == (0, 1)
+
+
+class TestVimSearchKeys:
+    def test_patch_is_idempotent(self):
+        tm._apply_vim_search_patch()
+
+    def _make_menu(self, text=None, input_active=False):
+        menu = MagicMock()
+        menu._search = tm.TerminalMenu.Search(["about", "help"], search_text=text)
+        _set_vim_input_active(menu._search, input_active)
+        menu._show_search_hint_text = ""
+        return menu
+
+    def test_slash_starts_search(self):
+        menu = self._make_menu()
+        assert tm._vim_search_key(menu, "/") == ""
+        assert menu._search.search_text == ""
+        assert menu._search._vim_input_active is True
+        assert "Press" in menu._show_search_hint_text
+
+    def test_slash_reuses_retained_filter(self):
+        menu = self._make_menu(text="help")
+        assert tm._vim_search_key(menu, "/") == ""
+        assert menu._search.search_text == "help"
+        assert menu._search._vim_input_active is True
+        assert "filter: help" in menu._show_search_hint_text
+        assert "/ edit" in menu._show_search_hint_text
+
+    def test_slash_while_searching_is_typed(self):
+        menu = self._make_menu(text="", input_active=True)
+        assert tm._vim_search_key(menu, "/") == "/"
+
+    def test_escape_exits_search_and_keeps_filter(self):
+        menu = self._make_menu(text="insp", input_active=True)
+        assert tm._vim_search_key(menu, "escape") == ""
+        assert menu._search.search_text == "insp"
+        assert menu._search._vim_input_active is False
+        assert "filter: insp" in menu._show_search_hint_text
+
+    def test_escape_in_normal_mode_quits(self):
+        menu = self._make_menu(text="insp", input_active=False)
+        assert tm._vim_search_key(menu, "escape") == "escape"
+        assert menu._search.search_text == "insp"
+
+    def test_enter_exits_search_and_keeps_filter(self):
+        menu = self._make_menu(text="insp", input_active=True)
+        assert tm._vim_search_key(menu, "enter") == ""
+        assert menu._search.search_text == "insp"
+        assert menu._search._vim_input_active is False
+        assert "filter: insp" in menu._show_search_hint_text
+
+    def test_enter_in_normal_mode_accepts(self):
+        menu = self._make_menu(text="insp", input_active=False)
+        assert tm._vim_search_key(menu, "enter") == "enter"
+        assert menu._search.search_text == "insp"
+        assert menu._search._vim_input_active is False
+
+    def test_ctrl_u_clears_retained_filter(self):
+        menu = self._make_menu(text="insp", input_active=False)
+        assert tm._vim_search_key(menu, "ctrl-u") == ""
+        assert menu._search.search_text is None
+        assert menu._search._vim_input_active is False
+        assert "Press" in menu._show_search_hint_text
+
+    def test_raw_ctrl_u_clears_retained_filter(self):
+        menu = self._make_menu(text="insp", input_active=False)
+        assert tm._vim_search_key(menu, "\x15") == ""
+        assert menu._search.search_text is None
+        assert menu._search._vim_input_active is False
+
+    def test_ctrl_u_without_filter_is_a_noop(self):
+        menu = self._make_menu(input_active=False)
+        assert tm._vim_search_key(menu, "ctrl-u") == ""
+        assert menu._search.search_text is None
+
+    def test_normal_mode_letter_passes_through(self):
+        menu = self._make_menu(text="insp", input_active=False)
+        assert tm._vim_search_key(menu, "j") == "j"
+
+    def test_stale_input_flag_without_text_is_reset(self):
+        menu = self._make_menu(input_active=True)
+        assert tm._vim_search_key(menu, "escape") == "escape"
+        assert menu._search._vim_input_active is False
+
+    def test_hint_escapes_format_braces(self):
+        menu = self._make_menu(text="{", input_active=True)
+        assert tm._vim_search_key(menu, "j") == "j"
+        assert "filter: {{" in menu._show_search_hint_text
+
+
+class TestVimSearchReadNextKey:
+    def _make_menu(self, text=None, input_active=False):
+        menu = MagicMock()
+        menu._terminal_code_to_codename = {"\x1b": "escape"}
+        menu._tty_in = MagicMock()
+        menu._tty_in.fileno.return_value = 0
+        menu._reading_next_key = False
+        menu._paint_before_next_read = False
+        menu._paint_menu = MagicMock()
+        menu._search_key = "/"
+        menu._search = tm.TerminalMenu.Search(["about", "help"], search_text=text)
+        _set_vim_input_active(menu._search, input_active)
+        menu._vim_search_mode = True
+        menu._show_search_hint_text = ""
+        return menu
+
+    def _call(self, menu, key_bytes, ignore_case=True):
+        with patch("simple_term_menu.os.read", return_value=key_bytes):
+            return tm.TerminalMenu._read_next_key(menu, ignore_case)
+
+    def test_vim_mode_routes_slash(self):
+        menu = self._make_menu()
+        assert self._call(menu, b"/") == ""
+        assert menu._search._vim_input_active is True
+
+    def test_vim_mode_keeps_filter_on_escape(self):
+        menu = self._make_menu(text="help", input_active=True)
+        assert self._call(menu, b"\x1b") == ""
+        assert menu._search.search_text == "help"
+        assert menu._search._vim_input_active is False
+
+    def test_vim_mode_keeps_filter_on_enter(self):
+        menu = self._make_menu(text="help", input_active=True)
+        menu._terminal_code_to_codename["\r"] = "enter"
+        assert self._call(menu, b"\r") == ""
+        assert menu._search.search_text == "help"
+        assert menu._search._vim_input_active is False
+
+    def test_non_vim_mode_passes_key_through(self):
+        menu = self._make_menu()
+        menu._vim_search_mode = False
+        assert self._call(menu, b"x") == "x"
+
+
+class TestThemeStylePatch:
+    def test_patch_is_idempotent(self):
+        tm._apply_theme_style_patch()
+
+    def test_registers_style_names(self):
+        for name in tm._THEME_STYLE_NAMES:
+            assert name in tm.TerminalMenu._codename_to_capname
+
+    def test_style_codes_use_theme_palette(self):
+        from usecli.cli.config.colors import COLOR
+
+        codes = tm._theme_style_codes()
+        assert codes["usecli_primary"] == COLOR.ANSI.PRIMARY
+        assert codes["usecli_secondary"] == COLOR.ANSI.SECONDARY
+        assert codes["usecli_accent"] == COLOR.ANSI.ACCENT
+        assert codes["usecli_muted"] == COLOR.ANSI.FOREGROUND_MUTED
+        assert codes["usecli_foreground"] == COLOR.ANSI.FOREGROUND
+        assert codes["usecli_dim"] == "\033[2m"
+        assert codes["usecli_background"] == COLOR.ANSI.BACKGROUND
+        assert codes["usecli_bg_primary"] == COLOR.ANSI.BG_PRIMARY
+        assert codes["usecli_bg_secondary"] == COLOR.ANSI.BG_SECONDARY
+        assert codes["usecli_bg_accent"] == COLOR.ANSI.BG_ACCENT
+
+    def test_init_terminal_codes_injects_theme_styles(self):
+        from usecli.cli.config.colors import COLOR
+
+        original = tm.TerminalMenu._codename_to_terminal_code
+        tm.TerminalMenu._codename_to_terminal_code = {"reset_attributes": ""}
+        try:
+            tm.TerminalMenu._init_terminal_codes()
+            codes = tm.TerminalMenu._codename_to_terminal_code
+            assert codes["usecli_primary"] == COLOR.ANSI.PRIMARY
+            assert codes["usecli_bg_primary"] == COLOR.ANSI.BG_PRIMARY
+        finally:
+            tm.TerminalMenu._codename_to_terminal_code = original
+
+    def test_patch_updates_already_initialized_codes(self):
+        original_patch = tm._PATCHED_THEME_STYLES
+        original_codes = tm.TerminalMenu._codename_to_terminal_code
+        original_init = tm.TerminalMenu._init_terminal_codes
+        try:
+            tm._PATCHED_THEME_STYLES = False
+            tm.TerminalMenu._codename_to_terminal_code = {"reset_attributes": ""}
+            tm._apply_theme_style_patch()
+            assert tm.TerminalMenu._codename_to_terminal_code["usecli_primary"]
+        finally:
+            tm._PATCHED_THEME_STYLES = original_patch
+            tm.TerminalMenu._codename_to_terminal_code = original_codes
+            init_attr = "_init_terminal_codes"
+            setattr(tm.TerminalMenu, init_attr, original_init)
+
+
+class TestAnsiWidthPatch:
+    def test_patch_is_idempotent(self):
+        tm._apply_ansi_width_patch()
+
+    def test_width_ignores_ansi_sequences(self):
+        assert tm.simple_term_menu.wcswidth("\x1b[38;2;1;2;3mabc\x1b[0m") == 3
+        assert tm.simple_term_menu.wcswidth("abc") == 3
+
+
+class TestColoredEntriesPatch:
+    def test_patch_is_idempotent(self):
+        tm._apply_colored_entries_patch()
+
+    def _make_view(self):
+        search = tm.TerminalMenu.Search(["one", "two"])
+        viewport = MagicMock()
+        viewport.lower_index = 0
+        viewport.upper_index = 9
+        return tm.TerminalMenu.View(["one", "two"], search, MagicMock(), viewport)
+
+    def test_without_renderer_returns_plain_entries(self):
+        view = self._make_view()
+        assert [entry for _, _, entry in view] == ["one", "two"]
+
+    def test_styles_inactive_entries_only(self):
+        view = self._make_view()
+        view._usecli_entry_renderer = lambda entry: f"<{entry}>"
+        view.active_displayed_index = 0
+        assert list(view) == [(0, 0, "one"), (1, 1, "<two>")]
+
+    def test_searching_uses_plain_entries(self):
+        view = self._make_view()
+        view._usecli_entry_renderer = lambda entry: f"<{entry}>"
+        view.active_displayed_index = 0
+        view._search.search_text = "t"
+        assert list(view) == [(0, 0, "one"), (1, 1, "two")]
+
+
+class TestTitleAndEntryStyling:
+    @patch("usecli.cli.utils.interactive.terminal_menu.TerminalMenu")
+    def test_title_and_entry_renderer_are_applied(self, mock_menu_class):
+        mock_menu_instance = Mock()
+        mock_menu_instance.show.return_value = 0
+        mock_menu_instance._title_lines = ["Title"]
+        mock_menu_instance._view = Mock()
+        mock_menu_class.return_value = mock_menu_instance
+
+        renderer = lambda entry: f"<{entry}>"
+        terminal_menu(
+            ["A"],
+            title="Title",
+            title_style="\033[36m",
+            entry_renderer=renderer,
+        )
+
+        assert mock_menu_instance._title_lines == ["\033[36mTitle\033[0m"]
+        assert mock_menu_instance._view._usecli_entry_renderer is renderer
+
+    @patch("usecli.cli.utils.interactive.terminal_menu.TerminalMenu")
+    def test_title_style_ignores_non_line_titles(self, mock_menu_class):
+        mock_menu_instance = Mock()
+        mock_menu_instance.show.return_value = 0
+        mock_menu_class.return_value = mock_menu_instance
+
+        terminal_menu(["A"], title="Title", title_style="\033[36m")
+
+        assert isinstance(mock_menu_instance._title_lines, Mock)
+
+
+class _FakeStream:
+    """Minimal stand-in for a standard stream."""
+
+    def __init__(self, tty=True):
+        self._tty = tty
+        self.closed = False
+        self.flushes = 0
+        self.written = []
+        self.read_data = "x"
+
+    def isatty(self):
+        return self._tty
+
+    def flush(self):
+        self.flushes += 1
+
+    def close(self):
+        self.closed = True
+
+    def read(self, size=-1):
+        return self.read_data
+
+    def write(self, text):
+        self.written.append(text)
+        return len(text)
+
+
+class TestTtyFallbackPatch:
+    def test_patch_is_idempotent(self):
+        tm._apply_tty_fallback_patch()
+        assert tm._PATCHED_TTY_FALLBACK is True
+        assert getattr(tm.simple_term_menu, "open", None) is tm._open_tty_with_fallback
+
+    @staticmethod
+    def _fail_dev_tty_only(monkeypatch):
+        original_open = tm.builtins.open
+
+        def _open(file, mode="r", *args, **kwargs):
+            if str(file) == "/dev/tty":
+                raise OSError(6, "Device not configured", str(file))
+            return original_open(file, mode, *args, **kwargs)
+
+        monkeypatch.setattr(tm.builtins, "open", _open)
+
+    def test_read_falls_back_to_stdin(self, monkeypatch):
+        fake = _FakeStream()
+        monkeypatch.setattr(tm.sys, "stdin", fake)
+        self._fail_dev_tty_only(monkeypatch)
+
+        stream = tm._open_tty_with_fallback("/dev/tty", "r", encoding="utf-8")
+        assert stream.read() == "x"
+
+        with stream as entered:
+            assert entered is stream
+        stream.close()
+        assert fake.flushes == 2
+        assert fake.closed is False
+
+    def test_write_falls_back_to_stdout(self, monkeypatch):
+        fake = _FakeStream()
+        monkeypatch.setattr(tm.sys, "stdout", fake)
+        self._fail_dev_tty_only(monkeypatch)
+
+        stream = tm._open_tty_with_fallback(
+            "/dev/tty", "w", encoding="utf-8", errors="replace"
+        )
+        stream.write("hi")
+        stream.close()
+        assert fake.written == ["hi"]
+        assert fake.flushes == 1
+        assert fake.closed is False
+
+    def test_reraises_when_stdio_is_not_a_tty(self, monkeypatch):
+        monkeypatch.setattr(tm.sys, "stdin", _FakeStream(tty=False))
+        self._fail_dev_tty_only(monkeypatch)
+
+        with pytest.raises(OSError, match="Device not configured"):
+            tm._open_tty_with_fallback("/dev/tty", "r")
+
+    def test_real_tty_open_is_used_when_available(self, monkeypatch):
+        handle = object()
+        real_open = tm.builtins.open
+
+        def _open(file, mode="r", *args, **kwargs):
+            if str(file) == "/dev/tty":
+                return handle
+            return real_open(file, mode, *args, **kwargs)
+
+        monkeypatch.setattr(tm.builtins, "open", _open)
+
+        assert tm._open_tty_with_fallback("/dev/tty", "r") is handle
+
+    def test_other_paths_are_opened_directly(self):
+        with tm._open_tty_with_fallback(__file__) as handle:
+            assert "TestTtyFallbackPatch" in handle.read()

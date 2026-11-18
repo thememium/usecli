@@ -57,7 +57,7 @@ def test_custom_help_command_invoke_calls_run_interactive():
     with (
         patch("usecli.app", app),
         patch(
-            "usecli.cli.commands.defaults.base.internal.fzf_command.run_interactive"
+            "usecli.cli.commands.defaults.base.internal.interactive_command.run_interactive"
         ) as mock_run,
         pytest.raises(Exit),
     ):
@@ -73,7 +73,7 @@ def test_main_interactive_calls_run_interactive():
 
     with (
         patch(
-            "usecli.cli.commands.defaults.base.internal.fzf_command.run_interactive"
+            "usecli.cli.commands.defaults.base.internal.interactive_command.run_interactive"
         ) as mock_run,
         pytest.raises(typer.Exit),
     ):

@@ -557,6 +557,15 @@ def _build_ansi_palette(colors: dict[str, str]) -> dict[str, str]:
             ansi = _ansi_from_hex(DEFAULT_THEME_COLORS[key])
         return ansi or ""
 
+    def pick_background(key: str) -> str:
+        value = colors.get(key, DEFAULT_THEME_COLORS[key])
+        rgb = cast(
+            tuple[int, int, int],
+            _hex_to_rgb(value) or _hex_to_rgb(DEFAULT_THEME_COLORS[key]),
+        )
+        r, g, b = rgb
+        return f"\033[48;2;{r};{g};{b}m"
+
     ansi: dict[str, str] = {
         "reset": "\033[0m",
     }
@@ -576,6 +585,10 @@ def _build_ansi_palette(colors: dict[str, str]) -> dict[str, str]:
     ansi["accent"] = accent
     ansi["foreground"] = foreground
     ansi["foreground_muted"] = foreground_muted
+    ansi["background"] = pick("background")
+    ansi["bg_primary"] = pick_background("primary")
+    ansi["bg_secondary"] = pick_background("secondary")
+    ansi["bg_accent"] = pick_background("accent")
     ansi["red"] = error
     ansi["green"] = success
     ansi["yellow"] = warning
@@ -764,6 +777,10 @@ def _apply_theme(
         "accent",
         "foreground",
         "foreground_muted",
+        "background",
+        "bg_primary",
+        "bg_secondary",
+        "bg_accent",
         "reset",
         "red",
         "green",
@@ -804,6 +821,10 @@ _THEME_ANSI: dict[str, str] = {
     "accent": "",
     "foreground": "",
     "foreground_muted": "",
+    "background": "",
+    "bg_primary": "",
+    "bg_secondary": "",
+    "bg_accent": "",
     "red": "",
     "green": "",
     "yellow": "",
@@ -874,7 +895,7 @@ class COLOR(metaclass=_ColorMeta):
     PANEL_ACCENT: Final[str] = _THEME_COLORS["panel_accent"]
 
     # ==========================================================================
-    # Nested: ANSI Escape Sequences (for non-Rich outputs like fzf)
+    # Nested: ANSI Escape Sequences (for non-Rich terminal output)
     # ==========================================================================
 
     @final
@@ -882,7 +903,7 @@ class COLOR(metaclass=_ColorMeta):
         """ANSI escape sequences for terminal styling.
 
         Use these when you need to output styled text directly to the terminal
-        without using Rich console (e.g., for fzf integration).
+        without using Rich console (e.g., for terminal menus).
 
         Examples:
             >>> print(f"{COLOR.ANSI.SECONDARY}text{COLOR.ANSI.RESET}")
@@ -894,6 +915,12 @@ class COLOR(metaclass=_ColorMeta):
         ACCENT: Final[str] = _THEME_ANSI["accent"]
         FOREGROUND: Final[str] = _THEME_ANSI["foreground"]
         FOREGROUND_MUTED: Final[str] = _THEME_ANSI["foreground_muted"]
+        BACKGROUND: Final[str] = _THEME_ANSI["background"]
+
+        # Background colors
+        BG_PRIMARY: Final[str] = _THEME_ANSI["bg_primary"]
+        BG_SECONDARY: Final[str] = _THEME_ANSI["bg_secondary"]
+        BG_ACCENT: Final[str] = _THEME_ANSI["bg_accent"]
 
         # Standard ANSI colors
         RESET: Final[str] = _THEME_ANSI["reset"]

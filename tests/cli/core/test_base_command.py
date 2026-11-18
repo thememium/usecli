@@ -1143,7 +1143,7 @@ class TestGroupCallbackInteractive:
         ctx.invoked_subcommand = None
         with (
             patch(
-                "usecli.cli.commands.defaults.base.internal.fzf_command.run_interactive"
+                "usecli.cli.commands.defaults.base.internal.interactive_command.run_interactive"
             ) as mock_run,
             pytest.raises(typer.Exit),
         ):

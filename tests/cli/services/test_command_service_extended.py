@@ -130,6 +130,22 @@ class TestCommandService:
 
     @patch("usecli.shared.config.manager._find_distribution_for_console_script")
     @patch("usecli.cli.core.ui.title.get_script_command_name")
+    def test_get_application_version_from_command_name(self, mock_name, mock_find):
+        mock_dist = MagicMock()
+        mock_dist.version = "3.1.0"
+        mock_find.return_value = mock_dist
+
+        service = self._make_service()
+        with patch("usecli.cli.services.command_service.sys") as mock_sys:
+            mock_sys.argv = ["/usr/local/bin/mycli"]
+            result = service._get_application_version()
+
+        assert result == "3.1.0"
+        mock_find.assert_called_once_with("mycli")
+        mock_name.assert_not_called()
+
+    @patch("usecli.shared.config.manager._find_distribution_for_console_script")
+    @patch("usecli.cli.core.ui.title.get_script_command_name")
     def test_get_application_version_from_primary_command(self, mock_name, mock_find):
         mock_name.return_value = "mycli"
         mock_dist = MagicMock()

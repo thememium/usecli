@@ -25,8 +25,7 @@ It works in three contexts:
   instead of relying on the default finder.
 
 In dev/frozen modes it also keeps the CLI resolvable on PATH so the interactive
-(fzf) runner's shell-outs succeed even though the binary is never installed on
-PATH.
+runner's shell-outs succeed even though the binary is never installed on PATH.
 """
 
 from __future__ import annotations
@@ -148,7 +147,7 @@ def _exec_target() -> str:
 def _ensure_command_on_path() -> None:
     """Make the CLI resolvable on PATH for usecli's interactive runner.
 
-    usecli's interactive (fzf) runner does NOT call commands in-process — it
+    usecli's interactive runner does NOT call commands in-process — it
     re-invokes them through a shell: ``subprocess.run(f"{cmd} ...", shell=True)``
     (aka ``/bin/sh -c "magic magic hello"``). Under a PyInstaller bundle the
     binary is never installed on PATH, so those shell-outs would fail with

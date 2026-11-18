@@ -131,7 +131,7 @@ class NestedCommandRegistry:
 
             if interactive and ctx.invoked_subcommand is None:
                 from usecli import app
-                from usecli.cli.commands.defaults.base.internal.fzf_command import (
+                from usecli.cli.commands.defaults.base.internal.interactive_command import (
                     run_interactive,
                 )
 
@@ -257,7 +257,7 @@ class CustomHelpCommand(TyperCommand):
                 )
 
             from usecli import app
-            from usecli.cli.commands.defaults.base.internal.fzf_command import (
+            from usecli.cli.commands.defaults.base.internal.interactive_command import (
                 run_interactive,
             )
 

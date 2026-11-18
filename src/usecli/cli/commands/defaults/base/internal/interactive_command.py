@@ -1,4 +1,10 @@
-"""Fzf command for interactive command finder."""
+"""Interactive command picker for the usecli CLI.
+
+The picker is built on :mod:`simple_term_menu` — the same widget used elsewhere
+in usecli — so ``--interactive`` works without an external fuzzy-finder binary.
+It keeps the fzf feel: vim-style navigation (``j``/``k`` or arrows), ``/`` to
+search and a styled cursor.
+"""
 
 from __future__ import annotations
 
@@ -7,6 +13,7 @@ import os
 import shutil
 import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
@@ -16,7 +23,6 @@ from rich.console import Console
 from rich.prompt import Confirm, IntPrompt
 
 from usecli.cli.config.colors import COLOR
-from usecli.cli.core.base_command import BaseCommand
 from usecli.cli.core.error.handler import ErrorHandler
 from usecli.cli.core.exceptions import UsecliError
 from usecli.cli.core.ui import is_click_group
@@ -26,6 +32,8 @@ if TYPE_CHECKING:
     from click.core import Command as ClickCommand
 
 console = Console()
+
+_STATUS_BAR = "↑↓/j/k move · / search · ctrl-u clear · ⏎ run · esc cancel"
 
 
 def _get_required_arguments(command: ClickCommand) -> list[tuple[str, str, type]]:
@@ -113,55 +121,132 @@ def _get_optional_options(
     return options
 
 
-def _run_fzf_menu(
-    options: list[str],
-    prompt: str = "usecli » ",
+def _clean_text(text: str) -> str:
+    """Collapse whitespace so a description fits on one menu line."""
+    return " ".join(text.split())
+
+
+def _humanize_name(name: str) -> str:
+    """Build a readable fallback description for a command with no help text."""
+    words = name.replace(":", " ").replace("-", " ").replace("_", " ").split()
+    return " ".join(words).capitalize()
+
+
+def _fit(text: str, width: int) -> str:
+    """Truncate text to ``width`` columns, adding an ellipsis when cut."""
+    if width <= 0:
+        return ""
+    if len(text) <= width:
+        return text
+    if width == 1:
+        return "…"
+    return text[: width - 1].rstrip() + "…"
+
+
+def _menu_entry(name: str, description: str, name_width: int) -> str:
+    """Render one two-column menu entry."""
+    if description:
+        display = f"{name:<{name_width}}  {description}".rstrip()
+    else:
+        display = name
+
+    # simple-term-menu treats an unescaped ``|`` as a preview-argument
+    # separator, so escape it to keep it visible in the row.
+    return display.replace("|", "\\|")
+
+
+def _run_command_menu(
+    entries: list[str],
+    *,
+    title: str,
+    entry_renderer: Callable[[str], str] | None = None,
 ) -> str | None:
-    if not sys.stdin.isatty() or not sys.stdout.isatty() or not shutil.which("fzf"):
-        selection = terminal_menu(options, title=prompt.strip())
-        return selection[0] if selection else None
+    """Show the interactive picker and return the selected entry.
 
-    input_data = "\n".join(options)
+    Returns ``None`` when the user cancels. Raises :class:`UsecliError` when
+    there is no terminal to draw the menu on.
+    """
+    if not entries:
+        return None
 
-    fzf_args = [
-        "fzf",
-        "--ansi",
-        f"--prompt={prompt}",
-        f"--color=prompt:{COLOR.SECONDARY}",
-        "--layout=reverse",
-        "--height=~40%",
-        "--border",
-        f"--color=border:{COLOR.PRIMARY}",
-        "--bind=ctrl-d:half-page-down",
-        "--bind=ctrl-u:half-page-up",
-    ]
-
-    try:
-        result = subprocess.run(
-            fzf_args,
-            input=input_data,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-
-        if result.returncode == 130 or not result.stdout.strip():
-            return None
-
-        if result.returncode != 0:
-            ErrorHandler.display_error(
-                f"fzf error: {result.stderr}",
-                suggestion="Check fzf installation and try again",
-            )
-            raise typer.Exit(code=1)
-
-        return result.stdout.strip()
-
-    except FileNotFoundError:
+    if not sys.stdin.isatty() or not sys.stdout.isatty():
         raise UsecliError(
-            "fzf is not installed",
-            suggestion="Install fzf: https://github.com/junegunn/fzf#installation",
+            "Interactive mode requires a terminal",
+            suggestion=(
+                "Run the command with explicit arguments instead of using "
+                "--interactive."
+            ),
         )
+
+    selection = terminal_menu(
+        entries,
+        title=title,
+        search=True,
+        search_key="/",
+        vim_search=True,
+        status_bar=_STATUS_BAR,
+        title_style=COLOR.ANSI.SECONDARY,
+        entry_renderer=entry_renderer,
+    )
+    if not selection:
+        return None
+
+    return selection[0]
+
+
+def _select_command(
+    commands: list[dict[str, Any]],
+    *,
+    title: str,
+) -> str | None:
+    """Show a picker for ``commands`` and return the selected name."""
+    if not commands:
+        return None
+
+    name_width = max(len(cmd["name"]) for cmd in commands)
+    terminal_width = shutil.get_terminal_size((80, 24)).columns
+
+    name_color = COLOR.ANSI.PRIMARY
+    description_color = COLOR.ANSI.FOREGROUND_MUTED
+    reset = COLOR.ANSI.RESET
+    color_overhead = len(name_color) + len(description_color) + 2 * len(reset)
+    plain_description_width = max(20, terminal_width - name_width - 6)
+    available_for_description = plain_description_width - color_overhead
+    use_colors = bool(name_color and description_color and reset) and (
+        available_for_description >= 20
+    )
+    description_width = (
+        available_for_description if use_colors else plain_description_width
+    )
+
+    entries: list[str] = []
+    name_by_entry: dict[str, str] = {}
+    colored_entries: dict[str, str] = {}
+    for cmd in commands:
+        description = _fit(
+            _clean_text(cmd["help"]) or _humanize_name(cmd["name"]),
+            description_width,
+        )
+        entry = _menu_entry(cmd["name"], description, name_width)
+        entries.append(entry)
+        name_by_entry[entry] = cmd["name"]
+        if use_colors:
+            padded_name = f"{cmd['name']:<{name_width}}"
+            if description:
+                colored_entries[entry] = (
+                    f"{name_color}{padded_name}{reset}  "
+                    f"{description_color}{description}{reset}"
+                )
+            else:
+                colored_entries[entry] = f"{name_color}{padded_name}{reset}"
+
+    entry_renderer = (
+        (lambda entry: colored_entries.get(entry, entry)) if colored_entries else None
+    )
+    selected = _run_command_menu(entries, title=title, entry_renderer=entry_renderer)
+    if selected is None:
+        return None
+    return name_by_entry.get(selected)
 
 
 def _resolve_group_alias(app: typer.Typer, group_name: str) -> str:
@@ -244,43 +329,31 @@ def run_interactive(
         section_cmds.sort(key=lambda x: x["name"])
     sorted_sections = sorted(sections.items(), key=lambda x: x[0])
 
-    for group_name, group_help in groups.items():
+    for group_name, group_help in sorted(groups.items()):
         top_level.append({"name": group_name, "help": group_help, "is_group": True})
 
     ordered_commands = top_level + [
         cmd for _, section_cmds in sorted_sections for cmd in section_cmds
     ]
-    max_name_len = max(len(cmd["name"]) for cmd in ordered_commands)
-
-    def build_option_line(cmd: dict[str, Any], padding_len: int) -> str:
-        padding = " " * padding_len
-        return (
-            f"{COLOR.ANSI.PRIMARY}{cmd['name']}{COLOR.ANSI.RESET}"
-            f"{padding}{COLOR.ANSI.FOREGROUND_MUTED}{cmd['help']}{COLOR.ANSI.RESET}"
-        )
 
     cmd_name: str | None = None
     selected_cmd: dict[str, Any] | None = None
 
     if not cmd_parts:
-        options: list[str] = []
-        for cmd in ordered_commands:
-            padding_len = max_name_len - len(cmd["name"]) + 4
-            options.append(build_option_line(cmd, padding_len))
-
-        selection = _run_fzf_menu(options, prompt=f"{script_name} » ")
-        if selection is None:
+        cmd_name = _select_command(
+            ordered_commands,
+            title=f"{script_name} » select a command",
+        )
+        if cmd_name is None:
             ErrorHandler.display_warning("No command selected")
             return
-
-        cmd_name = selection.split()[0] if selection else None
-        if not cmd_name:
-            ErrorHandler.display_error("Could not parse command")
-            raise typer.Exit(code=1)
 
         selected_cmd = next(
             (c for c in ordered_commands if c["name"] == cmd_name), None
         )
+        if not selected_cmd:
+            ErrorHandler.display_error(f"Unknown command '{cmd_name}'")
+            raise typer.Exit(code=1)
     else:
         cmd_name = cmd_parts[0]
         selected_cmd = next(
@@ -304,24 +377,18 @@ def run_interactive(
             raise typer.Exit(code=1)
 
         subcommands.sort(key=lambda x: x["name"])
-        max_sub_name_len = max(len(cmd["name"]) for cmd in subcommands)
 
         sub_name: str | None = None
         if cmd_parts and len(cmd_parts) > 1:
             sub_name = cmd_parts[1]
         else:
-            sub_options: list[str] = []
-            for cmd in subcommands:
-                padding_len = max_sub_name_len - len(cmd["name"]) + 4
-                sub_options.append(build_option_line(cmd, padding_len))
-
-            sub_selection = _run_fzf_menu(
-                sub_options, prompt=f"{script_name} {cmd_name} » "
+            sub_name = _select_command(
+                subcommands,
+                title=f"{script_name} {cmd_name} » select a subcommand",
             )
-            if sub_selection is None:
+            if sub_name is None:
                 ErrorHandler.display_warning("No subcommand selected")
                 return
-            sub_name = sub_selection.split()[0] if sub_selection else None
 
         if not sub_name:
             ErrorHandler.display_error("Could not parse subcommand")
@@ -528,31 +595,3 @@ def run_interactive(
     console.print()
 
     subprocess.run(full_cmd, shell=True, check=False)
-
-
-_EXTRA_ARGS_DEFAULT = typer.Argument(
-    None, help="Additional arguments to pass to the selected command"
-)
-
-
-class FzfCommand(BaseCommand):
-    """Interactive command finder using fzf."""
-
-    def signature(self) -> str:
-        """Return the command signature."""
-        return "fzf"
-
-    def description(self) -> str:
-        """Return the command description."""
-        return "Interactive command finder using fzf"
-
-    def handle(
-        self,
-        extra_args: list[str] = _EXTRA_ARGS_DEFAULT,
-    ) -> None:
-        """Handle the fzf command execution.
-
-        Args:
-            extra_args: Additional arguments to pass to the selected command.
-        """
-        run_interactive(self.app, extra_args=extra_args)
