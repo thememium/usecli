@@ -220,10 +220,26 @@ class TestTerminalMenuMenuConfiguration:
         terminal_menu(["A", "B"])
         call_kwargs = mock_menu_class.call_args.kwargs
 
-        assert call_kwargs["menu_cursor_style"] == ("fg_cyan", "bold")
-        assert call_kwargs["menu_highlight_style"] == ("bg_cyan", "fg_black")
-        assert call_kwargs["status_bar_style"] == ("fg_cyan", "bold")
-        assert call_kwargs["multi_select_cursor_style"] == ("fg_cyan", "bold")
+        assert call_kwargs["menu_cursor_style"] == ("usecli_primary", "bold")
+        assert call_kwargs["menu_highlight_style"] == (
+            "usecli_bg_primary",
+            "usecli_background",
+            "bold",
+        )
+        assert call_kwargs["search_highlight_style"] == (
+            "usecli_bg_accent",
+            "usecli_background",
+            "bold",
+        )
+        assert call_kwargs["status_bar_style"] == (
+            "usecli_dim",
+            "usecli_foreground",
+        )
+        assert call_kwargs["multi_select_cursor_style"] == (
+            "usecli_primary",
+            "bold",
+        )
+        assert call_kwargs["multi_select_cursor_brackets_style"] == ("usecli_muted",)
 
     @patch("usecli.cli.utils.interactive.terminal_menu.TerminalMenu")
     def test_multi_select_options_configuration(self, mock_menu_class):
@@ -881,3 +897,124 @@ class TestVimSearchReadNextKey:
         menu = self._make_menu()
         menu._vim_search_mode = False
         assert self._call(menu, b"x") == "x"
+
+
+class TestThemeStylePatch:
+    def test_patch_is_idempotent(self):
+        tm._apply_theme_style_patch()
+
+    def test_registers_style_names(self):
+        for name in tm._THEME_STYLE_NAMES:
+            assert name in tm.TerminalMenu._codename_to_capname
+
+    def test_style_codes_use_theme_palette(self):
+        from usecli.cli.config.colors import COLOR
+
+        codes = tm._theme_style_codes()
+        assert codes["usecli_primary"] == COLOR.ANSI.PRIMARY
+        assert codes["usecli_secondary"] == COLOR.ANSI.SECONDARY
+        assert codes["usecli_accent"] == COLOR.ANSI.ACCENT
+        assert codes["usecli_muted"] == COLOR.ANSI.FOREGROUND_MUTED
+        assert codes["usecli_foreground"] == COLOR.ANSI.FOREGROUND
+        assert codes["usecli_dim"] == "\033[2m"
+        assert codes["usecli_background"] == COLOR.ANSI.BACKGROUND
+        assert codes["usecli_bg_primary"] == COLOR.ANSI.BG_PRIMARY
+        assert codes["usecli_bg_secondary"] == COLOR.ANSI.BG_SECONDARY
+        assert codes["usecli_bg_accent"] == COLOR.ANSI.BG_ACCENT
+
+    def test_init_terminal_codes_injects_theme_styles(self):
+        from usecli.cli.config.colors import COLOR
+
+        original = tm.TerminalMenu._codename_to_terminal_code
+        tm.TerminalMenu._codename_to_terminal_code = {"reset_attributes": ""}
+        try:
+            tm.TerminalMenu._init_terminal_codes()
+            codes = tm.TerminalMenu._codename_to_terminal_code
+            assert codes["usecli_primary"] == COLOR.ANSI.PRIMARY
+            assert codes["usecli_bg_primary"] == COLOR.ANSI.BG_PRIMARY
+        finally:
+            tm.TerminalMenu._codename_to_terminal_code = original
+
+    def test_patch_updates_already_initialized_codes(self):
+        original_patch = tm._PATCHED_THEME_STYLES
+        original_codes = tm.TerminalMenu._codename_to_terminal_code
+        original_init = tm.TerminalMenu._init_terminal_codes
+        try:
+            tm._PATCHED_THEME_STYLES = False
+            tm.TerminalMenu._codename_to_terminal_code = {"reset_attributes": ""}
+            tm._apply_theme_style_patch()
+            assert tm.TerminalMenu._codename_to_terminal_code["usecli_primary"]
+        finally:
+            tm._PATCHED_THEME_STYLES = original_patch
+            tm.TerminalMenu._codename_to_terminal_code = original_codes
+            init_attr = "_init_terminal_codes"
+            setattr(tm.TerminalMenu, init_attr, original_init)
+
+
+class TestAnsiWidthPatch:
+    def test_patch_is_idempotent(self):
+        tm._apply_ansi_width_patch()
+
+    def test_width_ignores_ansi_sequences(self):
+        assert tm.simple_term_menu.wcswidth("\x1b[38;2;1;2;3mabc\x1b[0m") == 3
+        assert tm.simple_term_menu.wcswidth("abc") == 3
+
+
+class TestColoredEntriesPatch:
+    def test_patch_is_idempotent(self):
+        tm._apply_colored_entries_patch()
+
+    def _make_view(self):
+        search = tm.TerminalMenu.Search(["one", "two"])
+        viewport = MagicMock()
+        viewport.lower_index = 0
+        viewport.upper_index = 9
+        return tm.TerminalMenu.View(["one", "two"], search, MagicMock(), viewport)
+
+    def test_without_renderer_returns_plain_entries(self):
+        view = self._make_view()
+        assert [entry for _, _, entry in view] == ["one", "two"]
+
+    def test_styles_inactive_entries_only(self):
+        view = self._make_view()
+        view._usecli_entry_renderer = lambda entry: f"<{entry}>"
+        view.active_displayed_index = 0
+        assert list(view) == [(0, 0, "one"), (1, 1, "<two>")]
+
+    def test_searching_uses_plain_entries(self):
+        view = self._make_view()
+        view._usecli_entry_renderer = lambda entry: f"<{entry}>"
+        view.active_displayed_index = 0
+        view._search.search_text = "t"
+        assert list(view) == [(0, 0, "one"), (1, 1, "two")]
+
+
+class TestTitleAndEntryStyling:
+    @patch("usecli.cli.utils.interactive.terminal_menu.TerminalMenu")
+    def test_title_and_entry_renderer_are_applied(self, mock_menu_class):
+        mock_menu_instance = Mock()
+        mock_menu_instance.show.return_value = 0
+        mock_menu_instance._title_lines = ["Title"]
+        mock_menu_instance._view = Mock()
+        mock_menu_class.return_value = mock_menu_instance
+
+        renderer = lambda entry: f"<{entry}>"
+        terminal_menu(
+            ["A"],
+            title="Title",
+            title_style="\033[36m",
+            entry_renderer=renderer,
+        )
+
+        assert mock_menu_instance._title_lines == ["\033[36mTitle\033[0m"]
+        assert mock_menu_instance._view._usecli_entry_renderer is renderer
+
+    @patch("usecli.cli.utils.interactive.terminal_menu.TerminalMenu")
+    def test_title_style_ignores_non_line_titles(self, mock_menu_class):
+        mock_menu_instance = Mock()
+        mock_menu_instance.show.return_value = 0
+        mock_menu_class.return_value = mock_menu_instance
+
+        terminal_menu(["A"], title="Title", title_style="\033[36m")
+
+        assert isinstance(mock_menu_instance._title_lines, Mock)

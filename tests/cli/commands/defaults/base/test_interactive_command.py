@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import inspect
+import os
 from unittest.mock import MagicMock, patch
 
 import click
@@ -277,6 +278,19 @@ class TestRunCommandMenu:
         assert "/ search" in kwargs["status_bar"]
         assert "ctrl-u clear" in kwargs["status_bar"]
         assert "preview_command" not in kwargs
+        from usecli.cli.config.colors import COLOR
+
+        assert kwargs["title_style"] == COLOR.ANSI.SECONDARY
+        assert kwargs["entry_renderer"] is None
+
+    @patch(f"{_FZF}.terminal_menu", return_value=["hello"])
+    @patch(f"{_FZF}.sys")
+    def test_passes_entry_renderer(self, mock_sys, mock_menu):
+        mock_sys.stdin.isatty.return_value = True
+        mock_sys.stdout.isatty.return_value = True
+        renderer = MagicMock(return_value="styled")
+        _run_command_menu(["hello"], title="t", entry_renderer=renderer)
+        assert mock_menu.call_args.kwargs["entry_renderer"] is renderer
 
     @patch(f"{_FZF}.terminal_menu", return_value=[])
     @patch(f"{_FZF}.sys")
@@ -346,6 +360,61 @@ class TestSelectCommand:
 
     def test_returns_none_without_commands(self):
         assert _select_command([], title="t") is None
+
+    @patch(f"{_FZF}.shutil.get_terminal_size")
+    def test_colors_entries_when_space_allows(self, mock_size):
+        mock_size.return_value = os.terminal_size((200, 40))
+        commands = [{"name": "hello", "help": "Say hello"}]
+        captured = {}
+
+        def fake_menu(entries, *, title, entry_renderer=None):
+            captured["entry"] = entries[0]
+            captured["renderer"] = entry_renderer
+            return entries[0]
+
+        with patch(f"{_FZF}._run_command_menu", side_effect=fake_menu):
+            assert _select_command(commands, title="t") == "hello"
+
+        from usecli.cli.config.colors import COLOR
+
+        colored = captured["renderer"](captured["entry"])
+        assert COLOR.ANSI.PRIMARY in colored
+        assert COLOR.ANSI.FOREGROUND_MUTED in colored
+        assert "Say hello" in colored
+
+    @patch(f"{_FZF}.shutil.get_terminal_size")
+    def test_colors_entry_without_description(self, mock_size):
+        mock_size.return_value = os.terminal_size((200, 40))
+        captured = {}
+
+        def fake_menu(entries, *, title, entry_renderer=None):
+            captured["entry"] = entries[0]
+            captured["renderer"] = entry_renderer
+            return entries[0]
+
+        with patch(f"{_FZF}._run_command_menu", side_effect=fake_menu):
+            _select_command([{"name": "", "help": ""}], title="t")
+
+        from usecli.cli.config.colors import COLOR
+
+        assert captured["renderer"](captured["entry"]) == (
+            f"{COLOR.ANSI.PRIMARY}{COLOR.ANSI.RESET}"
+        )
+
+    @patch(f"{_FZF}.shutil.get_terminal_size")
+    def test_skips_entry_colors_when_terminal_is_narrow(self, mock_size):
+        mock_size.return_value = os.terminal_size((60, 24))
+        commands = [{"name": "hello", "help": "Say hello"}]
+        captured = {}
+
+        def fake_menu(entries, *, title, entry_renderer=None):
+            captured["renderer"] = entry_renderer
+            return entries[0]
+
+        with patch(f"{_FZF}._run_command_menu", side_effect=fake_menu):
+            _select_command(commands, title="t")
+
+        assert captured["renderer"] is None
 
     def test_humanize_name(self):
         assert _humanize_name("db:migrate-all") == "Db migrate all"
