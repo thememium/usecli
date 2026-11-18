@@ -831,6 +831,19 @@ class TestVimSearchKeys:
         assert tm._vim_search_key(menu, "escape") == "escape"
         assert menu._search.search_text == "insp"
 
+    def test_enter_exits_search_and_keeps_filter(self):
+        menu = self._make_menu(text="insp", input_active=True)
+        assert tm._vim_search_key(menu, "enter") == ""
+        assert menu._search.search_text == "insp"
+        assert menu._search._vim_input_active is False
+        assert "filter: insp" in menu._show_search_hint_text
+
+    def test_enter_in_normal_mode_accepts(self):
+        menu = self._make_menu(text="insp", input_active=False)
+        assert tm._vim_search_key(menu, "enter") == "enter"
+        assert menu._search.search_text == "insp"
+        assert menu._search._vim_input_active is False
+
     def test_ctrl_u_clears_retained_filter(self):
         menu = self._make_menu(text="insp", input_active=False)
         assert tm._vim_search_key(menu, "ctrl-u") == ""
@@ -892,6 +905,13 @@ class TestVimSearchReadNextKey:
     def test_vim_mode_keeps_filter_on_escape(self):
         menu = self._make_menu(text="help", input_active=True)
         assert self._call(menu, b"\x1b") == ""
+        assert menu._search.search_text == "help"
+        assert menu._search._vim_input_active is False
+
+    def test_vim_mode_keeps_filter_on_enter(self):
+        menu = self._make_menu(text="help", input_active=True)
+        menu._terminal_code_to_codename["\r"] = "enter"
+        assert self._call(menu, b"\r") == ""
         assert menu._search.search_text == "help"
         assert menu._search._vim_input_active is False
 

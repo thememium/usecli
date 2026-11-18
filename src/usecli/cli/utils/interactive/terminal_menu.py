@@ -126,8 +126,9 @@ def _vim_search_key(menu: Any, key: str) -> str:
     """Apply vim search-mode transitions and return the key for the menu loop.
 
     Returns an empty string (a no-op for the library) when the key only changes
-    modes. ``escape`` leaves search input but keeps the filter applied; ``/``
-    re-enters input on the same query; ``ctrl-u`` clears the filter.
+    modes. ``escape`` and ``enter`` leave search input but keep the filter
+    applied, mirroring vim's ``/pattern<CR>``; ``/`` re-enters input on the same
+    query; ``ctrl-u`` clears the filter.
     """
     search = menu._search
     if getattr(search, "_vim_input_active", False) and search.search_text is None:
@@ -135,7 +136,7 @@ def _vim_search_key(menu: Any, key: str) -> str:
 
     input_active = bool(getattr(search, "_vim_input_active", False))
 
-    if key == "escape":
+    if key in ("escape", "enter"):
         if input_active:
             search._vim_input_active = False
             _update_vim_search_hint(menu)
@@ -370,8 +371,9 @@ def terminal_menu(
                      If False, only single selection allowed.
         search: If True, enable interactive search.
         search_key: Key to activate search. Use None to search on any letter key.
-        vim_search: If True, vim-style search input: escape exits search but
-            keeps the filter, ``/`` edits it again and ``ctrl-u`` clears it.
+        vim_search: If True, vim-style search input: escape or enter exits
+            search input but keeps the filter, ``/`` edits it again and
+            ``ctrl-u`` clears it.
             j/k navigate while search input is inactive.
         show_search_hint: If True, show the search hint text when search is enabled.
         status_bar: Optional status bar text shown below the menu.
