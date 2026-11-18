@@ -1,10 +1,12 @@
-"""Tests for the interactive command builder/fzf utilities."""
+"""Tests for the interactive command option helpers."""
 
 from __future__ import annotations
 
 import click
 
-from usecli.cli.commands.defaults.base.internal.fzf_command import _get_optional_options
+from usecli.cli.commands.defaults.base.internal.interactive_command import (
+    _get_optional_options,
+)
 
 
 class TestGetOptionalOptions:

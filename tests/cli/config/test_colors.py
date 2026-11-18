@@ -197,6 +197,15 @@ class TestBuildAnsiPalette:
         # primary should fall back to default
         assert result["primary"] != ""
 
+    def test_builds_background_variants(self):
+        from usecli.cli.config.colors import DEFAULT_THEME_COLORS
+
+        result = _build_ansi_palette(DEFAULT_THEME_COLORS.copy())
+        assert result["background"].startswith("\033[38;2;")
+        assert result["bg_primary"].startswith("\033[48;2;")
+        assert result["bg_secondary"].startswith("\033[48;2;")
+        assert result["bg_accent"].startswith("\033[48;2;")
+
 
 # ---------------------------------------------------------------------------
 # Filesystem helpers

@@ -310,7 +310,7 @@ def test_json_mode_rejects_interactive_selection(
     registered_json_commands: None,
 ) -> None:
     with patch(
-        "usecli.cli.commands.defaults.base.internal.fzf_command.run_interactive"
+        "usecli.cli.commands.defaults.base.internal.interactive_command.run_interactive"
     ) as run_interactive:
         result = _invoke_json(
             runner,
@@ -331,7 +331,7 @@ def test_root_json_rejects_leaf_interactive_flag(
     registered_json_commands: None,
 ) -> None:
     with patch(
-        "usecli.cli.commands.defaults.base.internal.fzf_command.run_interactive"
+        "usecli.cli.commands.defaults.base.internal.interactive_command.run_interactive"
     ) as run_interactive:
         result = _invoke_json(
             runner,
@@ -352,7 +352,7 @@ def test_root_json_rejects_nested_group_interactive_flag(
     registered_json_commands: None,
 ) -> None:
     with patch(
-        "usecli.cli.commands.defaults.base.internal.fzf_command.run_interactive"
+        "usecli.cli.commands.defaults.base.internal.interactive_command.run_interactive"
     ) as run_interactive:
         result = _invoke_json(
             runner,
