@@ -186,7 +186,6 @@ def terminal_menu(
     status_bar: str | None = None,
     preview_command: Callable[[str], str] | str | None = None,
     preview_size: float | None = 0.70,
-    preview_title: str = "preview",
     clear_screen: bool | None = None,
     clear_menu_on_exit: bool | None = None,
 ) -> list[T]:
@@ -206,7 +205,6 @@ def terminal_menu(
         status_bar: Optional status bar text shown below the menu.
         preview_command: Optional preview command or callable to render a preview.
         preview_size: Optional preview size as a fraction of terminal height.
-        preview_title: Title shown in the preview pane border.
 
     Returns:
         List of selected items (empty if cancelled or nothing selected).
@@ -295,7 +293,6 @@ def terminal_menu(
         show_search_hint=show_search_hint_value,
         preview_command=preview_command_value,
         preview_size=preview_size_value,
-        preview_title=preview_title,
         clear_screen=clear_screen_value,
         clear_menu_on_exit=clear_menu_on_exit_value,
     )
