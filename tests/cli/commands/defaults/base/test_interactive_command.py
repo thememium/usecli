@@ -1,4 +1,4 @@
-"""Tests for usecli.cli.commands.defaults.base.internal.fzf_command."""
+"""Tests for usecli.cli.commands.defaults.base.internal.interactive_command."""
 
 from __future__ import annotations
 
@@ -10,14 +10,31 @@ import click
 import pytest
 import typer
 
-from usecli.cli.commands.defaults.base.internal.fzf_command import (
-    FzfCommand,
+from usecli.cli.commands.defaults.base.internal.interactive_command import (
+    _build_preview,
+    _fit,
     _get_optional_options,
     _get_required_arguments,
+    _humanize_name,
+    _menu_entry,
     _resolve_group_alias,
-    _run_fzf_menu,
+    _run_command_menu,
+    _select_command,
     run_interactive,
 )
+
+_FZF = "usecli.cli.commands.defaults.base.internal.interactive_command"
+
+
+def _cmd(name, help="", callback=None, **kwargs):
+    c = MagicMock()
+    c.name = name
+    c.help = help
+    c.callback = callback
+    for k, v in kwargs.items():
+        setattr(c, k, v)
+    return c
+
 
 # ---------------------------------------------------------------------------
 # _get_required_arguments
@@ -185,7 +202,7 @@ class TestGetOptionalOptions:
         opt = click.Option(["--verbose", "-v"], help="Verbose", is_flag=True)
         cmd = MagicMock(spec=typer.models.CommandInfo)
         with patch(
-            "usecli.cli.commands.defaults.base.internal.fzf_command.typer.main.get_command_from_info"
+            "usecli.cli.commands.defaults.base.internal.interactive_command.typer.main.get_command_from_info"
         ) as mock:
             mock.return_value = MagicMock(params=[opt])
             result = _get_optional_options(cmd)
@@ -241,161 +258,150 @@ class TestResolveGroupAlias:
 
 
 # ---------------------------------------------------------------------------
-# _run_fzf_menu
+# _run_command_menu
 # ---------------------------------------------------------------------------
 
 
-class TestRunFzfMenu:
-    @patch(
-        "usecli.cli.commands.defaults.base.internal.fzf_command.terminal_menu",
-        return_value=["option_a"],
-    )
-    @patch("usecli.cli.commands.defaults.base.internal.fzf_command.sys")
-    def test_falls_back_to_terminal_menu_when_not_tty(self, mock_sys, mock_menu):
+class TestRunCommandMenu:
+    @patch(f"{_FZF}.terminal_menu", return_value=["hello\x1fhello"])
+    @patch(f"{_FZF}.sys")
+    def test_returns_selected_command_name(self, mock_sys, mock_menu):
+        mock_sys.stdin.isatty.return_value = True
+        mock_sys.stdout.isatty.return_value = True
+        result = _run_command_menu(["hello\x1fhello"], title="usecli » commands")
+        assert result == "hello"
+        kwargs = mock_menu.call_args.kwargs
+        assert kwargs["search"] is True
+        assert kwargs["search_key"] is None
+        assert kwargs["title"] == "usecli » commands"
+        assert "type to filter" in kwargs["status_bar"]
+
+    @patch(f"{_FZF}.terminal_menu", return_value=[])
+    @patch(f"{_FZF}.sys")
+    def test_returns_none_when_cancelled(self, mock_sys, mock_menu):
+        mock_sys.stdin.isatty.return_value = True
+        mock_sys.stdout.isatty.return_value = True
+        assert _run_command_menu(["hello\x1fhello"], title="t") is None
+
+    @patch(f"{_FZF}.terminal_menu")
+    @patch(f"{_FZF}.sys")
+    def test_requires_a_tty(self, mock_sys, mock_menu):
         mock_sys.stdin.isatty.return_value = False
         mock_sys.stdout.isatty.return_value = True
-        result = _run_fzf_menu(["option_a", "option_b"])
-        assert result == "option_a"
-        mock_menu.assert_called_once()
-
-    @patch(
-        "usecli.cli.commands.defaults.base.internal.fzf_command.terminal_menu",
-        return_value=[],
-    )
-    @patch("usecli.cli.commands.defaults.base.internal.fzf_command.sys")
-    def test_returns_none_when_terminal_menu_empty(self, mock_sys, mock_menu):
-        mock_sys.stdin.isatty.return_value = False
-        mock_sys.stdout.isatty.return_value = True
-        result = _run_fzf_menu(["option_a"])
-        assert result is None
-
-    @patch(
-        "usecli.cli.commands.defaults.base.internal.fzf_command.shutil.which",
-        return_value=None,
-    )
-    @patch(
-        "usecli.cli.commands.defaults.base.internal.fzf_command.terminal_menu",
-        return_value=["option_a"],
-    )
-    @patch("usecli.cli.commands.defaults.base.internal.fzf_command.sys")
-    def test_falls_back_when_fzf_not_installed(self, mock_sys, mock_menu, mock_which):
-        mock_sys.stdin.isatty.return_value = True
-        mock_sys.stdout.isatty.return_value = True
-        result = _run_fzf_menu(["option_a"])
-        assert result == "option_a"
-
-    @patch("usecli.cli.commands.defaults.base.internal.fzf_command.subprocess.run")
-    @patch(
-        "usecli.cli.commands.defaults.base.internal.fzf_command.shutil.which",
-        return_value="/usr/bin/fzf",
-    )
-    @patch("usecli.cli.commands.defaults.base.internal.fzf_command.sys")
-    def test_returns_selection_from_fzf(self, mock_sys, mock_which, mock_run):
-        mock_sys.stdin.isatty.return_value = True
-        mock_sys.stdout.isatty.return_value = True
-        mock_run.return_value = MagicMock(returncode=0, stdout="selected_option\n")
-        result = _run_fzf_menu(["option_a", "option_b"])
-        assert result == "selected_option"
-
-    @patch("usecli.cli.commands.defaults.base.internal.fzf_command.subprocess.run")
-    @patch(
-        "usecli.cli.commands.defaults.base.internal.fzf_command.shutil.which",
-        return_value="/usr/bin/fzf",
-    )
-    @patch("usecli.cli.commands.defaults.base.internal.fzf_command.sys")
-    def test_returns_none_on_cancel(self, mock_sys, mock_which, mock_run):
-        mock_sys.stdin.isatty.return_value = True
-        mock_sys.stdout.isatty.return_value = True
-        mock_run.return_value = MagicMock(returncode=130, stdout="")
-        result = _run_fzf_menu(["option_a"])
-        assert result is None
-
-    @patch("usecli.cli.commands.defaults.base.internal.fzf_command.subprocess.run")
-    @patch(
-        "usecli.cli.commands.defaults.base.internal.fzf_command.shutil.which",
-        return_value="/usr/bin/fzf",
-    )
-    @patch("usecli.cli.commands.defaults.base.internal.fzf_command.sys")
-    def test_returns_none_on_empty_output(self, mock_sys, mock_which, mock_run):
-        mock_sys.stdin.isatty.return_value = True
-        mock_sys.stdout.isatty.return_value = True
-        mock_run.return_value = MagicMock(returncode=0, stdout="")
-        result = _run_fzf_menu(["option_a"])
-        assert result is None
-
-    @patch("usecli.cli.core.error.handler.ErrorHandler.display_error")
-    @patch("usecli.cli.commands.defaults.base.internal.fzf_command.subprocess.run")
-    @patch(
-        "usecli.cli.commands.defaults.base.internal.fzf_command.shutil.which",
-        return_value="/usr/bin/fzf",
-    )
-    @patch("usecli.cli.commands.defaults.base.internal.fzf_command.sys")
-    def test_raises_on_fzf_error(
-        self, mock_sys, mock_which, mock_run, mock_display_error
-    ):
-        mock_sys.stdin.isatty.return_value = True
-        mock_sys.stdout.isatty.return_value = True
-        # Must have non-empty stdout to avoid early return
-        mock_run.return_value = MagicMock(
-            returncode=1, stdout="something", stderr="error"
-        )
-        with pytest.raises(typer.Exit):
-            _run_fzf_menu(["option_a"])
-
-    @patch("usecli.cli.commands.defaults.base.internal.fzf_command.subprocess.run")
-    @patch(
-        "usecli.cli.commands.defaults.base.internal.fzf_command.shutil.which",
-        return_value="/usr/bin/fzf",
-    )
-    @patch("usecli.cli.commands.defaults.base.internal.fzf_command.sys")
-    def test_raises_on_file_not_found(self, mock_sys, mock_which, mock_run):
-        mock_sys.stdin.isatty.return_value = True
-        mock_sys.stdout.isatty.return_value = True
-        mock_run.side_effect = FileNotFoundError
         from usecli.cli.core.exceptions import UsecliError
 
         with pytest.raises(UsecliError):
-            _run_fzf_menu(["option_a"])
+            _run_command_menu(["hello\x1fhello"], title="t")
+        mock_menu.assert_not_called()
 
-    @patch("usecli.cli.commands.defaults.base.internal.fzf_command.subprocess.run")
-    @patch(
-        "usecli.cli.commands.defaults.base.internal.fzf_command.shutil.which",
-        return_value="/usr/bin/fzf",
-    )
-    @patch("usecli.cli.commands.defaults.base.internal.fzf_command.sys")
-    def test_passes_custom_prompt(self, mock_sys, mock_which, mock_run):
+    @patch(f"{_FZF}.terminal_menu", return_value=["hello\x1fhello"])
+    @patch(f"{_FZF}.sys")
+    def test_passes_preview_callable(self, mock_sys, mock_menu):
         mock_sys.stdin.isatty.return_value = True
         mock_sys.stdout.isatty.return_value = True
-        mock_run.return_value = MagicMock(returncode=0, stdout="selected\n")
-        _run_fzf_menu(["option_a"], prompt="custom » ")
-        call_args = mock_run.call_args[0][0]
-        assert any("custom » " in arg for arg in call_args)
+        preview = MagicMock(return_value="help")
+        _run_command_menu(["hello\x1fhello"], title="t", preview_command=preview)
+        assert mock_menu.call_args.kwargs["preview_command"] is preview
+
+    @patch(f"{_FZF}.terminal_menu")
+    def test_returns_none_without_entries(self, mock_menu):
+        assert _run_command_menu([], title="t") is None
+        mock_menu.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
-# FzfCommand
+# _select_command and entry formatting
 # ---------------------------------------------------------------------------
 
 
-class TestFzfCommand:
-    def test_signature(self):
+class TestSelectCommand:
+    def test_builds_aligned_entries_with_fallbacks(self):
         app = MagicMock()
-        cmd = FzfCommand(app)
-        assert cmd.signature() == "fzf"
+        commands = [
+            {"name": "hello", "help": "Say hello"},
+            {"name": "db:migrate", "help": ""},
+        ]
+        with patch(f"{_FZF}._run_command_menu", return_value="hello") as menu:
+            result = _select_command(
+                commands,
+                app=app,
+                script_name="usecli",
+                title="usecli » select a command",
+            )
+        assert result == "hello"
+        entries = menu.call_args.args[0]
+        assert entries[0].endswith("\x1fhello")
+        assert "Say hello" in entries[0]
+        assert entries[1].endswith("\x1fdb:migrate")
+        assert "Db migrate" in entries[1]
 
-    def test_description(self):
+    def test_preview_is_built_lazily_and_cached(self):
         app = MagicMock()
-        cmd = FzfCommand(app)
+        commands = [{"name": "hello", "help": "Say hello"}]
+        with (
+            patch(f"{_FZF}._run_command_menu") as menu,
+            patch(f"{_FZF}._build_preview", return_value="preview") as build,
+        ):
+            _select_command(commands, app=app, script_name="usecli", title="t")
+            preview = menu.call_args.kwargs["preview_command"]
+            assert preview("hello") == "preview"
+            assert preview("hello") == "preview"
+        build.assert_called_once()
+
+    def test_returns_none_without_commands(self):
         assert (
-            "finder" in cmd.description().lower() or "fzf" in cmd.description().lower()
+            _select_command([], app=MagicMock(), script_name="usecli", title="t")
+            is None
         )
 
-    @patch("usecli.cli.commands.defaults.base.internal.fzf_command.run_interactive")
-    def test_handle_calls_run_interactive(self, mock_run):
-        app = MagicMock()
-        cmd = FzfCommand(app)
-        cmd.handle(extra_args=["--verbose"])
-        mock_run.assert_called_once_with(app, extra_args=["--verbose"])
+    def test_humanize_name(self):
+        assert _humanize_name("db:migrate-all") == "Db migrate all"
+
+    def test_fit_truncates(self):
+        assert _fit("abcdef", 4) == "abc…"
+        assert _fit("abc", 4) == "abc"
+
+    def test_fit_handles_tiny_widths(self):
+        assert _fit("abc", 0) == ""
+        assert _fit("abc", 1) == "…"
+
+    def test_menu_entry_escapes_preview_separator(self):
+        entry = _menu_entry("cmd", "a | b", 4)
+        assert "a \\| b" in entry
+        assert entry.endswith("\x1fcmd")
+
+    def test_menu_entry_without_description_is_just_the_name(self):
+        assert _menu_entry("cmd", "", 8) == "cmd\x1fcmd"
+
+
+class TestBuildPreview:
+    def test_leaf_preview_includes_usage_args_and_options(self):
+        entry = {"name": "hello", "help": "Say hello", "command": MagicMock()}
+        with (
+            patch(
+                f"{_FZF}._get_required_arguments",
+                return_value=[("name", "who to greet", str)],
+            ),
+            patch(
+                f"{_FZF}._get_optional_options",
+                return_value=[("loud", "--loud", "shout", bool)],
+            ),
+        ):
+            text = _build_preview(entry, MagicMock(), "usecli")
+        assert "Say hello" in text
+        assert "Usage: usecli hello <name> [OPTIONS]" in text
+        assert "who to greet" in text
+        assert "--loud" in text
+        assert "shout" in text
+
+    def test_group_preview_lists_subcommands(self):
+        entry = {"name": "db", "help": "Database commands", "is_group": True}
+        subs = [{"name": "migrate", "help": "Run migrations"}]
+        with patch(f"{_FZF}._get_group_subcommands", return_value=subs):
+            text = _build_preview(entry, MagicMock(), "usecli")
+        assert "Usage: usecli db <command>" in text
+        assert "migrate" in text
+        assert "Run migrations" in text
 
 
 # ---------------------------------------------------------------------------
@@ -405,30 +411,32 @@ class TestFzfCommand:
 
 class TestRunInteractive:
     @patch(
-        "usecli.cli.commands.defaults.base.internal.fzf_command._run_fzf_menu",
+        "usecli.cli.commands.defaults.base.internal.interactive_command._select_command",
         return_value=None,
     )
-    def test_returns_when_no_selection(self, mock_fzf):
+    def test_returns_when_no_selection(self, mock_select):
         app = MagicMock()
-        app.registered_commands = [MagicMock(name="test", help="Test")]
+        app.registered_commands = [_cmd("test", "Test")]
         with patch(
-            "usecli.cli.commands.defaults.base.internal.fzf_command.typer.main.get_command"
+            "usecli.cli.commands.defaults.base.internal.interactive_command.typer.main.get_command"
         ) as mock_get_cmd:
             mock_get_cmd.return_value = MagicMock(spec=click.Group, commands={})
             run_interactive(app)
-        mock_fzf.assert_called_once()
+        mock_select.assert_called_once()
 
     @patch(
-        "usecli.cli.commands.defaults.base.internal.fzf_command._run_fzf_menu",
+        "usecli.cli.commands.defaults.base.internal.interactive_command._select_command",
         return_value="test",
     )
-    @patch("usecli.cli.commands.defaults.base.internal.fzf_command.subprocess.run")
-    def test_runs_selected_command(self, mock_run, mock_fzf):
+    @patch(
+        "usecli.cli.commands.defaults.base.internal.interactive_command.subprocess.run"
+    )
+    def test_runs_selected_command(self, mock_run, mock_select):
         app = MagicMock()
-        cmd = MagicMock(name="test", help="Test", callback=None)
+        cmd = _cmd("test", "Test")
         app.registered_commands = [cmd]
         with patch(
-            "usecli.cli.commands.defaults.base.internal.fzf_command.typer.main.get_command"
+            "usecli.cli.commands.defaults.base.internal.interactive_command.typer.main.get_command"
         ) as mock_get_cmd:
             mock_get_cmd.return_value = MagicMock(spec=click.Group, commands={})
             run_interactive(app)
@@ -441,16 +449,18 @@ class TestRunInteractive:
             run_interactive(app)
 
     @patch(
-        "usecli.cli.commands.defaults.base.internal.fzf_command._run_fzf_menu",
+        "usecli.cli.commands.defaults.base.internal.interactive_command._select_command",
         return_value="test",
     )
-    @patch("usecli.cli.commands.defaults.base.internal.fzf_command.subprocess.run")
-    def test_handles_extra_args(self, mock_run, mock_fzf):
+    @patch(
+        "usecli.cli.commands.defaults.base.internal.interactive_command.subprocess.run"
+    )
+    def test_handles_extra_args(self, mock_run, mock_select):
         app = MagicMock()
-        cmd = MagicMock(name="test", help="Test", callback=None)
+        cmd = _cmd("test", "Test")
         app.registered_commands = [cmd]
         with patch(
-            "usecli.cli.commands.defaults.base.internal.fzf_command.typer.main.get_command"
+            "usecli.cli.commands.defaults.base.internal.interactive_command.typer.main.get_command"
         ) as mock_get_cmd:
             mock_get_cmd.return_value = MagicMock(spec=click.Group, commands={})
             run_interactive(app, extra_args=["--verbose"])
@@ -460,127 +470,133 @@ class TestRunInteractive:
 
     def test_raises_on_unknown_command(self):
         app = MagicMock()
-        cmd = MagicMock(name="test", help="Test", callback=None)
+        cmd = _cmd("test", "Test")
         app.registered_commands = [cmd]
         with patch(
-            "usecli.cli.commands.defaults.base.internal.fzf_command.typer.main.get_command"
+            "usecli.cli.commands.defaults.base.internal.interactive_command.typer.main.get_command"
         ) as mock_get_cmd:
             mock_get_cmd.return_value = MagicMock(spec=click.Group, commands={})
             with pytest.raises(typer.Exit):
                 run_interactive(app, cmd_parts=["nonexistent"])
 
     @patch(
-        "usecli.cli.commands.defaults.base.internal.fzf_command._run_fzf_menu",
-        return_value="test",
+        "usecli.cli.commands.defaults.base.internal.interactive_command._select_command",
+        return_value="make:command",
     )
-    @patch("usecli.cli.commands.defaults.base.internal.fzf_command.subprocess.run")
-    def test_handles_colon_commands(self, mock_run, mock_fzf):
+    @patch(
+        "usecli.cli.commands.defaults.base.internal.interactive_command.subprocess.run"
+    )
+    def test_handles_colon_commands(self, mock_run, mock_select):
         app = MagicMock()
-        cmd = MagicMock(name="make:command", help="Make command", callback=None)
+        cmd = _cmd("make:command", "Make command")
         app.registered_commands = [cmd]
         with patch(
-            "usecli.cli.commands.defaults.base.internal.fzf_command.typer.main.get_command"
+            "usecli.cli.commands.defaults.base.internal.interactive_command.typer.main.get_command"
         ) as mock_get_cmd:
             mock_get_cmd.return_value = MagicMock(spec=click.Group, commands={})
             run_interactive(app)
         mock_run.assert_called_once()
 
     @patch(
-        "usecli.cli.commands.defaults.base.internal.fzf_command._run_fzf_menu",
+        "usecli.cli.commands.defaults.base.internal.interactive_command._select_command",
         return_value="test",
     )
-    @patch("usecli.cli.commands.defaults.base.internal.fzf_command.subprocess.run")
-    def test_resolves_group_alias(self, mock_run, mock_fzf):
+    @patch(
+        "usecli.cli.commands.defaults.base.internal.interactive_command.subprocess.run"
+    )
+    def test_resolves_group_alias(self, mock_run, mock_select):
         app = MagicMock()
         app._usecli_group_aliases = {"test": ["t"]}
-        cmd = MagicMock(name="test", help="Test command", callback=None)
+        cmd = _cmd("test", "Test command")
         app.registered_commands = [cmd]
         with patch(
-            "usecli.cli.commands.defaults.base.internal.fzf_command.typer.main.get_command"
+            "usecli.cli.commands.defaults.base.internal.interactive_command.typer.main.get_command"
         ) as mock_get_cmd:
             mock_get_cmd.return_value = MagicMock(spec=click.Group, commands={})
             # First call returns "test" (the alias), second call returns "test" (the resolved)
-            mock_fzf.side_effect = ["test", "test"]
+            mock_select.side_effect = ["test", "test"]
             run_interactive(app)
         mock_run.assert_called_once()
 
     def test_raises_when_extra_args_on_non_group(self):
         app = MagicMock()
         app._usecli_group_aliases = {}
-        cmd = MagicMock(name="test", help="Test", callback=None)
+        cmd = _cmd("test", "Test")
         app.registered_commands = [cmd]
         with patch(
-            "usecli.cli.commands.defaults.base.internal.fzf_command.typer.main.get_command"
+            "usecli.cli.commands.defaults.base.internal.interactive_command.typer.main.get_command"
         ) as mock_get_cmd:
             mock_get_cmd.return_value = MagicMock(spec=click.Group, commands={})
             with pytest.raises(typer.Exit):
                 run_interactive(app, cmd_parts=["test", "extra"])
 
     @patch(
-        "usecli.cli.commands.defaults.base.internal.fzf_command._run_fzf_menu",
+        "usecli.cli.commands.defaults.base.internal.interactive_command._select_command",
         return_value="group",
     )
-    @patch("usecli.cli.commands.defaults.base.internal.fzf_command.subprocess.run")
-    def test_handles_group_with_subcommands(self, mock_run, mock_fzf):
+    @patch(
+        "usecli.cli.commands.defaults.base.internal.interactive_command.subprocess.run"
+    )
+    def test_handles_group_with_subcommands(self, mock_run, mock_select):
         app = MagicMock()
         app._usecli_group_aliases = {}
-        sub_cmd = MagicMock(name="sub", help="Sub", callback=None)
-        group_cmd_entry = MagicMock(name="group", help="Group", is_group=True)
+        sub_cmd = _cmd("sub", "Sub")
+        group_cmd_entry = _cmd("group", "Group", is_group=True)
         app.registered_commands = [group_cmd_entry]
         with patch(
-            "usecli.cli.commands.defaults.base.internal.fzf_command.typer.main.get_command"
+            "usecli.cli.commands.defaults.base.internal.interactive_command.typer.main.get_command"
         ) as mock_get_cmd:
             mock_group = MagicMock(spec=click.Group)
             mock_group.commands = {"group": MagicMock(spec=click.Group, help="Group")}
             mock_get_cmd.return_value = mock_group
             with patch(
-                "usecli.cli.commands.defaults.base.internal.fzf_command._get_group_subcommands",
+                "usecli.cli.commands.defaults.base.internal.interactive_command._get_group_subcommands",
                 return_value=[{"name": "sub", "help": "Sub", "command": sub_cmd}],
             ):
                 run_interactive(app, cmd_parts=["group", "sub"])
         mock_run.assert_called_once()
 
     @patch(
-        "usecli.cli.commands.defaults.base.internal.fzf_command._run_fzf_menu",
+        "usecli.cli.commands.defaults.base.internal.interactive_command._select_command",
         return_value="group",
     )
-    def test_returns_when_group_subcommand_cancelled(self, mock_fzf):
+    def test_returns_when_group_subcommand_cancelled(self, mock_select):
         app = MagicMock()
         app._usecli_group_aliases = {}
-        sub_cmd = MagicMock(name="sub", help="Sub", callback=None)
-        group_cmd_entry = MagicMock(name="group", help="Group", is_group=True)
+        sub_cmd = _cmd("sub", "Sub")
+        group_cmd_entry = _cmd("group", "Group", is_group=True)
         app.registered_commands = [group_cmd_entry]
         with patch(
-            "usecli.cli.commands.defaults.base.internal.fzf_command.typer.main.get_command"
+            "usecli.cli.commands.defaults.base.internal.interactive_command.typer.main.get_command"
         ) as mock_get_cmd:
             mock_group = MagicMock(spec=click.Group)
             mock_group.commands = {"group": MagicMock(spec=click.Group, help="Group")}
             mock_get_cmd.return_value = mock_group
             with patch(
-                "usecli.cli.commands.defaults.base.internal.fzf_command._get_group_subcommands",
+                "usecli.cli.commands.defaults.base.internal.interactive_command._get_group_subcommands",
                 return_value=[{"name": "sub", "help": "Sub", "command": sub_cmd}],
             ):
-                mock_fzf.side_effect = ["group", None]
+                mock_select.side_effect = ["group", None]
                 run_interactive(app)
 
     @patch(
-        "usecli.cli.commands.defaults.base.internal.fzf_command._run_fzf_menu",
+        "usecli.cli.commands.defaults.base.internal.interactive_command._select_command",
         return_value="group",
     )
-    def test_raises_when_group_has_no_subcommands(self, mock_fzf):
+    def test_raises_when_group_has_no_subcommands(self, mock_select):
         app = MagicMock()
         app._usecli_group_aliases = {}
-        group_cmd_entry = MagicMock(name="group", help="Group", is_group=True)
+        group_cmd_entry = _cmd("group", "Group", is_group=True)
         app.registered_commands = [group_cmd_entry]
         with patch(
-            "usecli.cli.commands.defaults.base.internal.fzf_command.typer.main.get_command"
+            "usecli.cli.commands.defaults.base.internal.interactive_command.typer.main.get_command"
         ) as mock_get_cmd:
             mock_group = MagicMock(spec=click.Group)
             mock_group.commands = {"group": MagicMock(spec=click.Group, help="Group")}
             mock_get_cmd.return_value = mock_group
             with (
                 patch(
-                    "usecli.cli.commands.defaults.base.internal.fzf_command._get_group_subcommands",
+                    "usecli.cli.commands.defaults.base.internal.interactive_command._get_group_subcommands",
                     return_value=[],
                 ),
                 pytest.raises(typer.Exit),
@@ -588,24 +604,24 @@ class TestRunInteractive:
                 run_interactive(app, cmd_parts=["group"])
 
     @patch(
-        "usecli.cli.commands.defaults.base.internal.fzf_command._run_fzf_menu",
+        "usecli.cli.commands.defaults.base.internal.interactive_command._select_command",
         return_value="group",
     )
-    def test_raises_when_unknown_group_subcommand(self, mock_fzf):
+    def test_raises_when_unknown_group_subcommand(self, mock_select):
         app = MagicMock()
         app._usecli_group_aliases = {}
-        sub_cmd = MagicMock(name="sub", help="Sub", callback=None)
-        group_cmd_entry = MagicMock(name="group", help="Group", is_group=True)
+        sub_cmd = _cmd("sub", "Sub")
+        group_cmd_entry = _cmd("group", "Group", is_group=True)
         app.registered_commands = [group_cmd_entry]
         with patch(
-            "usecli.cli.commands.defaults.base.internal.fzf_command.typer.main.get_command"
+            "usecli.cli.commands.defaults.base.internal.interactive_command.typer.main.get_command"
         ) as mock_get_cmd:
             mock_group = MagicMock(spec=click.Group)
             mock_group.commands = {"group": MagicMock(spec=click.Group, help="Group")}
             mock_get_cmd.return_value = mock_group
             with (
                 patch(
-                    "usecli.cli.commands.defaults.base.internal.fzf_command._get_group_subcommands",
+                    "usecli.cli.commands.defaults.base.internal.interactive_command._get_group_subcommands",
                     return_value=[{"name": "sub", "help": "Sub", "command": sub_cmd}],
                 ),
                 pytest.raises(typer.Exit),
@@ -613,34 +629,38 @@ class TestRunInteractive:
                 run_interactive(app, cmd_parts=["group", "nonexistent"])
 
     @patch(
-        "usecli.cli.commands.defaults.base.internal.fzf_command._run_fzf_menu",
+        "usecli.cli.commands.defaults.base.internal.interactive_command._select_command",
         return_value="test",
     )
-    @patch("usecli.cli.commands.defaults.base.internal.fzf_command.subprocess.run")
-    def test_handles_no_callback_command(self, mock_run, mock_fzf):
+    @patch(
+        "usecli.cli.commands.defaults.base.internal.interactive_command.subprocess.run"
+    )
+    def test_handles_no_callback_command(self, mock_run, mock_select):
         app = MagicMock()
         app._usecli_group_aliases = {}
-        cmd = MagicMock(name="test", help="Test", callback=None)
+        cmd = _cmd("test", "Test")
         app.registered_commands = [cmd]
         with patch(
-            "usecli.cli.commands.defaults.base.internal.fzf_command.typer.main.get_command"
+            "usecli.cli.commands.defaults.base.internal.interactive_command.typer.main.get_command"
         ) as mock_get_cmd:
             mock_get_cmd.return_value = MagicMock(spec=click.Group, commands={})
             run_interactive(app)
         mock_run.assert_called_once()
 
     @patch(
-        "usecli.cli.commands.defaults.base.internal.fzf_command._run_fzf_menu",
+        "usecli.cli.commands.defaults.base.internal.interactive_command._select_command",
         return_value="test",
     )
-    @patch("usecli.cli.commands.defaults.base.internal.fzf_command.subprocess.run")
-    def test_builds_command_with_extra_args(self, mock_run, mock_fzf):
+    @patch(
+        "usecli.cli.commands.defaults.base.internal.interactive_command.subprocess.run"
+    )
+    def test_builds_command_with_extra_args(self, mock_run, mock_select):
         app = MagicMock()
         app._usecli_group_aliases = {}
-        cmd = MagicMock(name="test", help="Test", callback=None)
+        cmd = _cmd("test", "Test")
         app.registered_commands = [cmd]
         with patch(
-            "usecli.cli.commands.defaults.base.internal.fzf_command.typer.main.get_command"
+            "usecli.cli.commands.defaults.base.internal.interactive_command.typer.main.get_command"
         ) as mock_get_cmd:
             mock_get_cmd.return_value = MagicMock(spec=click.Group, commands={})
             run_interactive(app, extra_args=["arg1", "arg2"])
@@ -650,17 +670,19 @@ class TestRunInteractive:
         assert "arg2" in call_args
 
     @patch(
-        "usecli.cli.commands.defaults.base.internal.fzf_command._run_fzf_menu",
+        "usecli.cli.commands.defaults.base.internal.interactive_command._select_command",
         return_value="test",
     )
-    @patch("usecli.cli.commands.defaults.base.internal.fzf_command.subprocess.run")
-    def test_handles_fzf_selection_with_extra_whitespace(self, mock_run, mock_fzf):
+    @patch(
+        "usecli.cli.commands.defaults.base.internal.interactive_command.subprocess.run"
+    )
+    def test_handles_selection(self, mock_run, mock_select):
         app = MagicMock()
         app._usecli_group_aliases = {}
-        cmd = MagicMock(name="test", help="Test", callback=None)
+        cmd = _cmd("test", "Test")
         app.registered_commands = [cmd]
         with patch(
-            "usecli.cli.commands.defaults.base.internal.fzf_command.typer.main.get_command"
+            "usecli.cli.commands.defaults.base.internal.interactive_command.typer.main.get_command"
         ) as mock_get_cmd:
             mock_get_cmd.return_value = MagicMock(spec=click.Group, commands={})
             run_interactive(app)
@@ -669,7 +691,7 @@ class TestRunInteractive:
 
 class TestGetGroupSubcommands:
     def test_returns_empty_when_no_group(self):
-        from usecli.cli.commands.defaults.base.internal.fzf_command import (
+        from usecli.cli.commands.defaults.base.internal.interactive_command import (
             _get_group_subcommands,
         )
 
@@ -683,7 +705,7 @@ class TestGetGroupSubcommands:
             assert result == []
 
     def test_returns_subcommands(self):
-        from usecli.cli.commands.defaults.base.internal.fzf_command import (
+        from usecli.cli.commands.defaults.base.internal.interactive_command import (
             _get_group_subcommands,
         )
 
@@ -703,7 +725,7 @@ class TestGetGroupSubcommands:
             assert result[0]["name"] == "sub"
 
     def test_resolves_alias(self):
-        from usecli.cli.commands.defaults.base.internal.fzf_command import (
+        from usecli.cli.commands.defaults.base.internal.interactive_command import (
             _get_group_subcommands,
         )
 
@@ -725,8 +747,6 @@ class TestGetGroupSubcommands:
 # =============================================================================
 # Coverage-focused: run_interactive and _get_required_arguments edge branches
 # =============================================================================
-
-_FZF = "usecli.cli.commands.defaults.base.internal.fzf_command"
 
 
 class TestGetRequiredArgumentsHelpAttributeError:
@@ -761,16 +781,6 @@ def _make_app(commands):
     return app
 
 
-def _cmd(name, help="", callback=None, **kwargs):
-    c = MagicMock()
-    c.name = name
-    c.help = help
-    c.callback = callback
-    for k, v in kwargs.items():
-        setattr(c, k, v)
-    return c
-
-
 def _mock_run():
     m = MagicMock()
     m.return_value = MagicMock(stdout="help text", stderr="", returncode=0)
@@ -787,7 +797,7 @@ class TestRunInteractiveColonSections:
     def test_groups_and_sorts_colon_commands(self):
         app = _make_app([_cmd("db:migrate", "Migrate")])
         with (
-            patch(f"{_FZF}._run_fzf_menu", return_value="db:migrate"),
+            patch(f"{_FZF}._select_command", return_value="db:migrate"),
             patch(f"{_FZF}.subprocess.run", _mock_run()),
             _patch_get_command({}),
         ):
@@ -798,7 +808,7 @@ class TestRunInteractiveUnparseableSelection:
     def test_empty_cmd_name_raises(self):
         app = _make_app([_cmd("test", "Test")])
         with (
-            patch(f"{_FZF}._run_fzf_menu", return_value=""),
+            patch(f"{_FZF}._select_command", return_value=""),
             _patch_get_command({}),
             pytest.raises(typer.Exit),
         ):
@@ -821,11 +831,11 @@ class TestRunInteractiveSubcommandFallback:
         app = _make_app([_cmd("group", "Group")])
         return app
 
-    def test_subcommand_from_fzf_selection(self):
+    def test_subcommand_from_selection(self):
         app = self._group_app()
         sub_cmd = _cmd("sub", "Sub")
         with (
-            patch(f"{_FZF}._run_fzf_menu", return_value="sub"),
+            patch(f"{_FZF}._select_command", return_value="sub"),
             patch(f"{_FZF}.subprocess.run", _mock_run()),
             _patch_get_command({"group": MagicMock(spec=click.Group, help="Group")}),
             patch(
@@ -839,7 +849,7 @@ class TestRunInteractiveSubcommandFallback:
         app = self._group_app()
         sub_cmd = _cmd("sub", "Sub")
         with (
-            patch(f"{_FZF}._run_fzf_menu", return_value=""),
+            patch(f"{_FZF}._select_command", return_value=""),
             _patch_get_command({"group": MagicMock(spec=click.Group, help="Group")}),
             patch(
                 f"{_FZF}._get_group_subcommands",
