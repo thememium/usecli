@@ -166,6 +166,12 @@ def print_title(title: str | None = None) -> None:
         """
     config = get_config()
 
+    title_extra_top_space = config.get("title_extra_top_space", False)
+    title_extra_bottom_space = config.get("title_extra_bottom_space", False)
+
+    if title_extra_top_space:
+        console.print()
+
     title_file = config.get("title_file")
     if title_file:
         title_path = Path(title_file)
@@ -174,32 +180,33 @@ def print_title(title: str | None = None) -> None:
         try:
             if title_path.exists():
                 title_text = title_path.read_text()
-                console.print()
                 console.print(f"[{COLOR.PRIMARY}]{title_text}")
+                if title_extra_bottom_space:
+                    console.print()
                 return
         except OSError:
             pass
 
     if title is None or title.lower() == "usecli":
         console.print(f"[{COLOR.PRIMARY}]{default_title_text}")
+        if title_extra_bottom_space:
+            console.print()
         return
 
     figlet = get_figlet()
-    if figlet is not None:
-        title_font = config.get("title_font", "big") or "big"
-        is_figlet = False
+    title_font = config.get("title_font")
+    if figlet is not None and title_font:
         try:
             raw_title = figlet.figlet_format(text=title, font=title_font).rstrip()
             title_text = "\n".join(" " + line for line in raw_title.split("\n"))
-            is_figlet = True
         except figlet.FontNotFound:
             title_text = title
-        console.print()
         console.print(f"[{COLOR.PRIMARY}]{title_text}")
-        if is_figlet:
+        if title_extra_bottom_space:
             console.print()
         return
 
     description = config.get("description") if config.has_key("description") else None
     console.print(render_plain_title(title, description, get_project_version()))
-    console.print()
+    if title_extra_bottom_space:
+        console.print()
