@@ -8,6 +8,7 @@ from unittest.mock import MagicMock, patch
 
 from usecli.cli.config.colors import COLOR
 from usecli.cli.core.ui.title import (
+    _banner_config,
     _get_script_command_name,
     _invoked_script_name,
     _running_framework_distribution,
@@ -907,3 +908,73 @@ class TestFrameworkIdentity:
         )
         assert "A framework summary" in printed
         assert "Project description" not in printed
+
+
+# ---------------------------------------------------------------------------
+# Banner spacing (config owns top/bottom space, art carries none)
+# ---------------------------------------------------------------------------
+
+
+class TestBannerSpacing:
+    @patch("usecli.cli.core.ui.title.console")
+    @patch("usecli.cli.core.ui.title.get_config")
+    def test_builtin_art_uses_config_spacing(self, mock_config, mock_console):
+        mock_config.return_value = MagicMock(
+            get=MagicMock(
+                side_effect=lambda k, d=None: {
+                    "banner.top_space": True,
+                    "banner.bottom_space": True,
+                }.get(k, d)
+            ),
+            has_key=MagicMock(return_value=False),
+        )
+
+        print_title()
+
+        calls = mock_console.print.call_args_list
+        assert len(calls) == 3
+        assert calls[0].args == ()
+        assert calls[2].args == ()
+
+        art = calls[1].args[0].split("]", 1)[1]
+        lines = art.split("\n")
+        assert lines[0].strip()
+        assert lines[-1].strip()
+
+    @patch("usecli.cli.core.ui.title.console")
+    @patch("usecli.cli.core.ui.title.get_config")
+    def test_builtin_art_respects_disabled_spacing(self, mock_config, mock_console):
+        mock_config.return_value = MagicMock(
+            get=MagicMock(
+                side_effect=lambda k, d=None: {
+                    "banner.top_space": False,
+                    "banner.bottom_space": False,
+                }.get(k, d)
+            ),
+            has_key=MagicMock(return_value=False),
+        )
+
+        print_title()
+
+        assert mock_console.print.call_count == 1
+
+
+# ---------------------------------------------------------------------------
+# _banner_config (framework banner layout comes from the packaged config)
+# ---------------------------------------------------------------------------
+
+
+class TestBannerConfig:
+    @patch("usecli.cli.core.ui.title.get_config")
+    def test_downstream_uses_discovered_config(self, mock_get_config):
+        assert _banner_config() is mock_get_config.return_value
+
+    @patch("usecli.shared.config.manager.ConfigManager")
+    @patch("usecli.cli.core.ui.title._running_framework_distribution")
+    def test_framework_uses_packaged_config(self, mock_framework, mock_manager):
+        from usecli.shared.config.globals import PACKAGE_ROOT
+
+        mock_framework.return_value = _fake_dist("usecli")
+
+        assert _banner_config() is mock_manager.return_value
+        mock_manager.assert_called_once_with(start_dir=PACKAGE_ROOT)
