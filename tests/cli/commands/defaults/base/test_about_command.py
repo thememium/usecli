@@ -6,13 +6,6 @@ from importlib.metadata import PackageNotFoundError
 from pathlib import Path
 from unittest.mock import MagicMock, PropertyMock, patch
 
-import pytest
-
-try:
-    import tomllib
-except ModuleNotFoundError:  # pragma: no cover
-    import tomli as tomllib
-
 from usecli.cli.commands.defaults.base.about_command import (
     AboutCommand,
     _get_application_description,
@@ -25,29 +18,8 @@ from usecli.cli.commands.defaults.base.about_command import (
     _get_project_description,
     _get_script_commands,
     _get_version,
-    _load_toml,
     _parse_dependency_requirement,
-    _toml_decode_error,
 )
-
-# ---------------------------------------------------------------------------
-# _load_toml
-# ---------------------------------------------------------------------------
-
-
-class TestLoadToml:
-    def test_loads_valid_toml(self):
-        result = _load_toml('[project]\nname = "test"')
-        assert result == {"project": {"name": "test"}}
-
-    def test_loads_empty_toml(self):
-        result = _load_toml("")
-        assert result == {}
-
-    def test_raises_on_invalid_toml(self):
-        with pytest.raises(tomllib.TOMLDecodeError):
-            _load_toml("not = = valid")
-
 
 # ---------------------------------------------------------------------------
 # _parse_dependency_requirement
@@ -1018,55 +990,16 @@ class TestAboutCommand:
 # ---------------------------------------------------------------------------
 
 
-class TestTomlDecodeError:
-    def test_recurses(self):
-        """The helper always calls itself, so invoking it raises RecursionError."""
-        with pytest.raises(RecursionError):
-            _toml_decode_error()
-
-
-class TestLoadTomlPy310:
-    def test_loads_with_tomli_on_py310(self):
-        """On Python < 3.11, _load_toml imports tomli (line 34)."""
-        from usecli.cli.commands.defaults.base import about_command
-
-        with patch.object(about_command.sys, "version_info", (3, 10)):
-            result = _load_toml("key = 1")
-        assert result == {"key": 1}
-
-
-class TestTomlDecodeErrorPy310:
-    def test_recurses_on_py310(self):
-        """On Python < 3.11, the else branch (line 43) is covered."""
-        from usecli.cli.commands.defaults.base import about_command
-
-        with (
-            patch.object(about_command.sys, "version_info", (3, 10)),
-            pytest.raises(RecursionError),
-        ):
-            _toml_decode_error()
-
-
-class TestGetDependenciesOSError:
+class TestGetDependenciesInvalidToml:
     @patch(
         "usecli.cli.commands.defaults.base.about_command._get_console_script_distribution",
         return_value=None,
     )
     @patch("usecli.cli.core.ui.title.get_script_command_name", return_value=None)
-    @patch(
-        "usecli.cli.commands.defaults.base.about_command._load_toml",
-        side_effect=OSError("boom"),
-    )
-    @patch(
-        "usecli.cli.commands.defaults.base.about_command._toml_decode_error",
-        return_value=OSError,
-    )
-    def test_os_error_reading_pyproject_returns_empty(
-        self, mock_tde, mock_load, mock_name, mock_find, tmp_path
-    ):
+    def test_invalid_toml_returns_empty(self, mock_name, mock_find, tmp_path):
         config = MagicMock()
         config.pyproject_path = tmp_path / "pyproject.toml"
-        config.pyproject_path.write_text("x")
+        config.pyproject_path.write_text("not = = valid")
         assert _get_dependencies(config) == []
 
 
@@ -1099,41 +1032,25 @@ class TestGetApplicationDistributionFallback:
         assert mock_find.call_count == 2
 
 
-class TestGetProjectDescriptionOSError:
-    @patch(
-        "usecli.cli.commands.defaults.base.about_command._load_toml",
-        side_effect=OSError("boom"),
-    )
-    @patch(
-        "usecli.cli.commands.defaults.base.about_command._toml_decode_error",
-        return_value=OSError,
-    )
-    def test_os_error_returns_none(self, mock_tde, mock_load, tmp_path):
+class TestGetProjectDescriptionInvalidToml:
+    def test_invalid_toml_returns_none(self, tmp_path):
         config = MagicMock()
         config.pyproject_path = tmp_path / "pyproject.toml"
-        config.pyproject_path.write_text("x")
+        config.pyproject_path.write_text("not = = valid")
         assert _get_project_description(config) is None
 
 
-class TestGetScriptCommandsOSError:
+class TestGetScriptCommandsInvalidToml:
     @patch(
         "usecli.cli.commands.defaults.base.about_command._get_installed_script_commands",
         return_value=[],
     )
     @patch("usecli.cli.core.ui.title.get_script_command_name", return_value=None)
-    @patch(
-        "usecli.cli.commands.defaults.base.about_command._load_toml",
-        side_effect=OSError("boom"),
-    )
-    @patch(
-        "usecli.cli.commands.defaults.base.about_command._toml_decode_error",
-        return_value=OSError,
-    )
-    def test_os_error_returns_empty(
-        self, mock_tde, mock_load, mock_name, mock_installed, tmp_path, monkeypatch
+    def test_invalid_toml_returns_empty(
+        self, mock_name, mock_installed, tmp_path, monkeypatch
     ):
         monkeypatch.chdir(tmp_path)
-        (tmp_path / "pyproject.toml").write_text("x")
+        (tmp_path / "pyproject.toml").write_text("not = = valid")
         assert _get_script_commands() == []
 
 

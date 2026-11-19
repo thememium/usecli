@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from unittest.mock import patch
 
@@ -163,46 +163,46 @@ class TestValidateChangeName:
 
 class TestFormatRelativeTime:
     def test_just_now(self):
-        now = datetime.now(tz=timezone.utc)
+        now = datetime.now(tz=UTC)
         assert format_relative_time(now) == "just now"
 
     def test_minutes_ago_singular(self):
-        ts = datetime.now(tz=timezone.utc) - timedelta(minutes=1)
+        ts = datetime.now(tz=UTC) - timedelta(minutes=1)
         result = format_relative_time(ts)
         assert result == "1 minute ago"
 
     def test_minutes_ago_plural(self):
-        ts = datetime.now(tz=timezone.utc) - timedelta(minutes=5)
+        ts = datetime.now(tz=UTC) - timedelta(minutes=5)
         result = format_relative_time(ts)
         assert result == "5 minutes ago"
 
     def test_hours_ago_singular(self):
-        ts = datetime.now(tz=timezone.utc) - timedelta(hours=1)
+        ts = datetime.now(tz=UTC) - timedelta(hours=1)
         result = format_relative_time(ts)
         assert result == "1 hour ago"
 
     def test_hours_ago_plural(self):
-        ts = datetime.now(tz=timezone.utc) - timedelta(hours=3)
+        ts = datetime.now(tz=UTC) - timedelta(hours=3)
         result = format_relative_time(ts)
         assert result == "3 hours ago"
 
     def test_days_ago_singular(self):
-        ts = datetime.now(tz=timezone.utc) - timedelta(days=1)
+        ts = datetime.now(tz=UTC) - timedelta(days=1)
         result = format_relative_time(ts)
         assert result == "1 day ago"
 
     def test_days_ago_plural(self):
-        ts = datetime.now(tz=timezone.utc) - timedelta(days=15)
+        ts = datetime.now(tz=UTC) - timedelta(days=15)
         result = format_relative_time(ts)
         assert result == "15 days ago"
 
     def test_months_ago(self):
-        ts = datetime.now(tz=timezone.utc) - timedelta(days=90)
+        ts = datetime.now(tz=UTC) - timedelta(days=90)
         result = format_relative_time(ts)
         assert "months ago" in result or "month ago" in result
 
     def test_years_ago(self):
-        ts = datetime.now(tz=timezone.utc) - timedelta(days=400)
+        ts = datetime.now(tz=UTC) - timedelta(days=400)
         result = format_relative_time(ts)
         assert "years ago" in result or "year ago" in result
 

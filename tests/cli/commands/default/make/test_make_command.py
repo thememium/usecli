@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -61,6 +62,33 @@ class TestMakeCommandTemplates:
         created = tmp_path / "cli" / "commands" / "world_command.py"
         assert created.exists()
         assert "class WorldCommand" in created.read_text()
+
+    def test_writes_into_nested_project_config_dirs(
+        self, tmp_path, monkeypatch, make_command
+    ):
+        """`usecli make:command` inside a downstream project writes to that
+        project's configured commands dir, not the installed usecli package."""
+        (tmp_path / "pyproject.toml").write_text(
+            '[project]\nname = "cogrep"\ndependencies = ["usecli"]\n'
+        )
+        config_dir = tmp_path / "src" / "cogrep" / "cli"
+        config_dir.mkdir(parents=True)
+        (config_dir / "usecli.config.toml").write_text(
+            '[usecli]\ncommand_name = "cogrep"\n\n'
+            '[usecli.paths]\ncommands = "commands"\ntemplates = "templates"\n'
+        )
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [str(tmp_path / ".venv" / "bin" / "usecli"), "make:command", "hello"],
+        )
+
+        make_command.handle("hello")
+
+        created = config_dir / "commands" / "hello_command.py"
+        assert created.exists()
+        assert "class HelloCommand" in created.read_text()
 
     def test_handles_colon_in_name(self, tmp_path, monkeypatch, make_command):
         monkeypatch.chdir(tmp_path)
