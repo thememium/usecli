@@ -412,8 +412,17 @@ class BaseCommand(ABC):
         return parts[0]
 
     def is_hidden(self) -> bool:
-        """Whether ``[usecli.commands] hidden`` lists this command name."""
+        """Whether ``[usecli.commands] hidden`` lists this command name.
+
+        Hiding is a project-CLI concern. The ``usecli`` framework binary always
+        exposes its built-ins, even when run inside a project whose config hides
+        them, so scaffolding commands stay reachable.
+        """
+        from usecli.cli.core.ui.title import running_framework_distribution
         from usecli.shared.config.manager import get_config
+
+        if running_framework_distribution() is not None:
+            return False
 
         hidden = get_config().get("commands.hidden", [])
         if isinstance(hidden, str):
