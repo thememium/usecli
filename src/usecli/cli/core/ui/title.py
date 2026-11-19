@@ -32,7 +32,7 @@ def _invoked_script_name() -> str | None:
     return name
 
 
-def _running_framework_distribution() -> Any | None:
+def running_framework_distribution() -> Any | None:
     """Return the usecli distribution when running as one of its console scripts.
 
     The invoked console script decides the process identity: ``usecli`` (or
@@ -69,7 +69,7 @@ def get_framework_description() -> str | None:
     Returns ``None`` for downstream CLIs, whose config description owns the
     banner.
     """
-    dist = _running_framework_distribution()
+    dist = running_framework_distribution()
     if dist is None:
         return None
     summary = dist.metadata.get("Summary")
@@ -125,7 +125,7 @@ def get_script_command_name(default: str | None = None) -> str | None:
     The usecli binary reports itself, not the project's CLI name: a user who
     typed ``usecli`` must see ``usecli`` in usage output.
     """
-    if _running_framework_distribution() is not None:
+    if running_framework_distribution() is not None:
         return "usecli"
 
     config = get_config()
@@ -149,7 +149,7 @@ def get_project_name() -> str:
     The usecli binary reports the framework name; downstream CLIs report the
     title configured for their project.
     """
-    if _running_framework_distribution() is not None:
+    if running_framework_distribution() is not None:
         return "useCli"
 
     # First, try to get the title from the config
@@ -206,7 +206,7 @@ def get_project_version() -> str | None:
     CLI resolves the distribution that owns the invoked console script first,
     then falls back to ``[project].version`` in the project's pyproject.toml.
     """
-    framework_dist = _running_framework_distribution()
+    framework_dist = running_framework_distribution()
     if framework_dist is not None:
         return _distribution_version(framework_dist)
 
@@ -234,7 +234,7 @@ def _banner_config():
     the downstream project being scaffolded. Downstream CLIs keep using the
     discovered project config.
     """
-    if _running_framework_distribution() is None:
+    if running_framework_distribution() is None:
         return get_config()
 
     from usecli.shared.config.globals import PACKAGE_ROOT
