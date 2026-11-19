@@ -283,6 +283,33 @@ def _get_group_subcommands(
     return subcommands
 
 
+def _prompt_for_text(prompt_text: str, empty_message: str) -> str:
+    """Read a non-empty value through rich's prompt-toolkit input seam.
+
+    ``console.input`` is patched by
+    :func:`usecli.cli.utils.interactive.prompt_input.install_prompt_input`, so
+    cursor keys, editing and history work instead of reaching a raw
+    ``input()``.
+    """
+    value = ""
+    while not value:
+        try:
+            value = console.input(
+                f"[bold {COLOR.SECONDARY}]{prompt_text}[/bold {COLOR.SECONDARY}]\n"
+                f"[bold {COLOR.SECONDARY}]└─> [/bold {COLOR.SECONDARY}]"
+            ).strip()
+        except EOFError:
+            value = ""
+        except KeyboardInterrupt:
+            ErrorHandler.display_warning("Cancelled by user")
+            raise typer.Exit(code=0)
+
+        if not value:
+            console.print(f"[{COLOR.ERROR}]{empty_message}[/{COLOR.ERROR}]")
+
+    return value
+
+
 def run_interactive(
     app: typer.Typer,
     cmd_parts: list[str] | None = None,
@@ -457,28 +484,13 @@ def run_interactive(
                 )
                 value = str(int_value)
             else:
-                value = ""
-                while not value:
-                    prompt_text = f"Enter value for '{arg_name}'"
-                    if arg_help:
-                        prompt_text += f" ({arg_help})"
-                    prompt_text += ":"
-                    console.print(f"[bold {COLOR.SECONDARY}]{prompt_text}")
-                    console.print(f"[bold {COLOR.SECONDARY}]└─> ", end="")
-
-                    try:
-                        user_input = input()
-                        value = user_input.strip()
-                    except EOFError:
-                        value = ""
-                    except KeyboardInterrupt:
-                        ErrorHandler.display_warning("Cancelled by user")
-                        raise typer.Exit(code=0)
-
-                    if not value:
-                        console.print(
-                            f"[{COLOR.ERROR}]Value is required. Please enter a value.[/{COLOR.ERROR}]"
-                        )
+                prompt_text = f"Enter value for '{arg_name}'"
+                if arg_help:
+                    prompt_text += f" ({arg_help})"
+                prompt_text += ":"
+                value = _prompt_for_text(
+                    prompt_text, "Value is required. Please enter a value."
+                )
 
                 if " " in value:
                     value = f'"{value}"'
@@ -555,23 +567,14 @@ def run_interactive(
                     )
                     option_values.append(f"{first_flag} {int_value}")
                 else:
-                    opt_value = ""
-                    while not opt_value:
-                        prompt_text = f"[bold {COLOR.SECONDARY}]Value for {first_flag}"
-                        if help_text:
-                            prompt_text += f" ({help_text})"
-                        prompt_text += ":"
-                        console.print(prompt_text)
-                        console.print(f"[bold {COLOR.SECONDARY}]└─> ", end="")
-                        try:
-                            opt_value = input().strip()
-                        except KeyboardInterrupt:
-                            ErrorHandler.display_warning("Cancelled by user")
-                            raise typer.Exit(code=0)
-                        if not opt_value:
-                            console.print(
-                                f"[{COLOR.ERROR}]Value is required. Please enter a value or press Ctrl+C to cancel.[/{COLOR.ERROR}]"
-                            )
+                    prompt_text = f"Value for {first_flag}"
+                    if help_text:
+                        prompt_text += f" ({help_text})"
+                    prompt_text += ":"
+                    opt_value = _prompt_for_text(
+                        prompt_text,
+                        "Value is required. Please enter a value or press Ctrl+C to cancel.",
+                    )
                     if " " in opt_value:
                         opt_value = f'"{opt_value}"'
                     option_values.append(f"{first_flag} {opt_value}")
