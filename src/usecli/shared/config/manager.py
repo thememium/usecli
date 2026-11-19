@@ -5,6 +5,7 @@ Handles loading and accessing configuration from project-level files.
 
 from __future__ import annotations
 
+import copy
 import importlib.util
 import logging
 import os
@@ -223,7 +224,7 @@ def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any
     return result
 
 
-def _normalize_themes_dir(value: Any) -> list[str]:
+def _normalize_str_list(value: Any) -> list[str]:
     if isinstance(value, str):
         normalized = value.strip()
         return [normalized] if normalized else []
@@ -237,6 +238,64 @@ def _normalize_themes_dir(value: Any) -> list[str]:
                 result.append(normalized)
         return result
     return []
+
+
+# Flat ``[usecli]`` keys from configs written before the table was sectioned.
+# Each maps to its ``(section, key)`` in the current schema.
+_LEGACY_KEYS: dict[str, tuple[str, str]] = {
+    "commands_dir": ("paths", "commands"),
+    "templates_dir": ("paths", "templates"),
+    "themes_dir": ("paths", "themes"),
+    "theme": ("theme", "name"),
+    "title_file": ("banner", "file"),
+    "title_font": ("banner", "font"),
+    "title_extra_top_space": ("banner", "top_space"),
+    "title_extra_bottom_space": ("banner", "bottom_space"),
+    "show_description": ("banner", "show_description"),
+    "show_version": ("banner", "show_version"),
+}
+
+
+def normalize_config(data: Any) -> dict[str, Any]:
+    """Return a copy of a ``[usecli]`` table in the current sectioned schema.
+
+    Legacy flat keys fill their section only when that section key is absent,
+    so a config that mixes both forms keeps the new value. ``hide_inspire``
+    becomes an entry in ``commands.hidden``. Nested tables are copied so
+    normalization never mutates the parsed TOML.
+    """
+    if not isinstance(data, dict):
+        return {}
+
+    result: dict[str, Any] = {
+        key: dict(value) if isinstance(value, dict) else value
+        for key, value in data.items()
+        if key != "hide_inspire"
+        and not (key in _LEGACY_KEYS and not isinstance(value, dict))
+    }
+
+    for legacy_key, (section, key) in _LEGACY_KEYS.items():
+        if legacy_key not in data or isinstance(data[legacy_key], dict):
+            # A table with the same name is a section, not a legacy scalar.
+            continue
+        section_data = result.get(section)
+        if not isinstance(section_data, dict):
+            section_data = {}
+        if key not in section_data:
+            section_data[key] = data[legacy_key]
+        result[section] = section_data
+
+    if data.get("hide_inspire") is True:
+        commands = result.get("commands")
+        if not isinstance(commands, dict):
+            commands = {}
+        hidden = _normalize_str_list(commands.get("hidden"))
+        if "inspire" not in hidden:
+            hidden.append("inspire")
+        commands["hidden"] = hidden
+        result["commands"] = commands
+
+    return result
 
 
 def _dedupe_items(items: list[str]) -> list[str]:
@@ -273,18 +332,25 @@ class ConfigManager:
     }
 
     DEFAULT_CONFIG: ClassVar[dict[str, Any]] = {
-        "title": "usecli",
-        "title_file": None,
-        "description": "A customizable CLI framework",
-        "commands_dir": "cli/commands",
-        "templates_dir": "cli/templates",
-        "themes_dir": ["cli/themes"],
-        "title_extra_top_space": True,
-        "title_extra_bottom_space": True,
-        "theme": "default",
-        "environment": "prod",
         "command_name": "usecli",
-        "hide_inspire": False,
+        "title": "usecli",
+        "description": "A customizable CLI framework",
+        "paths": {
+            "commands": "cli/commands",
+            "templates": "cli/templates",
+            "themes": ["cli/themes"],
+        },
+        "theme": {"name": "default"},
+        # ``show_description`` and ``show_version`` are intentionally absent:
+        # when unset they follow whether a figlet banner is rendered.
+        "banner": {
+            "file": None,
+            "font": None,
+            "top_space": True,
+            "bottom_space": True,
+        },
+        "commands": {"hidden": []},
+        "environment": "prod",
         # The built-in `upgrade` command reads [usecli.upgrade]. `source`
         # overrides install-source detection: "auto" (packaging metadata),
         # "pypi", or "git" (with `package`/`url`/`ref` overrides).
@@ -369,7 +435,7 @@ class ConfigManager:
 
     def _load_config(self) -> None:
         """Load and merge configurations from all sources."""
-        self._config = self.DEFAULT_CONFIG.copy()
+        self._config = copy.deepcopy(self.DEFAULT_CONFIG)
         self._overrides = {}
 
         if self.usecli_config_path.exists():
@@ -386,11 +452,16 @@ class ConfigManager:
                     config_file=str(self.usecli_config_path),
                 ) from e
 
-        default_themes = _normalize_themes_dir(self.DEFAULT_CONFIG.get("themes_dir"))
-        override_themes = _normalize_themes_dir(self._overrides.get("themes_dir"))
+        default_themes = _normalize_str_list(self.DEFAULT_CONFIG["paths"].get("themes"))
+        override_paths = self._overrides.get("paths")
+        override_themes = _normalize_str_list(
+            override_paths.get("themes") if isinstance(override_paths, dict) else None
+        )
         merged_themes = _dedupe_items(default_themes + override_themes)
         if merged_themes:
-            self._config["themes_dir"] = merged_themes
+            paths = dict(self._config.get("paths") or {})
+            paths["themes"] = merged_themes
+            self._config["paths"] = paths
 
     @staticmethod
     def _pyproject_has_usecli(path: Path) -> bool:
@@ -696,19 +767,15 @@ class ConfigManager:
             data = _get_tomllib().load(f)
 
         tool_section = data.get("tool", {})
-        if isinstance(tool_section, dict) and "usecli" in tool_section:
+        usecli_section = None
+        if isinstance(tool_section, dict):
             usecli_section = tool_section.get("usecli")
-            if isinstance(usecli_section, dict):
-                _toml_cache[cache_key] = usecli_section
-                return usecli_section
+        if not isinstance(usecli_section, dict):
+            usecli_section = data.get("usecli")
 
-        usecli_section = data.get("usecli", {})
-        if isinstance(usecli_section, dict):
-            _toml_cache[cache_key] = usecli_section
-            return usecli_section
-
-        _toml_cache[cache_key] = {}
-        return {}
+        normalized = normalize_config(usecli_section)
+        _toml_cache[cache_key] = normalized
+        return normalized
 
     @staticmethod
     def _get_command_name() -> str | None:
@@ -858,7 +925,7 @@ class ConfigManager:
         return None
 
     def get_project_commands_dir(self) -> Path:
-        commands_dir = self.get("commands_dir", "cli/commands")
+        commands_dir = self.get("paths.commands", "cli/commands")
         commands_path = _get_path()(commands_dir)
         if commands_path.is_absolute():
             return commands_path
@@ -869,76 +936,49 @@ class ConfigManager:
         return (config_dir / commands_path).resolve()
 
     def get_project_templates_dir(self) -> Path:
-        templates_dir = self.get("templates_dir", "cli/templates")
+        templates_dir = self.get("paths.templates", "cli/templates")
         templates_path = _get_path()(templates_dir)
         if templates_path.is_absolute():
             return templates_path
         config_dir = self.usecli_config_path.parent
         return (config_dir / templates_path).resolve()
 
+    def _resolve_path_setting(self, entry: str) -> Path:
+        path = _get_path()(entry)
+        if not path.is_absolute():
+            path = self.usecli_config_path.parent / path
+        return path.resolve()
+
     def get_project_themes_dirs(self) -> list[Path]:
-        themes_dir = self.get("themes_dir", [])
-        themes_entries = _normalize_themes_dir(themes_dir)
-        result: list[Path] = []
-        config_dir = self.usecli_config_path.parent
-        for entry in themes_entries:
-            theme_path = _get_path()(entry)
-            if not theme_path.is_absolute():
-                theme_path = config_dir / theme_path
-            result.append(theme_path.resolve())
-        return result
+        themes_entries = _normalize_str_list(self.get("paths.themes", []))
+        return [self._resolve_path_setting(entry) for entry in themes_entries]
+
+    def get_project_theme_dir(self) -> Path:
+        """The theme directory new themes are written to.
+
+        This is the first directory the project configured, not the implicit
+        ``cli/themes`` default that theme lookup also searches.
+        """
+        paths = self._overrides.get("paths")
+        configured = _normalize_str_list(
+            paths.get("themes") if isinstance(paths, dict) else None
+        )
+        if configured:
+            return self._resolve_path_setting(configured[0])
+        themes_dirs = self.get_project_themes_dirs()
+        return (
+            themes_dirs[0]
+            if themes_dirs
+            else self.get_project_root() / "cli" / "themes"
+        )
 
     def get_project_paths(self) -> dict[str, Path]:
-        project_config = self._find_project_config()
-        if project_config is None:
-            themes_dirs = self.get_project_themes_dirs()
-            return {
-                "commands_dir": self.get_project_commands_dir(),
-                "templates_dir": self.get_project_templates_dir(),
-                "themes_dir": themes_dirs[0]
-                if themes_dirs
-                else self.get_project_root() / "cli" / "themes",
-            }
-        config_dir = project_config.parent
-        config_data = self._load_usecli_toml(project_config)
-        commands_dir = config_data.get("commands_dir", "cli/commands")
-        templates_dir = config_data.get("templates_dir", "cli/templates")
-        commands_path = _get_path()(commands_dir)
-        templates_path = _get_path()(templates_dir)
-        if not commands_path.is_absolute():
-            commands_path = config_dir / commands_path
-        if not templates_path.is_absolute():
-            templates_path = config_dir / templates_path
-
-        themes_entries = _normalize_themes_dir(config_data.get("themes_dir", []))
-        if not themes_entries:
-            themes_entries = _normalize_themes_dir(
-                self.DEFAULT_CONFIG.get("themes_dir", [])
-            )
-        themes_path = (
-            _get_path()(themes_entries[0])
-            if themes_entries
-            else _get_path()("cli/themes")
-        )
-        if not themes_path.is_absolute():
-            themes_path = config_dir / themes_path
-
+        """Resolve the project's command, template, and theme output directories."""
         return {
-            "commands_dir": commands_path.resolve(),
-            "templates_dir": templates_path.resolve(),
-            "themes_dir": themes_path.resolve(),
+            "commands_dir": self.get_project_commands_dir(),
+            "templates_dir": self.get_project_templates_dir(),
+            "themes_dir": self.get_project_theme_dir(),
         }
-
-    def _find_project_config(self) -> Path | None:
-        start_dir = self.start_dir
-        project_root = find_project_root(start_dir)
-        if project_root is None:
-            return None
-        candidates = _rglob_limited(project_root, USECLI_CONFIG_TOML)
-        if not candidates:
-            return None
-        candidates.sort(key=lambda p: (len(p.parts), str(p)))
-        return candidates[0]
 
     def is_dev(self) -> bool:
         """Check if running in development environment."""
