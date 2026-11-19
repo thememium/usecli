@@ -918,8 +918,14 @@ class TestRunInteractiveRequiredArgs:
             stack.enter_context(_patch_get_command({}))
             if input_side_effect is not None:
                 stack.enter_context(
-                    patch("builtins.input", side_effect=input_side_effect)
+                    patch(f"{_FZF}.console.input", side_effect=input_side_effect)
                 )
+            stack.enter_context(
+                patch(
+                    "builtins.input",
+                    side_effect=AssertionError("builtin input used"),
+                )
+            )
             run_interactive(app, cmd_parts=["test"])
 
     def test_string_argument(self):
@@ -941,7 +947,11 @@ class TestRunInteractiveRequiredArgs:
             with (
                 patch(f"{_FZF}.subprocess.run", _mock_run()),
                 patch(f"{_FZF}.console"),
-                patch("builtins.input", side_effect=KeyboardInterrupt),
+                patch(f"{_FZF}.console.input", side_effect=KeyboardInterrupt),
+                patch(
+                    "builtins.input",
+                    side_effect=AssertionError("builtin input used"),
+                ),
                 _patch_get_command({}),
                 pytest.raises(typer.Exit),
             ):
@@ -976,8 +986,14 @@ class TestRunInteractiveOptionalFlags:
             stack.enter_context(_patch_get_command({}))
             if input_side_effect is not None:
                 stack.enter_context(
-                    patch("builtins.input", side_effect=input_side_effect)
+                    patch(f"{_FZF}.console.input", side_effect=input_side_effect)
                 )
+            stack.enter_context(
+                patch(
+                    "builtins.input",
+                    side_effect=AssertionError("builtin input used"),
+                )
+            )
             run_interactive(app, cmd_parts=["test"])
 
     def test_no_options_selected(self):
@@ -1032,7 +1048,11 @@ class TestRunInteractiveOptionalFlags:
                 patch(f"{_FZF}.terminal_menu", return_value=["--name"]),
                 patch(f"{_FZF}.subprocess.run", _mock_run()),
                 patch(f"{_FZF}.console"),
-                patch("builtins.input", side_effect=KeyboardInterrupt),
+                patch(f"{_FZF}.console.input", side_effect=KeyboardInterrupt),
+                patch(
+                    "builtins.input",
+                    side_effect=AssertionError("builtin input used"),
+                ),
                 _patch_get_command({}),
                 pytest.raises(typer.Exit),
             ):
@@ -1054,7 +1074,11 @@ class TestRunInteractiveOptionalFlags:
             patch(f"{_FZF}.subprocess.run", _mock_run()),
             patch(f"{_FZF}.console"),
             patch(f"{_FZF}.Confirm.ask", return_value=True),
-            patch("builtins.input", return_value="myvalue"),
+            patch(f"{_FZF}.console.input", return_value="myvalue"),
+            patch(
+                "builtins.input",
+                side_effect=AssertionError("builtin input used"),
+            ),
             _patch_get_command({}),
         ):
             run_interactive(app, cmd_parts=["test"], extra_args=["--base"])
