@@ -49,7 +49,9 @@ class UsecliValidationError(UsecliError):
         style = self.SEVERITY_STYLES.get(severity, self.SEVERITY_STYLES["error"])
         self.icon = style["icon"]
         self.color = style["color"]
-        self.exit_code = 1 if severity in ("error", "critical") else 0
+        # click types exit_code as a ClassVar but reads it from the instance;
+        # warnings are not failures, so the code differs per severity.
+        self.exit_code = 1 if severity in ("error", "critical") else 0  # type: ignore[ty:invalid-attribute-access]
 
     def show(self, file: IO[str] | None = None) -> None:
         """Display validation error with severity styling.

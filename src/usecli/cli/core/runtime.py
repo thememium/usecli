@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from collections.abc import Iterator, Mapping
+from collections.abc import Generator, Mapping
 from contextlib import contextmanager
 from contextvars import ContextVar
 
@@ -44,7 +44,7 @@ def execution_context(
     *,
     json_mode: bool | None = None,
     quiet: bool | None = None,
-) -> Iterator[None]:
+) -> Generator[None, None, None]:
     """Temporarily set invocation flags and restore their previous values."""
     json_token = _JSON_MODE.set(json_mode) if json_mode is not None else None
     quiet_token = _QUIET.set(quiet) if quiet is not None else None
