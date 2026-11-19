@@ -1,6 +1,33 @@
 # Changelog
 
 
+## v0.2.2
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.2.1...v0.2.2)
+
+### 🚀 Enhancements
+
+- Add framework description fallback to about command ([cef4187](https://github.com/thememium/usecli/commit/cef4187))
+- **cli:** Add framework banner description and command name handling ([7cc1f86](https://github.com/thememium/usecli/commit/7cc1f86))
+
+### 🩹 Fixes
+
+- **ui/title.py:** Guard against missing distribution metadata ([176ace6](https://github.com/thememium/usecli/commit/176ace6))
+
+### 💅 Refactors
+
+- **usecli:** Replace get_config with get_project_name for app title ([779efa3](https://github.com/thememium/usecli/commit/779efa3))
+
+### ✅ Tests
+
+- Add framework description precedence tests ([5f35900](https://github.com/thememium/usecli/commit/5f35900))
+- **test_init.py:** Patch get_project_name and verify console output ([1bd5e1b](https://github.com/thememium/usecli/commit/1bd5e1b))
+- **core/ui:** Handle distributions without metadata in _running_framework_distribution ([37fecbe](https://github.com/thememium/usecli/commit/37fecbe))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.2.1
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.2.0...v0.2.1)
