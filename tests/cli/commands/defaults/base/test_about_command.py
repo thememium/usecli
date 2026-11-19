@@ -157,6 +157,21 @@ class TestGetPackageDependenciesFromDistribution:
         result = _get_package_dependencies_from_distribution(dist)
         assert result == []
 
+    def test_skips_uninstalled_extra_requires(self):
+        dist = MagicMock()
+        dist.requires = [
+            "definitely-missing-pkg>=1.0 ; extra == 'figlet'",
+            "requests>=2.0",
+        ]
+        result = _get_package_dependencies_from_distribution(dist)
+        assert result == [("requests", ">=2.0")]
+
+    def test_keeps_installed_extra_requires(self):
+        dist = MagicMock()
+        dist.requires = ["click>=8.5.1 ; extra == 'cli'"]
+        result = _get_package_dependencies_from_distribution(dist)
+        assert result == [("click", ">=8.5.1")]
+
 
 # ---------------------------------------------------------------------------
 # _get_application_version
