@@ -801,6 +801,16 @@ class TestRunningFrameworkDistribution:
         mock_find.return_value = _fake_dist(None)
         assert _running_framework_distribution() is None
 
+    @patch("usecli.shared.config.manager._find_distribution_for_console_script")
+    @patch("usecli.cli.core.ui.title._invoked_script_name", return_value="usecli")
+    def test_distribution_without_metadata_returns_none(self, mock_name, mock_find):
+        class _NoMetadata:
+            version = "1.0.0"
+
+        mock_find.return_value = _NoMetadata()
+
+        assert _running_framework_distribution() is None
+
 
 class TestGetFrameworkDescription:
     @patch(
