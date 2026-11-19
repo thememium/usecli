@@ -70,6 +70,10 @@ class CommandService:
             project_commands_dir.relative_to(package_commands_dir)
             return
         except ValueError:
+            if command_name == "usecli":
+                # The framework binary exposes the framework's commands only;
+                # project commands belong to the project's own CLI.
+                return
             self._load_from_dir(project_commands_dir)
 
     def _load_version(self) -> None:
