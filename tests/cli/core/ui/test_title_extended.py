@@ -13,6 +13,7 @@ from usecli.cli.core.ui.title import (
     get_project_version,
     get_script_command_name,
     print_title,
+    render_figlet_title,
     render_plain_title,
 )
 
@@ -192,6 +193,21 @@ class TestGetProjectName:
         mock_pyproject.return_value = None
         result = get_project_name()
         assert result == "useCli"
+
+
+# ---------------------------------------------------------------------------
+# render_figlet_title
+# ---------------------------------------------------------------------------
+
+
+class TestRenderFigletTitle:
+    def test_strips_leading_blank_font_rows(self):
+        import pyfiglet
+
+        rendered = render_figlet_title(pyfiglet, "cogrep", "big")
+
+        assert rendered.split("\n")[0].strip()
+        assert "___" in rendered
 
 
 # ---------------------------------------------------------------------------
