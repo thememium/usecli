@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+import tomllib
 import types
 from importlib.metadata import PackageNotFoundError
 from pathlib import Path
@@ -579,13 +580,8 @@ def _clean_caches():
 
 
 class TestGetTomllib:
-    def test_imports_tomli_on_py_lt_311(self):
-        fake = types.ModuleType("tomli")
-        with (
-            patch("usecli.shared.config.manager.sys.version_info", (3, 10)),
-            patch.dict(sys.modules, {"tomli": fake}),
-        ):
-            assert _get_tomllib() is fake
+    def test_returns_stdlib_tomllib(self):
+        assert _get_tomllib() is tomllib
 
 
 # ---------------------------------------------------------------------------
@@ -838,6 +834,70 @@ class TestFindUsecliConfig:
         ):
             result = ConfigManager._find_usecli_config(tmp_path)
         assert result is None
+
+
+class TestFrameworkBinaryInDownstreamProject:
+    """Regression: the framework binary must scaffold into the enclosing project.
+
+    Running ``usecli`` inside a project that depends on usecli resolves the
+    project config even though its ``command_name`` names the project's CLI,
+    not ``usecli`` — and never the framework's own packaged config.
+    """
+
+    def test_project_config_beats_packaged_config(self, tmp_path, monkeypatch):
+        (tmp_path / "pyproject.toml").write_text(
+            '[project]\nname = "cogrep"\ndependencies = ["usecli"]\n'
+        )
+        config_dir = tmp_path / "src" / "cogrep" / "cli"
+        config_dir.mkdir(parents=True)
+        config = config_dir / "usecli.config.toml"
+        config.write_text(
+            '[usecli]\ncommand_name = "cogrep"\n\n'
+            '[usecli.paths]\ncommands = "commands"\ntemplates = "templates"\n'
+        )
+
+        packaged = tmp_path / "site-packages" / "usecli" / "usecli.config.toml"
+        packaged.parent.mkdir(parents=True)
+        packaged.write_text(
+            '[usecli]\ncommand_name = "usecli"\n\n'
+            '[usecli.paths]\ncommands = "cli/commands/custom"\n'
+        )
+
+        monkeypatch.setattr(
+            sys, "argv", [str(tmp_path / ".venv" / "bin" / "usecli"), "make:command"]
+        )
+        with patch(
+            "usecli.shared.config.manager.ConfigManager._find_usecli_config_for_console_script",
+            return_value=packaged,
+        ):
+            manager = ConfigManager(start_dir=tmp_path)
+
+        assert manager.usecli_config_path == config
+        assert (
+            manager.get_project_paths()["commands_dir"]
+            == (config_dir / "commands").resolve()
+        )
+
+    def test_project_without_config_does_not_fall_back_to_package(
+        self, tmp_path, monkeypatch
+    ):
+        (tmp_path / "pyproject.toml").write_text('[project]\nname = "cogrep"\n')
+        packaged = tmp_path / "site-packages" / "usecli" / "usecli.config.toml"
+        packaged.parent.mkdir(parents=True)
+        packaged.write_text('[usecli]\ncommand_name = "usecli"\n')
+
+        monkeypatch.setattr(sys, "argv", ["usecli", "make:command"])
+        with patch(
+            "usecli.shared.config.manager.ConfigManager._find_usecli_config_for_console_script",
+            return_value=packaged,
+        ):
+            manager = ConfigManager(start_dir=tmp_path)
+
+        assert not manager.usecli_config_path.exists()
+        assert (
+            manager.get_project_paths()["commands_dir"]
+            == (tmp_path / "cli" / "commands").resolve()
+        )
 
 
 # ---------------------------------------------------------------------------

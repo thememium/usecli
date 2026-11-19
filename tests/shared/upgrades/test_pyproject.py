@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sys
+import tomllib
 from typing import Any
 from unittest.mock import Mock, patch
 
@@ -436,17 +437,10 @@ class TestReinstalledCommit:
 
 
 class TestGetTomllib:
-    def test_falls_back_to_tomli_on_python_3_10(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        import types
-
+    def test_returns_stdlib_tomllib(self) -> None:
         from usecli.shared.upgrades import pyproject
 
-        fake_tomli = types.ModuleType("tomli")
-        monkeypatch.setitem(sys.modules, "tomli", fake_tomli)
-        monkeypatch.setattr(pyproject.sys, "version_info", (3, 10))
-        assert pyproject._get_tomllib() is fake_tomli
+        assert pyproject._get_tomllib() is tomllib
 
 
 class TestReadProjectNameEdgeCases:
