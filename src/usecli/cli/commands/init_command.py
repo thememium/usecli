@@ -741,7 +741,7 @@ include = ["{root_package}*"]
             Path(__file__).parent.parent / "templates" / "usecli.config.toml.j2"
         )
         template_content = template_path.read_text()
-        template = Template(template_content)
+        template = Template(template_content, trim_blocks=True, lstrip_blocks=True)
 
         if show_description is None:
             show_description = get_figlet() is None or not title_font
@@ -1189,7 +1189,7 @@ include = ["{root_package}*"]
             Path(__file__).parent.parent / "templates" / "usecli.config.toml.j2"
         )
         template_content = template_path.read_text()
-        template = Template(template_content)
+        template = Template(template_content, trim_blocks=True, lstrip_blocks=True)
 
         # Render the config
         config_content = template.render(
