@@ -44,18 +44,6 @@ def temp_project_dir(tmp_path, monkeypatch):
     return tmp_path
 
 
-@pytest.fixture
-def sample_config():
-    """Sample configuration content."""
-    return {
-        "title": "My CLI",
-        "description": "A test CLI",
-        "commands_dir": "my_commands",
-        "environment": "dev",
-        "command_name": "mycli",
-    }
-
-
 # =============================================================================
 # _deep_merge Tests
 # =============================================================================
@@ -88,11 +76,15 @@ class TestConfigManagerDefaults:
 
         assert manager.get("title") == "usecli"
         assert manager.get("description") == "A customizable CLI framework"
-        assert manager.get("commands_dir") == "cli/commands"
-        assert manager.get("themes_dir") == ["cli/themes"]
+        assert manager.get("paths.commands") == "cli/commands"
+        assert manager.get("paths.templates") == "cli/templates"
+        assert manager.get("paths.themes") == ["cli/themes"]
+        assert manager.get("theme.name") == "default"
+        assert manager.get("banner.top_space") is True
+        assert manager.get("banner.bottom_space") is True
+        assert manager.get("commands.hidden") == []
         assert manager.get("environment") == "prod"
         assert manager.get("command_name") == "usecli"
-        assert manager.get("hide_inspire") is False
 
     def test_default_environment_methods(self, temp_project_dir):
         manager = ConfigManager(
@@ -111,7 +103,9 @@ class TestConfigManagerPyproject:
 [usecli]
 title = "My Project CLI"
 description = "Custom CLI"
-commands_dir = "custom_cmds"
+
+[usecli.paths]
+commands = "custom_cmds"
 """
         )
 
@@ -119,7 +113,7 @@ commands_dir = "custom_cmds"
 
         assert manager.get("title") == "My Project CLI"
         assert manager.get("description") == "Custom CLI"
-        assert manager.get("commands_dir") == "custom_cmds"
+        assert manager.get("paths.commands") == "custom_cmds"
 
     def test_loads_from_nested_usecli_config(self, temp_project_dir):
         nested_dir = temp_project_dir / "package" / "config"
@@ -130,7 +124,9 @@ commands_dir = "custom_cmds"
 [usecli]
 title = "Nested CLI"
 description = "Nested config"
-commands_dir = "nested/commands"
+
+[usecli.paths]
+commands = "nested/commands"
 """
         )
 
@@ -138,7 +134,7 @@ commands_dir = "nested/commands"
 
         assert manager.get("title") == "Nested CLI"
         assert manager.get("description") == "Nested config"
-        assert manager.get("commands_dir") == "nested/commands"
+        assert manager.get("paths.commands") == "nested/commands"
         assert manager.get_project_root() == nested_dir
 
     def test_prefers_project_config_over_package(self, temp_project_dir, monkeypatch):
@@ -179,7 +175,9 @@ description = "Package config"
 [usecli]
 title = "My CLI"
 description = "Config file"
-commands_dir = "pkg/commands"
+
+[usecli.paths]
+commands = "pkg/commands"
 """
         )
 
@@ -187,7 +185,7 @@ commands_dir = "pkg/commands"
 
         assert manager.get("title") == "My CLI"
         assert manager.get("description") == "Config file"
-        assert manager.get("commands_dir") == "pkg/commands"
+        assert manager.get("paths.commands") == "pkg/commands"
 
     def test_pyproject_takes_precedence_over_defaults(self, temp_project_dir):
         config_file = temp_project_dir / "usecli.config.toml"
@@ -202,14 +200,14 @@ commands_dir = "pkg/commands"
         config_file = temp_project_dir / "usecli.config.toml"
         config_file.write_text(
             """
-[usecli]
-themes_dir = ["custom/themes", "cli/themes", "custom/themes"]
+[usecli.paths]
+themes = ["custom/themes", "cli/themes", "custom/themes"]
 """
         )
 
         manager = ConfigManager()
 
-        assert manager.get("themes_dir") == ["cli/themes", "custom/themes"]
+        assert manager.get("paths.themes") == ["cli/themes", "custom/themes"]
 
     def test_pyproject_exists_property(self, temp_project_dir):
         config_file = temp_project_dir / "usecli.config.toml"
@@ -1235,68 +1233,40 @@ class TestResolveEditableSourceRoot:
 class TestProjectDirsAbsolute:
     def test_commands_dir_absolute(self, tmp_path):
         config = tmp_path / "usecli.config.toml"
-        config.write_text('[usecli]\ncommands_dir = "/abs/cmds"')
+        config.write_text('[usecli.paths]\ncommands = "/abs/cmds"')
         manager = ConfigManager(usecli_config_path=config, start_dir=tmp_path)
         assert manager.get_project_commands_dir() == Path("/abs/cmds")
 
     def test_templates_dir_absolute(self, tmp_path):
         config = tmp_path / "usecli.config.toml"
-        config.write_text('[usecli]\ntemplates_dir = "/abs/tmpl"')
+        config.write_text('[usecli.paths]\ntemplates = "/abs/tmpl"')
         manager = ConfigManager(usecli_config_path=config, start_dir=tmp_path)
         assert manager.get_project_templates_dir() == Path("/abs/tmpl")
 
 
 # ---------------------------------------------------------------------------
-# get_project_paths with a discovered project config
+# get_project_paths
 # ---------------------------------------------------------------------------
 
 
-class TestGetProjectPathsWithConfig:
+class TestGetProjectPaths:
     def test_with_themes(self, tmp_path):
         config = tmp_path / "usecli.config.toml"
         config.write_text(
-            '[usecli]\ncommands_dir = "cmds"\ntemplates_dir = "tmpl"\nthemes_dir = ["th"]'
+            '[usecli.paths]\ncommands = "cmds"\ntemplates = "tmpl"\nthemes = ["th"]'
         )
         manager = ConfigManager(usecli_config_path=config, start_dir=tmp_path)
-        with patch.object(manager, "_find_project_config", return_value=config):
-            paths = manager.get_project_paths()
+        paths = manager.get_project_paths()
         assert paths["commands_dir"] == (tmp_path / "cmds").resolve()
         assert paths["templates_dir"] == (tmp_path / "tmpl").resolve()
         assert paths["themes_dir"] == (tmp_path / "th").resolve()
 
     def test_default_themes_when_missing(self, tmp_path):
         config = tmp_path / "usecli.config.toml"
-        config.write_text('[usecli]\ncommands_dir = "cmds"\ntemplates_dir = "tmpl"')
+        config.write_text('[usecli.paths]\ncommands = "cmds"\ntemplates = "tmpl"')
         manager = ConfigManager(usecli_config_path=config, start_dir=tmp_path)
-        with patch.object(manager, "_find_project_config", return_value=config):
-            paths = manager.get_project_paths()
+        paths = manager.get_project_paths()
         assert paths["themes_dir"] == (tmp_path / "cli" / "themes").resolve()
-
-
-# ---------------------------------------------------------------------------
-# _find_project_config
-# ---------------------------------------------------------------------------
-
-
-class TestFindProjectConfig:
-    def test_no_candidates_returns_none(self, tmp_path):
-        manager = ConfigManager(start_dir=tmp_path)
-        with (
-            patch(
-                "usecli.shared.config.manager.find_project_root", return_value=tmp_path
-            ),
-            patch("usecli.shared.config.manager._rglob_limited", return_value=[]),
-        ):
-            assert manager._find_project_config() is None
-
-    def test_finds_config(self, tmp_path):
-        config = tmp_path / "usecli.config.toml"
-        config.write_text('[usecli]\ntitle = "x"')
-        manager = ConfigManager(start_dir=tmp_path)
-        with patch(
-            "usecli.shared.config.manager.find_project_root", return_value=tmp_path
-        ):
-            assert manager._find_project_config() == config
 
 
 # ---------------------------------------------------------------------------
