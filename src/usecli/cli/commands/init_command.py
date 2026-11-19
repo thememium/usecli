@@ -615,6 +615,8 @@ include = ["{root_package}*"]
         force: bool,
         theme: str | None,
         title_font: str | None,
+        title_extra_top_space: bool = False,
+        title_extra_bottom_space: bool = True,
     ) -> dict[str, object]:
         from usecli.cli.core.runtime import NonInteractiveError
 
@@ -748,6 +750,8 @@ include = ["{root_package}*"]
             title_font=title_font,
             theme=theme,
             command_name=command_name,
+            title_extra_top_space=title_extra_top_space,
+            title_extra_bottom_space=title_extra_bottom_space,
         )
 
         usecli_config_status = self._write_usecli_config(
@@ -763,6 +767,8 @@ include = ["{root_package}*"]
             "themes_dir": themes_dir,
             "theme": theme,
             "title_font": title_font,
+            "title_extra_top_space": title_extra_top_space,
+            "title_extra_bottom_space": title_extra_bottom_space,
             "config_path": str(resolved_config_path),
             "scripts_status": scripts_status,
             "config_status": usecli_config_status,
@@ -804,6 +810,20 @@ include = ["{root_package}*"]
             "--title-font",
             help="Figlet font for title (requires usecli[figlet]; JSON mode only, default: 'big')",
         ),
+        title_extra_top_space: Annotated[
+            bool,
+            typer.Option(
+                "--title-extra-top-space",
+                help="Add a blank line above the title banner",
+            ),
+        ] = False,
+        title_extra_bottom_space: Annotated[
+            bool,
+            typer.Option(
+                "--title-extra-bottom-space/--no-title-extra-bottom-space",
+                help="Add a blank line below the title banner (default: enabled)",
+            ),
+        ] = True,
     ) -> dict[str, object] | None:
         from usecli.cli.core.runtime import is_json_mode
 
@@ -819,6 +839,8 @@ include = ["{root_package}*"]
                 force=force,
                 theme=theme,
                 title_font=title_font,
+                title_extra_top_space=title_extra_top_space,
+                title_extra_bottom_space=title_extra_bottom_space,
             )
 
         cwd = Path.cwd()
@@ -917,8 +939,11 @@ include = ["{root_package}*"]
             title_font = self._prompt_title_font(title)
             raw_title = figlet.figlet_format(text=title, font=title_font)
             title_text = "\n".join(" " + line for line in raw_title.split("\n"))
-            console.print()
+            if title_extra_top_space:
+                console.print()
             console.print(f"[{COLOR.PRIMARY}]{title_text}")
+            if title_extra_bottom_space:
+                console.print()
         else:
             version = (
                 self._get_project_version_from_pyproject(pyproject_path)
@@ -929,9 +954,11 @@ include = ["{root_package}*"]
                 "the title is rendered as text. Install "
                 "usecli\\[figlet] for ASCII art fonts.[/]"
             )
-            console.print()
+            if title_extra_top_space:
+                console.print()
             console.print(render_plain_title(title, description, version))
-            console.print()
+            if title_extra_bottom_space:
+                console.print()
 
         # Create the commands directory
         if not commands_path.exists():
@@ -1101,6 +1128,8 @@ include = ["{root_package}*"]
             title_font=title_font,
             theme=theme,
             command_name=command_name,
+            title_extra_top_space=title_extra_top_space,
+            title_extra_bottom_space=title_extra_bottom_space,
         )
 
         usecli_config_status = self._write_usecli_config(
