@@ -202,6 +202,20 @@ class TestGetApplicationVersion:
 
 
 class TestGetApplicationDescription:
+    @patch(
+        "usecli.cli.core.ui.title.get_framework_description",
+        return_value="Framework summary",
+    )
+    def test_framework_description_wins(self, mock_framework):
+        config = MagicMock()
+        config.get.return_value = "My app description"
+        config.has_key.return_value = True
+
+        result = _get_application_description(config)
+
+        assert result == "Framework summary"
+        config.get.assert_not_called()
+
     def test_returns_config_description(self):
         config = MagicMock()
         config.get.return_value = "My app description"
