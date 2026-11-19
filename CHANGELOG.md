@@ -1,6 +1,27 @@
 # Changelog
 
 
+## v0.2.3
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.2.2...v0.2.3)
+
+### 🩹 Fixes
+
+- **command_service:** Prevent loading project commands for usecli ([6da3683](https://github.com/thememium/usecli/commit/6da3683))
+
+### 💅 Refactors
+
+- **ui:** Trim banner blank edges and use framework config ([b8c2010](https://github.com/thememium/usecli/commit/b8c2010))
+
+### ✅ Tests
+
+- **title:** Add banner spacing and configuration tests ([96adc2d](https://github.com/thememium/usecli/commit/96adc2d))
+- **cli/services:** Skip project commands when running usecli binary ([eeaadf3](https://github.com/thememium/usecli/commit/eeaadf3))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.2.2
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.2.1...v0.2.2)
