@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import sys
+import tomllib
 from importlib.metadata import PackageNotFoundError
 from pathlib import Path
 
@@ -25,24 +26,6 @@ class _LazyConsole:
 
 
 console = _LazyConsole()
-
-
-def _load_toml(text: str):
-    if sys.version_info >= (3, 11):
-        import tomllib
-    else:
-        import tomli as tomllib
-
-    return tomllib.loads(text)
-
-
-def _toml_decode_error():
-    if sys.version_info >= (3, 11):
-        pass
-    else:
-        pass
-
-    return _toml_decode_error()
 
 
 def _get_version() -> str:
@@ -119,8 +102,8 @@ def _get_dependencies(config) -> list[tuple[str, str | None]]:
         return []
 
     try:
-        data = _load_toml(pyproject_path.read_text())
-    except (_toml_decode_error(), OSError):
+        data = tomllib.loads(pyproject_path.read_text())
+    except (tomllib.TOMLDecodeError, OSError):
         return []
 
     deps = data.get("project", {}).get("dependencies", [])
@@ -185,8 +168,8 @@ def _get_project_description(config) -> str | None:
         return None
 
     try:
-        data = _load_toml(pyproject_path.read_text())
-    except (_toml_decode_error(), OSError):
+        data = tomllib.loads(pyproject_path.read_text())
+    except (tomllib.TOMLDecodeError, OSError):
         return None
 
     description = data.get("project", {}).get("description")
@@ -233,8 +216,8 @@ def _get_script_commands() -> list[str]:
         return []
 
     try:
-        data = _load_toml(pyproject_path.read_text())
-    except (_toml_decode_error(), OSError):
+        data = tomllib.loads(pyproject_path.read_text())
+    except (tomllib.TOMLDecodeError, OSError):
         return []
 
     scripts = data.get("project", {}).get("scripts", {})

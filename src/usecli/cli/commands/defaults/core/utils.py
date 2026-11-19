@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 
@@ -118,7 +118,7 @@ def format_relative_time(timestamp: datetime) -> str:
     Returns:
         Relative time string (e.g., "2 hours ago", "3 days ago").
     """
-    now = datetime.now(tz=timezone.utc)
+    now = datetime.now(tz=UTC)
     diff = now - timestamp
 
     if diff < timedelta(minutes=1):

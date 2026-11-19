@@ -7,6 +7,7 @@ import re
 import shutil
 import subprocess
 import sys
+import tomllib
 from pathlib import Path
 from typing import Annotated
 
@@ -15,11 +16,6 @@ from jinja2 import Template
 from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Confirm, Prompt
-
-if sys.version_info >= (3, 11):
-    import tomllib
-else:
-    import tomli as tomllib  # pragma: no cover - only on Python < 3.11
 
 from usecli.cli.config.colors import COLOR
 from usecli.cli.core.base_command import BaseCommand
