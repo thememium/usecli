@@ -1,6 +1,23 @@
 # Changelog
 
 
+## v0.2.0
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.1.82...v0.2.0)
+
+### 🚀 Enhancements
+
+- Remove fzf bin and make interactive using menu ([#15](https://github.com/thememium/usecli/pull/15))
+- ⚠️  Make figlet optional ([#16](https://github.com/thememium/usecli/pull/16))
+
+#### ⚠️ Breaking Changes
+
+- ⚠️  Make figlet optional ([#16](https://github.com/thememium/usecli/pull/16))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.1.82
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.81...v0.1.82)
