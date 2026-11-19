@@ -615,7 +615,7 @@ include = ["{root_package}*"]
         force: bool,
         theme: str | None,
         title_font: str | None,
-        title_extra_top_space: bool = False,
+        title_extra_top_space: bool = True,
         title_extra_bottom_space: bool = True,
     ) -> dict[str, object]:
         from usecli.cli.core.runtime import NonInteractiveError
@@ -813,10 +813,10 @@ include = ["{root_package}*"]
         title_extra_top_space: Annotated[
             bool,
             typer.Option(
-                "--title-extra-top-space",
-                help="Add a blank line above the title banner",
+                "--title-extra-top-space/--no-title-extra-top-space",
+                help="Add a blank line above the title banner (default: enabled)",
             ),
-        ] = False,
+        ] = True,
         title_extra_bottom_space: Annotated[
             bool,
             typer.Option(

@@ -279,7 +279,7 @@ class ConfigManager:
         "commands_dir": "cli/commands",
         "templates_dir": "cli/templates",
         "themes_dir": ["cli/themes"],
-        "title_extra_top_space": False,
+        "title_extra_top_space": True,
         "title_extra_bottom_space": True,
         "theme": "default",
         "environment": "prod",
