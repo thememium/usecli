@@ -24,7 +24,7 @@ else:
 from usecli.cli.config.colors import COLOR
 from usecli.cli.core.base_command import BaseCommand
 from usecli.cli.core.exceptions import UsecliBadParameter
-from usecli.cli.core.ui.title import get_figlet, render_plain_title
+from usecli.cli.core.ui.title import get_figlet, render_figlet_title, render_plain_title
 from usecli.cli.core.validators import validate_command_name
 from usecli.cli.utils.interactive.terminal_menu import terminal_menu
 from usecli.shared.config.globals import TEMPLATES_DIR, THEMES_DIR, USECLI_CONFIG_TOML
@@ -550,7 +550,7 @@ class InitCommand(BaseCommand):
             search_key="/",
             show_search_hint=False,
             status_bar="Enter = select | / = search | J/K = move | D/U = page | Esc = quit",
-            preview_command=lambda value: f"{figlet.figlet_format(title, font=value)}",
+            preview_command=lambda value: render_figlet_title(figlet, title, value),
             preview_size=0.70,
         )
         selected_font = selection[0] if selection else default_font
@@ -937,8 +937,7 @@ include = ["{root_package}*"]
         title_font: str | None = None
         if figlet is not None:
             title_font = self._prompt_title_font(title)
-            raw_title = figlet.figlet_format(text=title, font=title_font)
-            title_text = "\n".join(" " + line for line in raw_title.split("\n"))
+            title_text = render_figlet_title(figlet, title, title_font)
             if title_extra_top_space:
                 console.print()
             console.print(f"[{COLOR.PRIMARY}]{title_text}")
