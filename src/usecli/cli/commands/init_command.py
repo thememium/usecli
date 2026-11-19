@@ -981,9 +981,17 @@ include = ["{root_package}*"]
             if use_ascii_art:
                 title_font = self._prompt_title_font(title)
         if show_description is None:
-            show_description = not bool(title_font)
+            show_description = Confirm.ask(
+                f"[bold {COLOR.SECONDARY}]Show the description below the title?[/bold {COLOR.SECONDARY}]",
+                default=not bool(title_font),
+            )
+            console.print()
         if show_version is None:
-            show_version = not (figlet is not None and bool(title_font))
+            show_version = Confirm.ask(
+                f"[bold {COLOR.SECONDARY}]Show the version in the title banner?[/bold {COLOR.SECONDARY}]",
+                default=not bool(title_font),
+            )
+            console.print()
         version = (
             self._get_project_version_from_pyproject(pyproject_path)
             or DEFAULT_PROJECT_VERSION

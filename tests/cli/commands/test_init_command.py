@@ -1720,12 +1720,46 @@ class TestOptionalFiglet:
 
         with (
             patch("usecli.cli.commands.init_command.get_figlet", return_value=None),
-            patch("usecli.cli.commands.init_command.Confirm.ask") as mock_confirm,
+            patch(
+                "usecli.cli.commands.init_command.Confirm.ask", return_value=True
+            ) as mock_confirm,
             patch("usecli.cli.commands.init_command.console"),
         ):
             init_command.handle("Demo", "A demo CLI", DEFAULT_COMMANDS_DIR, force=True)
 
-        mock_confirm.assert_not_called()
+        assert not any(
+            "ASCII art" in str(call.args[0]) for call in mock_confirm.call_args_list
+        )
+
+    def test_explicit_visibility_flags_skip_prompts(
+        self, temp_project_dir, init_command
+    ):
+        pyproject = temp_project_dir / "pyproject.toml"
+        pyproject.write_text('[project]\nname = "demo"\nversion = "1.2.3"\n')
+
+        with (
+            patch(
+                "usecli.cli.commands.init_command.Confirm.ask", return_value=True
+            ) as mock_confirm,
+            patch("usecli.cli.commands.init_command.console"),
+        ):
+            init_command.handle(
+                "Demo",
+                "A demo CLI",
+                DEFAULT_COMMANDS_DIR,
+                force=True,
+                show_description=False,
+                show_version=False,
+            )
+
+        prompts = [str(call.args[0]) for call in mock_confirm.call_args_list]
+        assert not any("Show the description" in prompt for prompt in prompts)
+        assert not any("Show the version" in prompt for prompt in prompts)
+        config_content = _config_path(
+            temp_project_dir, DEFAULT_COMMANDS_DIR
+        ).read_text()
+        assert "show_description = false" in config_content
+        assert "show_version = false" in config_content
 
     def test_new_project_without_figlet_uses_plain_usecli_dependency(
         self, temp_project_dir, init_command
