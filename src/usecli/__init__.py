@@ -7,6 +7,17 @@ from importlib import import_module
 
 from click import Command as _ClickCommand
 
+# Builtin input() only provides cursor movement, history, and line editing when
+# the readline module is loaded. rich.prompt -- used by Prompt, Confirm, the
+# init command, and the interactive runner -- delegates to input(), so import
+# readline here: any code that imports usecli (including generated CLIs) then
+# gets interactive arrow keys without importing readline itself. Windows ships
+# no readline; prompts still work there with plain input().
+try:
+    import readline  # noqa: F401
+except ImportError:  # pragma: no cover - platform without readline
+    pass
+
 # Avoid importing typing at module level (costs ~6ms)
 # TYPE_CHECKING is False at runtime, so the if-block never executes
 TYPE_CHECKING = False
