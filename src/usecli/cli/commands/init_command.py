@@ -617,6 +617,7 @@ include = ["{root_package}*"]
         title_font: str | None,
         title_extra_top_space: bool = True,
         title_extra_bottom_space: bool = True,
+        show_description: bool | None = None,
     ) -> dict[str, object]:
         from usecli.cli.core.runtime import NonInteractiveError
 
@@ -741,6 +742,9 @@ include = ["{root_package}*"]
         template_content = template_path.read_text()
         template = Template(template_content)
 
+        if show_description is None:
+            show_description = get_figlet() is None or not title_font
+
         config_content = template.render(
             title=title,
             description=description,
@@ -752,6 +756,7 @@ include = ["{root_package}*"]
             command_name=command_name,
             title_extra_top_space=title_extra_top_space,
             title_extra_bottom_space=title_extra_bottom_space,
+            show_description=show_description,
         )
 
         usecli_config_status = self._write_usecli_config(
@@ -769,6 +774,7 @@ include = ["{root_package}*"]
             "title_font": title_font,
             "title_extra_top_space": title_extra_top_space,
             "title_extra_bottom_space": title_extra_bottom_space,
+            "show_description": show_description,
             "config_path": str(resolved_config_path),
             "scripts_status": scripts_status,
             "config_status": usecli_config_status,
@@ -824,6 +830,16 @@ include = ["{root_package}*"]
                 help="Add a blank line below the title banner (default: enabled)",
             ),
         ] = True,
+        show_description: Annotated[
+            bool | None,
+            typer.Option(
+                "--show-description/--no-show-description",
+                help=(
+                    "Show the description below the title banner "
+                    "(default: hidden with figlet, shown without)"
+                ),
+            ),
+        ] = None,
     ) -> dict[str, object] | None:
         from usecli.cli.core.runtime import is_json_mode
 
@@ -841,6 +857,7 @@ include = ["{root_package}*"]
                 title_font=title_font,
                 title_extra_top_space=title_extra_top_space,
                 title_extra_bottom_space=title_extra_bottom_space,
+                show_description=show_description,
             )
 
         cwd = Path.cwd()
@@ -937,10 +954,19 @@ include = ["{root_package}*"]
         title_font: str | None = None
         if figlet is not None:
             title_font = self._prompt_title_font(title)
+        if show_description is None:
+            show_description = not bool(title_font)
+        if figlet is not None and title_font:
             title_text = render_figlet_title(figlet, title, title_font)
             if title_extra_top_space:
                 console.print()
             console.print(f"[{COLOR.PRIMARY}]{title_text}")
+            if show_description and description:
+                console.print()
+                console.print(
+                    f" [{COLOR.FOREGROUND_MUTED}]{description}"
+                    f"[/{COLOR.FOREGROUND_MUTED}]"
+                )
             if title_extra_bottom_space:
                 console.print()
         else:
@@ -955,7 +981,13 @@ include = ["{root_package}*"]
             )
             if title_extra_top_space:
                 console.print()
-            console.print(render_plain_title(title, description, version))
+            console.print(
+                render_plain_title(
+                    title,
+                    description if show_description else None,
+                    version,
+                )
+            )
             if title_extra_bottom_space:
                 console.print()
 
@@ -1129,6 +1161,7 @@ include = ["{root_package}*"]
             command_name=command_name,
             title_extra_top_space=title_extra_top_space,
             title_extra_bottom_space=title_extra_bottom_space,
+            show_description=show_description,
         )
 
         usecli_config_status = self._write_usecli_config(

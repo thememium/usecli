@@ -180,8 +180,20 @@ def print_title(title: str | None = None) -> None:
         """
     config = get_config()
 
-    title_extra_top_space = config.get("title_extra_top_space", False)
-    title_extra_bottom_space = config.get("title_extra_bottom_space", False)
+    title_extra_top_space = config.get("title_extra_top_space", True)
+    title_extra_bottom_space = config.get("title_extra_bottom_space", True)
+    figlet = get_figlet()
+    title_font = config.get("title_font")
+    show_description = (
+        bool(config.get("show_description"))
+        if config.has_key("show_description")
+        else not (figlet is not None and bool(title_font))
+    )
+    description = (
+        config.get("description")
+        if show_description and config.has_key("description")
+        else None
+    )
 
     if title_extra_top_space:
         console.print()
@@ -207,19 +219,21 @@ def print_title(title: str | None = None) -> None:
             console.print()
         return
 
-    figlet = get_figlet()
-    title_font = config.get("title_font")
     if figlet is not None and title_font:
         try:
             title_text = render_figlet_title(figlet, title, title_font)
         except figlet.FontNotFound:
             title_text = title
         console.print(f"[{COLOR.PRIMARY}]{title_text}")
+        if description:
+            console.print()
+            console.print(
+                f" [{COLOR.FOREGROUND_MUTED}]{description}[/{COLOR.FOREGROUND_MUTED}]"
+            )
         if title_extra_bottom_space:
             console.print()
         return
 
-    description = config.get("description") if config.has_key("description") else None
     console.print(render_plain_title(title, description, get_project_version()))
     if title_extra_bottom_space:
         console.print()
