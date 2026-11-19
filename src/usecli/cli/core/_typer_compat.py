@@ -3,10 +3,15 @@
 Typer >= 0.28 replaced ``TyperOption``'s ``type`` argument with a required
 ``type_descriptor``. usecli builds options directly to inject framework-wide
 flags, so it must support both layouts.
+
+Typer also vendors its own click, whose parameter classes predate click's
+``get_error_hint(ctx)`` signature. usecli formats typer parameters with
+click's exception classes, so the hint methods are adapted below.
 """
 
 from __future__ import annotations
 
+import functools
 import inspect
 from typing import Any
 
@@ -15,6 +20,22 @@ from typer.core import TyperArgument, TyperOption
 _HAS_TYPE_DESCRIPTOR = (
     "type_descriptor" in inspect.signature(TyperOption.__init__).parameters
 )
+
+
+def _accept_click_ctx(method: Any) -> Any:
+    """Let click pass its context to a typer parameter's error hint method."""
+    if "ctx" in inspect.signature(method).parameters:
+        return method
+
+    @functools.wraps(method)
+    def get_error_hint(self: Any, ctx: Any = None) -> str:
+        return method(self)
+
+    return get_error_hint
+
+
+TyperArgument.get_error_hint = _accept_click_ctx(TyperArgument.get_error_hint)
+TyperOption.get_error_hint = _accept_click_ctx(TyperOption.get_error_hint)
 
 
 def _type_descriptor(annotation: type, *, argument: bool = False) -> Any:
