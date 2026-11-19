@@ -727,14 +727,13 @@ class TestRunAppBranches:
     def test_version_branch(self):
         usecli._ensure_cli_initialized()
         ctx = MagicMock()
-        config = MagicMock()
-        config.get.return_value = "MyApp"
         service = MagicMock()
         service.version = "1.2.3"
+        console = MagicMock()
         with (
-            patch("usecli.shared.config.manager.get_config", return_value=config),
+            patch("usecli.cli.core.ui.title.get_project_name", return_value="MyApp"),
             patch.object(usecli, "_get_service", return_value=service),
-            patch.object(usecli, "_console", return_value=MagicMock()),
+            patch.object(usecli, "_console", return_value=console),
             patch("shutil.which", return_value="/usr/bin/mycli"),
             pytest.raises(usecli.typer.Exit),
         ):
@@ -745,6 +744,9 @@ class TestRunAppBranches:
                 interactive=False,
                 json_output=False,
             )
+
+        printed = console.print.call_args_list[0].args[0]
+        assert "MyApp 1.2.3" in printed
 
     def test_prefix_filter_from_ctx_obj(self):
         usecli._ensure_cli_initialized()
