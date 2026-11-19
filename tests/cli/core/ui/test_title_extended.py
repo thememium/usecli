@@ -448,6 +448,92 @@ class TestPrintTitle:
         print_title("My App")
         assert mock_console.print.call_args_list[-1].args != ()
 
+    @patch("usecli.cli.core.ui.title.console")
+    @patch("usecli.cli.core.ui.title.get_config")
+    def test_figlet_shows_description_when_enabled(self, mock_config, mock_console):
+        mock_config.return_value = MagicMock(
+            get=MagicMock(
+                side_effect=lambda k, d=None: {
+                    "title_font": "big",
+                    "show_description": True,
+                    "description": "A demo CLI",
+                }.get(k, d)
+            ),
+            has_key=MagicMock(
+                side_effect=lambda k: k in {"show_description", "description"}
+            ),
+        )
+        print_title("My App")
+        calls = mock_console.print.call_args_list
+        description_index = next(
+            index
+            for index, call in enumerate(calls)
+            if call.args and "A demo CLI" in call.args[0]
+        )
+        assert calls[description_index - 1].args == ()
+        assert calls[description_index].args[0].startswith(" ")
+
+    @patch("usecli.cli.core.ui.title.console")
+    @patch("usecli.cli.core.ui.title.get_config")
+    def test_figlet_hides_description_by_default(self, mock_config, mock_console):
+        mock_config.return_value = MagicMock(
+            get=MagicMock(
+                side_effect=lambda k, d=None: {
+                    "title_font": "big",
+                    "description": "A demo CLI",
+                }.get(k, d)
+            ),
+            has_key=MagicMock(side_effect=lambda k: k == "description"),
+        )
+        print_title("My App")
+        printed = [
+            call.args[0] for call in mock_console.print.call_args_list if call.args
+        ]
+        assert not any("A demo CLI" in value for value in printed)
+
+    @patch("usecli.cli.core.ui.title.get_figlet", return_value=None)
+    @patch("usecli.cli.core.ui.title.console")
+    @patch("usecli.cli.core.ui.title.get_config")
+    def test_plain_shows_description_by_default(
+        self, mock_config, mock_console, _mock_figlet
+    ):
+        mock_config.return_value = MagicMock(
+            get=MagicMock(
+                side_effect=lambda k, d=None: {
+                    "description": "A demo CLI",
+                }.get(k, d)
+            ),
+            has_key=MagicMock(side_effect=lambda k: k == "description"),
+        )
+        print_title("My App")
+        printed = [
+            call.args[0] for call in mock_console.print.call_args_list if call.args
+        ]
+        assert any("A demo CLI" in value for value in printed)
+
+    @patch("usecli.cli.core.ui.title.get_figlet", return_value=None)
+    @patch("usecli.cli.core.ui.title.console")
+    @patch("usecli.cli.core.ui.title.get_config")
+    def test_plain_hides_description_when_disabled(
+        self, mock_config, mock_console, _mock_figlet
+    ):
+        mock_config.return_value = MagicMock(
+            get=MagicMock(
+                side_effect=lambda k, d=None: {
+                    "show_description": False,
+                    "description": "A demo CLI",
+                }.get(k, d)
+            ),
+            has_key=MagicMock(
+                side_effect=lambda k: k in {"show_description", "description"}
+            ),
+        )
+        print_title("My App")
+        printed = [
+            call.args[0] for call in mock_console.print.call_args_list if call.args
+        ]
+        assert not any("A demo CLI" in value for value in printed)
+
 
 # ---------------------------------------------------------------------------
 # render_plain_title / get_project_version

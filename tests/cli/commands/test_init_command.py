@@ -703,6 +703,20 @@ class TestInitCommandOptions:
         config_path = _config_path(temp_project_dir, DEFAULT_COMMANDS_DIR)
         assert "title_extra_bottom_space = false" in config_path.read_text()
 
+    def test_show_description_can_be_enabled_with_figlet(
+        self, temp_project_dir, init_command
+    ):
+        init_command.handle(
+            DEFAULT_TITLE,
+            DEFAULT_DESCRIPTION,
+            DEFAULT_COMMANDS_DIR,
+            force=True,
+            show_description=True,
+        )
+
+        config_path = _config_path(temp_project_dir, DEFAULT_COMMANDS_DIR)
+        assert "show_description = true" in config_path.read_text()
+
 
 class TestInitCommandDefaults:
     def test_default_values(self, temp_project_dir, init_command):
@@ -727,6 +741,7 @@ class TestInitCommandDefaults:
         assert 'title_font = "big"' in config_content
         assert "title_extra_top_space = true" in config_content
         assert "title_extra_bottom_space = true" in config_content
+        assert "show_description = false" in config_content
         assert "hide_inspire = false" in config_content
 
 
@@ -1361,6 +1376,7 @@ class TestHandleJsonMode:
                 title_font="big",
             )
         assert result["command_name"] == "mycli"
+        assert result["show_description"] is False
         assert result["config_status"] == "created"
         assert (temp_project_dir / "cli" / "usecli.config.toml").exists()
 
@@ -1640,7 +1656,9 @@ class TestOptionalFiglet:
             )
 
         config_path = _config_path(temp_project_dir, DEFAULT_COMMANDS_DIR)
-        assert "title_font" not in config_path.read_text()
+        config_content = config_path.read_text()
+        assert "title_font" not in config_content
+        assert "show_description = true" in config_content
         printed = "\n".join(
             str(call.args[0]) for call in mock_console.print.call_args_list if call.args
         )
