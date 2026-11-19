@@ -271,6 +271,18 @@ class TestPrintTitle:
 
     @patch("usecli.cli.core.ui.title.console")
     @patch("usecli.cli.core.ui.title.get_config")
+    def test_renders_text_when_title_font_not_configured(
+        self, mock_config, mock_console
+    ):
+        mock_config.return_value = MagicMock(
+            get=MagicMock(return_value=None),
+            has_key=MagicMock(return_value=False),
+        )
+        print_title("My App")
+        assert "My App" in mock_console.print.call_args_list[0].args[0]
+
+    @patch("usecli.cli.core.ui.title.console")
+    @patch("usecli.cli.core.ui.title.get_config")
     def test_handles_import_error_for_pyfiglet(self, mock_config, mock_console):
         mock_config.return_value = MagicMock(
             get=MagicMock(return_value=None),
@@ -299,6 +311,126 @@ class TestPrintTitle:
         )
         print_title()
         assert mock_console.print.called
+
+    @patch("usecli.cli.core.ui.title.console")
+    @patch("usecli.cli.core.ui.title.get_config")
+    def test_title_extra_top_space_adds_leading_blank_in_figlet_mode(
+        self, mock_config, mock_console
+    ):
+        mock_config.return_value = MagicMock(
+            get=MagicMock(
+                side_effect=lambda k, d=None: (
+                    True
+                    if k == "title_extra_top_space"
+                    else ("big" if k == "title_font" else None)
+                )
+            ),
+        )
+        print_title("My App")
+        assert mock_console.print.call_args_list[0].args == ()
+
+    @patch("usecli.cli.core.ui.title.console")
+    @patch("usecli.cli.core.ui.title.get_config")
+    def test_no_leading_blank_in_figlet_mode_by_default(
+        self, mock_config, mock_console
+    ):
+        mock_config.return_value = MagicMock(
+            get=MagicMock(
+                side_effect=lambda k, d=None: "big" if k == "title_font" else None
+            ),
+        )
+        print_title("My App")
+        assert mock_console.print.call_args_list[0].args != ()
+
+    @patch("usecli.cli.core.ui.title.get_figlet", return_value=None)
+    @patch("usecli.cli.core.ui.title.console")
+    @patch("usecli.cli.core.ui.title.get_config")
+    def test_title_extra_top_space_adds_leading_blank_in_plain_mode(
+        self, mock_config, mock_console, _mock_figlet
+    ):
+        mock_config.return_value = MagicMock(
+            get=MagicMock(
+                side_effect=lambda k, d=None: (
+                    True if k == "title_extra_top_space" else None
+                )
+            ),
+            has_key=MagicMock(return_value=False),
+        )
+        print_title("My App")
+        assert mock_console.print.call_args_list[0].args == ()
+
+    @patch("usecli.cli.core.ui.title.get_figlet", return_value=None)
+    @patch("usecli.cli.core.ui.title.console")
+    @patch("usecli.cli.core.ui.title.get_config")
+    def test_no_leading_blank_in_plain_mode_by_default(
+        self, mock_config, mock_console, _mock_figlet
+    ):
+        mock_config.return_value = MagicMock(
+            get=MagicMock(return_value=None),
+            has_key=MagicMock(return_value=False),
+        )
+        print_title("My App")
+        assert mock_console.print.call_args_list[0].args != ()
+
+    @patch("usecli.cli.core.ui.title.console")
+    @patch("usecli.cli.core.ui.title.get_config")
+    def test_title_extra_bottom_space_adds_trailing_blank_in_figlet_mode(
+        self, mock_config, mock_console
+    ):
+        mock_config.return_value = MagicMock(
+            get=MagicMock(
+                side_effect=lambda k, d=None: (
+                    True
+                    if k == "title_extra_bottom_space"
+                    else ("big" if k == "title_font" else None)
+                )
+            ),
+        )
+        print_title("My App")
+        assert mock_console.print.call_args_list[-1].args == ()
+
+    @patch("usecli.cli.core.ui.title.console")
+    @patch("usecli.cli.core.ui.title.get_config")
+    def test_no_trailing_blank_in_figlet_mode_when_disabled(
+        self, mock_config, mock_console
+    ):
+        mock_config.return_value = MagicMock(
+            get=MagicMock(
+                side_effect=lambda k, d=None: "big" if k == "title_font" else None
+            ),
+        )
+        print_title("My App")
+        assert mock_console.print.call_args_list[-1].args != ()
+
+    @patch("usecli.cli.core.ui.title.get_figlet", return_value=None)
+    @patch("usecli.cli.core.ui.title.console")
+    @patch("usecli.cli.core.ui.title.get_config")
+    def test_title_extra_bottom_space_adds_trailing_blank_in_plain_mode(
+        self, mock_config, mock_console, _mock_figlet
+    ):
+        mock_config.return_value = MagicMock(
+            get=MagicMock(
+                side_effect=lambda k, d=None: (
+                    True if k == "title_extra_bottom_space" else None
+                )
+            ),
+            has_key=MagicMock(return_value=False),
+        )
+        print_title("My App")
+        assert mock_console.print.call_args_list[-1].args == ()
+
+    @patch("usecli.cli.core.ui.title.get_figlet", return_value=None)
+    @patch("usecli.cli.core.ui.title.console")
+    @patch("usecli.cli.core.ui.title.get_config")
+    def test_no_trailing_blank_in_plain_mode_when_disabled(
+        self, mock_config, mock_console, _mock_figlet
+    ):
+        mock_config.return_value = MagicMock(
+            get=MagicMock(return_value=None),
+            has_key=MagicMock(return_value=False),
+        )
+        print_title("My App")
+        assert mock_console.print.call_args_list[-1].args != ()
 
 
 # ---------------------------------------------------------------------------
