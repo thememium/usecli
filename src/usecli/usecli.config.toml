@@ -22,12 +22,12 @@ name = "default"
 # Relative paths resolve against the project root.
 file = "cli/core/ui/title.txt"
 # Optional: a figlet font for the title (requires the `figlet` extra).
-font = "ansi_shadow"
+# font = "ansi_shadow"
 top_space = true
-bottom_space = false
+bottom_space = true
 # Whether the version and description follow the title.
-show_version = true
-show_description = true
+show_version = false
+show_description = false
 
 [usecli.commands]
 # Built-in commands to leave unregistered, for example ["inspire"].
