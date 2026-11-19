@@ -99,6 +99,20 @@ def get_figlet() -> Any | None:
     return pyfiglet
 
 
+def render_figlet_title(figlet: Any, text: str, font: str) -> str:
+    """Render figlet art without blank rows above the glyphs.
+
+    Some fonts (notably ``big`` with lowercase-only text) start with a
+    whitespace-only row. That row is font layout, not intentional banner
+    spacing; ``title_extra_top_space`` owns the banner's top spacing.
+    """
+    raw_title = figlet.figlet_format(text=text, font=font).rstrip()
+    lines = raw_title.split("\n")
+    while lines and not lines[0].strip():
+        lines.pop(0)
+    return "\n".join(" " + line for line in lines)
+
+
 def get_project_version() -> str | None:
     """Best-effort version of the running CLI.
 
@@ -197,8 +211,7 @@ def print_title(title: str | None = None) -> None:
     title_font = config.get("title_font")
     if figlet is not None and title_font:
         try:
-            raw_title = figlet.figlet_format(text=title, font=title_font).rstrip()
-            title_text = "\n".join(" " + line for line in raw_title.split("\n"))
+            title_text = render_figlet_title(figlet, title, title_font)
         except figlet.FontNotFound:
             title_text = title
         console.print(f"[{COLOR.PRIMARY}]{title_text}")
