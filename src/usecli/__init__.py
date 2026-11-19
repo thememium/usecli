@@ -552,13 +552,12 @@ def _get_run_app_callback():
         if version:
             import shutil
 
-            from usecli.shared.config.manager import get_config
+            from usecli.cli.core.ui.title import get_project_name
 
-            config = get_config()
             service = _get_service()
             command_path = shutil.which(sys.argv[0]) or sys.argv[0]
             _console().print(
-                f"[bold {globals()['theme'].SECONDARY}]{config.get('title')} {service.version}[/bold {globals()['theme'].SECONDARY}] [{globals()['theme'].INFO}]({command_path})[/{globals()['theme'].INFO}]"
+                f"[bold {globals()['theme'].SECONDARY}]{get_project_name()} {service.version}[/bold {globals()['theme'].SECONDARY}] [{globals()['theme'].INFO}]({command_path})[/{globals()['theme'].INFO}]"
             )
             raise typer.Exit()
 
