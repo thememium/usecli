@@ -17,7 +17,6 @@ dependencies = [
   "prompt-toolkit>=3.0.53",
   "rich>=15.0.0",
   "simple-term-menu>=1.6.6",
-  "tomli>=2.5.0",
   "typer>=0.29.2",
 ]
 license = "MIT"

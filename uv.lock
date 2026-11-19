@@ -1022,7 +1022,6 @@ dependencies = [
     { name = "prompt-toolkit" },
     { name = "rich" },
     { name = "simple-term-menu" },
-    { name = "tomli" },
     { name = "typer" },
 ]
 
@@ -1057,7 +1056,6 @@ requires-dist = [
     { name = "pyinstaller", marker = "extra == 'pyinstaller'", specifier = ">=6.22.3" },
     { name = "rich", specifier = ">=15.0.0" },
     { name = "simple-term-menu", specifier = ">=1.6.6" },
-    { name = "tomli", specifier = ">=2.5.0" },
     { name = "typer", specifier = ">=0.29.2" },
 ]
 provides-extras = ["figlet", "pyinstaller"]
