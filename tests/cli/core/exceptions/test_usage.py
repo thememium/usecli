@@ -415,6 +415,31 @@ class TestUsecliBadParameter:
             assert error2.param_hint == "'--opt2'"
 
     @patch("usecli.cli.core.exceptions.usage.console")
+    def test_show_uses_formatted_message_when_provided(self, mock_console):
+        """Formatted message replaces the message rebuilt from the hint."""
+        with patch("click.Context"):
+            error = UsecliBadParameter(
+                "", param_hint="'name'", formatted_message="Missing argument 'name'."
+            )
+            error.show()
+
+        printed = str(mock_console.print.call_args_list)
+        assert "Missing argument 'name'." in printed
+        assert "Invalid value for 'name':" not in printed
+
+    @patch("usecli.cli.core.exceptions.usage.console")
+    def test_show_does_not_print_empty_help_text(self, mock_console):
+        """Empty help text must not add a trailing blank line."""
+        ctx = MagicMock()
+        ctx.get_help = MagicMock(side_effect=Exit(0))
+
+        with patch("click.Context"):
+            error = UsecliBadParameter("Invalid value", ctx=ctx)
+            error.show()
+
+        assert mock_console.print.call_count == 2
+
+    @patch("usecli.cli.core.exceptions.usage.console")
     def test_show_with_long_message(self, mock_console):
         """Test show() with long error message."""
         long_message = "B" * 500
