@@ -609,9 +609,9 @@ class TestInitCommandStandaloneConfig:
         config_content = config_path.read_text()
         assert 'title = "Test CLI"' in config_content
         assert 'description = "Test description"' in config_content
-        assert 'commands_dir = "custom_cmds"' in config_content
-        assert 'templates_dir = "templates"' in config_content
-        assert 'themes_dir = "themes"' in config_content
+        assert 'commands = "custom_cmds"' in config_content
+        assert 'templates = "templates"' in config_content
+        assert 'themes = ["themes"]' in config_content
 
     def test_prompts_to_overwrite_existing_config_in_pyproject(
         self, temp_project_dir, init_command
@@ -677,13 +677,11 @@ class TestInitCommandOptions:
         config_path = _config_path(temp_project_dir, "my_commands")
         assert config_path.exists()
         config_content = config_path.read_text()
-        assert 'commands_dir = "my_commands"' in config_content
-        assert 'templates_dir = "templates"' in config_content
-        assert 'themes_dir = "themes"' in config_content
+        assert 'commands = "my_commands"' in config_content
+        assert 'templates = "templates"' in config_content
+        assert 'themes = ["themes"]' in config_content
 
-    def test_title_extra_top_space_can_be_disabled(
-        self, temp_project_dir, init_command
-    ):
+    def test_banner_top_space_can_be_disabled(self, temp_project_dir, init_command):
         init_command.handle(
             DEFAULT_TITLE,
             DEFAULT_DESCRIPTION,
@@ -693,11 +691,9 @@ class TestInitCommandOptions:
         )
 
         config_path = _config_path(temp_project_dir, DEFAULT_COMMANDS_DIR)
-        assert "title_extra_top_space = false" in config_path.read_text()
+        assert "top_space = false" in config_path.read_text()
 
-    def test_title_extra_bottom_space_can_be_disabled(
-        self, temp_project_dir, init_command
-    ):
+    def test_banner_bottom_space_can_be_disabled(self, temp_project_dir, init_command):
         init_command.handle(
             DEFAULT_TITLE,
             DEFAULT_DESCRIPTION,
@@ -707,7 +703,7 @@ class TestInitCommandOptions:
         )
 
         config_path = _config_path(temp_project_dir, DEFAULT_COMMANDS_DIR)
-        assert "title_extra_bottom_space = false" in config_path.read_text()
+        assert "bottom_space = false" in config_path.read_text()
 
     def test_show_description_can_be_enabled_with_figlet(
         self, temp_project_dir, init_command
@@ -755,15 +751,19 @@ class TestInitCommandDefaults:
         assert 'title = "My CLI"' in config_content
         assert 'description = "A custom CLI tool"' in config_content
         assert 'command_name = "usecli"' in config_content
-        assert 'commands_dir = "commands"' in config_content
-        assert 'templates_dir = "templates"' in config_content
-        assert 'themes_dir = "themes"' in config_content
-        assert 'title_font = "big"' in config_content
-        assert "title_extra_top_space = true" in config_content
-        assert "title_extra_bottom_space = true" in config_content
+        assert 'commands = "commands"' in config_content
+        assert 'templates = "templates"' in config_content
+        assert 'themes = ["themes"]' in config_content
+        assert 'name = "default"' in config_content
+        assert '\nfont = "big"' in config_content
+        assert "# Optional: a text file" in config_content
+        assert '# file = "cli/title.txt"' in config_content
+        assert '# font = "big"' in config_content
+        assert "top_space = true" in config_content
+        assert "bottom_space = true" in config_content
         assert "show_description = false" in config_content
         assert "show_version = false" in config_content
-        assert "hide_inspire = false" in config_content
+        assert "hidden = []" in config_content
 
 
 class TestInitCommandIntegration:
@@ -1679,7 +1679,10 @@ class TestOptionalFiglet:
 
         config_path = _config_path(temp_project_dir, DEFAULT_COMMANDS_DIR)
         config_content = config_path.read_text()
-        assert "title_font" not in config_content
+        assert "\nfont = " not in config_content
+        assert '# file = "cli/title.txt"' in config_content
+        assert "# Optional: a figlet font" in config_content
+        assert '# font = "big"' in config_content
         assert "show_description = true" in config_content
         assert "show_version = true" in config_content
         printed = "\n".join(
@@ -1703,7 +1706,10 @@ class TestOptionalFiglet:
 
         config_path = _config_path(temp_project_dir, DEFAULT_COMMANDS_DIR)
         config_content = config_path.read_text()
-        assert "title_font" not in config_content
+        assert "\nfont = " not in config_content
+        assert '# file = "cli/title.txt"' in config_content
+        assert "# Optional: a figlet font" in config_content
+        assert '# font = "big"' in config_content
         assert 'title = "Demo"' in config_content
         printed = "\n".join(
             str(call.args[0]) for call in mock_console.print.call_args_list if call.args

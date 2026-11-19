@@ -239,7 +239,7 @@ class TestPrintTitle:
     def test_prints_custom_title_with_pyfiglet(self, mock_config, mock_console):
         mock_config.return_value = MagicMock(
             get=MagicMock(
-                side_effect=lambda k, d=None: None if k == "title_file" else d
+                side_effect=lambda k, d=None: None if k == "banner.file" else d
             ),
         )
         print_title("My App")
@@ -256,6 +256,37 @@ class TestPrintTitle:
         )
         print_title()
         assert mock_console.print.called
+
+    @patch("usecli.cli.core.ui.title.get_project_version", return_value="1.2.3")
+    @patch("usecli.cli.core.ui.title.console")
+    @patch("usecli.cli.core.ui.title.get_config")
+    def test_title_file_renders_description_and_version(
+        self, mock_config, mock_console, _mock_version, tmp_path
+    ):
+        title_file = tmp_path / "title.txt"
+        title_file.write_text("Custom Title Art")
+        values = {
+            "banner.file": str(title_file),
+            "banner.show_description": True,
+            "banner.show_version": True,
+            "banner.top_space": False,
+            "banner.bottom_space": False,
+            "description": "A demo CLI",
+        }
+        mock_config.return_value = MagicMock(
+            get=MagicMock(side_effect=lambda k, d=None: values.get(k, d)),
+            has_key=MagicMock(side_effect=lambda k: k in values),
+            get_project_root=MagicMock(return_value=tmp_path),
+        )
+
+        print_title("My App")
+
+        printed = [
+            call.args[0] for call in mock_console.print.call_args_list if call.args
+        ]
+        assert any("Custom Title Art" in value for value in printed)
+        assert any("v1.2.3" in value for value in printed)
+        assert any("A demo CLI" in value for value in printed)
 
     @patch("usecli.cli.core.ui.title.console")
     @patch("usecli.cli.core.ui.title.get_config")
@@ -279,7 +310,7 @@ class TestPrintTitle:
         ):
             mock_config.return_value = MagicMock(
                 get=MagicMock(
-                    side_effect=lambda k, d=None: "big" if k == "title_font" else None
+                    side_effect=lambda k, d=None: "big" if k == "banner.font" else None
                 ),
             )
             print_title("My App")
@@ -330,15 +361,15 @@ class TestPrintTitle:
 
     @patch("usecli.cli.core.ui.title.console")
     @patch("usecli.cli.core.ui.title.get_config")
-    def test_title_extra_top_space_adds_leading_blank_in_figlet_mode(
+    def test_banner_top_space_adds_leading_blank_in_figlet_mode(
         self, mock_config, mock_console
     ):
         mock_config.return_value = MagicMock(
             get=MagicMock(
                 side_effect=lambda k, d=None: (
                     True
-                    if k == "title_extra_top_space"
-                    else ("big" if k == "title_font" else None)
+                    if k == "banner.top_space"
+                    else ("big" if k == "banner.font" else None)
                 )
             ),
         )
@@ -352,7 +383,7 @@ class TestPrintTitle:
     ):
         mock_config.return_value = MagicMock(
             get=MagicMock(
-                side_effect=lambda k, d=None: "big" if k == "title_font" else None
+                side_effect=lambda k, d=None: "big" if k == "banner.font" else None
             ),
         )
         print_title("My App")
@@ -361,14 +392,12 @@ class TestPrintTitle:
     @patch("usecli.cli.core.ui.title.get_figlet", return_value=None)
     @patch("usecli.cli.core.ui.title.console")
     @patch("usecli.cli.core.ui.title.get_config")
-    def test_title_extra_top_space_adds_leading_blank_in_plain_mode(
+    def test_banner_top_space_adds_leading_blank_in_plain_mode(
         self, mock_config, mock_console, _mock_figlet
     ):
         mock_config.return_value = MagicMock(
             get=MagicMock(
-                side_effect=lambda k, d=None: (
-                    True if k == "title_extra_top_space" else None
-                )
+                side_effect=lambda k, d=None: True if k == "banner.top_space" else None
             ),
             has_key=MagicMock(return_value=False),
         )
@@ -390,15 +419,15 @@ class TestPrintTitle:
 
     @patch("usecli.cli.core.ui.title.console")
     @patch("usecli.cli.core.ui.title.get_config")
-    def test_title_extra_bottom_space_adds_trailing_blank_in_figlet_mode(
+    def test_banner_bottom_space_adds_trailing_blank_in_figlet_mode(
         self, mock_config, mock_console
     ):
         mock_config.return_value = MagicMock(
             get=MagicMock(
                 side_effect=lambda k, d=None: (
                     True
-                    if k == "title_extra_bottom_space"
-                    else ("big" if k == "title_font" else None)
+                    if k == "banner.bottom_space"
+                    else ("big" if k == "banner.font" else None)
                 )
             ),
         )
@@ -412,7 +441,7 @@ class TestPrintTitle:
     ):
         mock_config.return_value = MagicMock(
             get=MagicMock(
-                side_effect=lambda k, d=None: "big" if k == "title_font" else None
+                side_effect=lambda k, d=None: "big" if k == "banner.font" else None
             ),
         )
         print_title("My App")
@@ -421,13 +450,13 @@ class TestPrintTitle:
     @patch("usecli.cli.core.ui.title.get_figlet", return_value=None)
     @patch("usecli.cli.core.ui.title.console")
     @patch("usecli.cli.core.ui.title.get_config")
-    def test_title_extra_bottom_space_adds_trailing_blank_in_plain_mode(
+    def test_banner_bottom_space_adds_trailing_blank_in_plain_mode(
         self, mock_config, mock_console, _mock_figlet
     ):
         mock_config.return_value = MagicMock(
             get=MagicMock(
                 side_effect=lambda k, d=None: (
-                    True if k == "title_extra_bottom_space" else None
+                    True if k == "banner.bottom_space" else None
                 )
             ),
             has_key=MagicMock(return_value=False),
@@ -454,13 +483,13 @@ class TestPrintTitle:
         mock_config.return_value = MagicMock(
             get=MagicMock(
                 side_effect=lambda k, d=None: {
-                    "title_font": "big",
-                    "show_description": True,
+                    "banner.font": "big",
+                    "banner.show_description": True,
                     "description": "A demo CLI",
                 }.get(k, d)
             ),
             has_key=MagicMock(
-                side_effect=lambda k: k in {"show_description", "description"}
+                side_effect=lambda k: k in {"banner.show_description", "description"}
             ),
         )
         print_title("My App")
@@ -479,7 +508,7 @@ class TestPrintTitle:
         mock_config.return_value = MagicMock(
             get=MagicMock(
                 side_effect=lambda k, d=None: {
-                    "title_font": "big",
+                    "banner.font": "big",
                     "description": "A demo CLI",
                 }.get(k, d)
             ),
@@ -520,12 +549,12 @@ class TestPrintTitle:
         mock_config.return_value = MagicMock(
             get=MagicMock(
                 side_effect=lambda k, d=None: {
-                    "show_description": False,
+                    "banner.show_description": False,
                     "description": "A demo CLI",
                 }.get(k, d)
             ),
             has_key=MagicMock(
-                side_effect=lambda k: k in {"show_description", "description"}
+                side_effect=lambda k: k in {"banner.show_description", "description"}
             ),
         )
         print_title("My App")
@@ -543,11 +572,11 @@ class TestPrintTitle:
         mock_config.return_value = MagicMock(
             get=MagicMock(
                 side_effect=lambda k, d=None: {
-                    "title_font": "big",
-                    "show_version": True,
+                    "banner.font": "big",
+                    "banner.show_version": True,
                 }.get(k, d)
             ),
-            has_key=MagicMock(side_effect=lambda k: k == "show_version"),
+            has_key=MagicMock(side_effect=lambda k: k == "banner.show_version"),
         )
         print_title("My App")
         printed = [
@@ -563,7 +592,7 @@ class TestPrintTitle:
     ):
         mock_config.return_value = MagicMock(
             get=MagicMock(
-                side_effect=lambda k, d=None: {"title_font": "big"}.get(k, d)
+                side_effect=lambda k, d=None: {"banner.font": "big"}.get(k, d)
             ),
             has_key=MagicMock(return_value=False),
         )
@@ -600,9 +629,9 @@ class TestPrintTitle:
     ):
         mock_config.return_value = MagicMock(
             get=MagicMock(
-                side_effect=lambda k, d=None: {"show_version": False}.get(k, d)
+                side_effect=lambda k, d=None: {"banner.show_version": False}.get(k, d)
             ),
-            has_key=MagicMock(side_effect=lambda k: k == "show_version"),
+            has_key=MagicMock(side_effect=lambda k: k == "banner.show_version"),
         )
         print_title("My App")
         printed = [

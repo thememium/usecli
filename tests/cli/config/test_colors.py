@@ -286,15 +286,15 @@ class TestGetPackageName:
 class TestLoadUsecliConfigFile:
     def test_loads_tool_usecli_section(self, tmp_path):
         config_path = tmp_path / "config.toml"
-        config_path.write_text('[tool.usecli]\ntheme = "dark"')
+        config_path.write_text('[tool.usecli.theme]\nname = "dark"')
         result = _load_usecli_config_file(config_path)
-        assert result["theme"] == "dark"
+        assert result["theme"] == {"name": "dark"}
 
     def test_loads_usecli_section(self, tmp_path):
         config_path = tmp_path / "config.toml"
         config_path.write_text('[usecli]\ntheme = "light"')
         result = _load_usecli_config_file(config_path)
-        assert result["theme"] == "light"
+        assert result["theme"] == {"name": "light"}
 
     def test_returns_empty_for_missing_sections(self, tmp_path):
         config_path = tmp_path / "config.toml"
@@ -620,7 +620,7 @@ class TestGetThemeDirs:
     def test_includes_config_themes_dir(self, tmp_path):
         from usecli.cli.config.colors import _get_theme_dirs
 
-        result = _get_theme_dirs(tmp_path, {"themes_dir": "custom/themes"})
+        result = _get_theme_dirs(tmp_path, {"paths": {"themes": "custom/themes"}})
         assert isinstance(result, list)
 
 
@@ -724,19 +724,19 @@ class TestLoadUsecliConfig:
     def test_console_match(self, tmp_path):
         cfg = tmp_path / "elsewhere" / "usecli.config.toml"
         cfg.parent.mkdir()
-        cfg.write_text('[usecli]\ntheme = "dark"')
+        cfg.write_text('[usecli.theme]\nname = "dark"')
         with patch(
             "usecli.cli.config.colors._find_usecli_config_for_console_script",
             return_value=cfg,
         ):
             result, path = _load_usecli_config(tmp_path)
             assert path == cfg
-            assert result["theme"] == "dark"
+            assert result["theme"] == {"name": "dark"}
 
     def test_path_for_command(self, tmp_path):
         cfg = tmp_path / "elsewhere" / "usecli.config.toml"
         cfg.parent.mkdir()
-        cfg.write_text('[usecli]\ntheme = "light"')
+        cfg.write_text('[usecli.theme]\nname = "light"')
         with (
             patch(
                 "usecli.cli.config.colors._find_usecli_config_for_console_script",
@@ -753,7 +753,7 @@ class TestLoadUsecliConfig:
         ):
             result, path = _load_usecli_config(tmp_path)
             assert path == cfg
-            assert result["theme"] == "light"
+            assert result["theme"] == {"name": "light"}
 
     def test_no_config_found(self, tmp_path):
         with (
@@ -968,7 +968,7 @@ class TestLoadTheme:
             patch("usecli.cli.config.colors._find_project_root", return_value=tmp_path),
             patch(
                 "usecli.cli.config.colors._load_usecli_config",
-                return_value=({"theme": "custom"}, None),
+                return_value=({"theme": {"name": "custom"}}, None),
             ),
             patch(
                 "usecli.cli.config.colors._resolve_theme_path",
