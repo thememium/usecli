@@ -257,6 +257,34 @@ class TestPrintTitle:
         print_title()
         assert mock_console.print.called
 
+    @patch("usecli.cli.core.ui.title.console")
+    @patch("usecli.cli.core.ui.title.get_config")
+    def test_title_file_trailing_newline_does_not_add_blank_line(
+        self, mock_config, mock_console, tmp_path
+    ):
+        title_file = tmp_path / "title.txt"
+        title_file.write_text("Custom Title Art\n\n")
+        mock_config.return_value = MagicMock(
+            get=MagicMock(
+                side_effect=lambda k, d=None: {
+                    "banner.file": str(title_file),
+                    "banner.top_space": False,
+                    "banner.bottom_space": False,
+                }.get(k, d)
+            ),
+            has_key=MagicMock(return_value=False),
+            get_project_root=MagicMock(return_value=tmp_path),
+        )
+
+        print_title()
+
+        art = next(
+            call.args[0]
+            for call in mock_console.print.call_args_list
+            if call.args and "Custom Title Art" in call.args[0]
+        )
+        assert not art.endswith("\n")
+
     @patch("usecli.cli.core.ui.title.get_project_version", return_value="1.2.3")
     @patch("usecli.cli.core.ui.title.console")
     @patch("usecli.cli.core.ui.title.get_config")
