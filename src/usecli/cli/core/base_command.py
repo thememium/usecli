@@ -399,8 +399,32 @@ class BaseCommand(ABC):
     def visible(self) -> bool:
         return True
 
+    def command_name(self) -> str:
+        """The name this command is invoked by, without argument placeholders.
+
+        Nested signatures keep both words (``"spec show"``); single-level
+        signatures drop everything after the name (``"test-cmd arg1"`` →
+        ``"test-cmd"``).
+        """
+        parts = self.signature().split()
+        if len(parts) == 2 and self._is_valid_subcommand_name(parts[1]):
+            return f"{parts[0]} {parts[1]}"
+        return parts[0]
+
+    def is_hidden(self) -> bool:
+        """Whether ``[usecli.commands] hidden`` lists this command name."""
+        from usecli.shared.config.manager import get_config
+
+        hidden = get_config().get("commands.hidden", [])
+        if isinstance(hidden, str):
+            hidden = [hidden]
+        if not isinstance(hidden, list):
+            return False
+        names = {entry.strip() for entry in hidden if isinstance(entry, str)}
+        return self.command_name() in names
+
     def register(self) -> None:
-        if not self.visible():
+        if not self.visible() or self.is_hidden():
             return
 
         signature = self.signature()

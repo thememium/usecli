@@ -104,7 +104,7 @@ def render_figlet_title(figlet: Any, text: str, font: str) -> str:
 
     Some fonts (notably ``big`` with lowercase-only text) start with a
     whitespace-only row. That row is font layout, not intentional banner
-    spacing; ``title_extra_top_space`` owns the banner's top spacing.
+    spacing; ``banner.top_space`` owns the banner's top spacing.
     """
     raw_title = figlet.figlet_format(text=text, font=font).rstrip()
     lines = raw_title.split("\n")
@@ -160,6 +160,19 @@ def render_plain_title(
     )
 
 
+def _print_banner_suffix(version: str | None, description: str | None) -> None:
+    """Print the version and description lines that follow ASCII art."""
+    if version:
+        console.print(
+            f" [{COLOR.SECONDARY}]v{version.removeprefix('v')}[/{COLOR.SECONDARY}]"
+        )
+    if description:
+        console.print()
+        console.print(
+            f" [{COLOR.FOREGROUND_MUTED}]{description}[/{COLOR.FOREGROUND_MUTED}]"
+        )
+
+
 def print_title(title: str | None = None) -> None:
     """Print the CLI banner.
 
@@ -180,13 +193,13 @@ def print_title(title: str | None = None) -> None:
         """
     config = get_config()
 
-    title_extra_top_space = config.get("title_extra_top_space", True)
-    title_extra_bottom_space = config.get("title_extra_bottom_space", True)
+    top_space = config.get("banner.top_space", True)
+    bottom_space = config.get("banner.bottom_space", True)
     figlet = get_figlet()
-    title_font = config.get("title_font")
+    title_font = config.get("banner.font")
     show_description = (
-        bool(config.get("show_description"))
-        if config.has_key("show_description")
+        bool(config.get("banner.show_description"))
+        if config.has_key("banner.show_description")
         else not (figlet is not None and bool(title_font))
     )
     description = (
@@ -195,23 +208,27 @@ def print_title(title: str | None = None) -> None:
         else None
     )
     show_version = (
-        bool(config.get("show_version"))
-        if config.has_key("show_version")
+        bool(config.get("banner.show_version"))
+        if config.has_key("banner.show_version")
         else not (figlet is not None and bool(title_font))
     )
-    if title_extra_top_space:
+    if top_space:
         console.print()
 
-    title_file = config.get("title_file")
+    title_file = config.get("banner.file")
     if title_file:
         title_path = Path(title_file)
         if not title_path.is_absolute():
             title_path = config.get_project_root() / title_path
         try:
             if title_path.exists():
-                title_text = title_path.read_text()
+                title_text = title_path.read_text().rstrip()
                 console.print(f"[{COLOR.PRIMARY}]{title_text}")
-                if title_extra_bottom_space:
+                _print_banner_suffix(
+                    get_project_version() if show_version else None,
+                    description,
+                )
+                if bottom_space:
                     console.print()
                 return
         except OSError:
@@ -219,7 +236,7 @@ def print_title(title: str | None = None) -> None:
 
     if title is None or title.lower() == "usecli":
         console.print(f"[{COLOR.PRIMARY}]{default_title_text}")
-        if title_extra_bottom_space:
+        if bottom_space:
             console.print()
         return
 
@@ -230,19 +247,11 @@ def print_title(title: str | None = None) -> None:
         except figlet.FontNotFound:
             title_text = title
         console.print(f"[{COLOR.PRIMARY}]{title_text}")
-        if version:
-            console.print(
-                f" [{COLOR.SECONDARY}]v{version.removeprefix('v')}[/{COLOR.SECONDARY}]"
-            )
-        if description:
-            console.print()
-            console.print(
-                f" [{COLOR.FOREGROUND_MUTED}]{description}[/{COLOR.FOREGROUND_MUTED}]"
-            )
-        if title_extra_bottom_space:
+        _print_banner_suffix(version, description)
+        if bottom_space:
             console.print()
         return
 
     console.print(render_plain_title(title, description, version))
-    if title_extra_bottom_space:
+    if bottom_space:
         console.print()
