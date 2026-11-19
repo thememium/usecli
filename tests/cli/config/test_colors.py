@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-import types
+import tomllib
 from pathlib import Path
 from unittest.mock import MagicMock, PropertyMock, patch
 
@@ -781,13 +781,8 @@ class TestLoadUsecliConfig:
 
 
 class TestImportTomllib:
-    def test_imports_tomli_on_py_lt_311(self):
-        fake = types.ModuleType("tomli")
-        with (
-            patch("usecli.cli.config.colors.sys.version_info", (3, 10)),
-            patch.dict("sys.modules", {"tomli": fake}),
-        ):
-            assert _import_tomllib() is fake
+    def test_returns_stdlib_tomllib(self):
+        assert _import_tomllib() is tomllib
 
 
 class TestFindUsecliConfigPath:
