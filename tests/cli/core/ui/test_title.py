@@ -77,11 +77,11 @@ class TestPrintTitle:
         """Test print_title() successfully prints ASCII art."""
         print_title()
 
-        # Verify console.print was called
-        mock_console.print.assert_called_once()
+        # Art plus the default trailing blank line.
+        assert mock_console.print.call_count == 2
 
         # Verify the call contains ASCII art with PRIMARY color
-        call_args = mock_console.print.call_args[0][0]
+        call_args = mock_console.print.call_args_list[0][0][0]
         assert "▄█▀▀▀▄█" in call_args
         assert COLOR.PRIMARY in call_args
 
@@ -99,7 +99,7 @@ class TestPrintTitle:
         """Test print_title() output contains expected ASCII art characters."""
         print_title()
 
-        call_args = mock_console.print.call_args[0][0]
+        call_args = mock_console.print.call_args_list[0][0][0]
 
         # Verify key ASCII art characters are present
         expected_chars = ["▄", "█", "▓", "▒", "░"]
@@ -111,7 +111,7 @@ class TestPrintTitle:
         """Test print_title() output contains Rich color markup."""
         print_title()
 
-        call_args = mock_console.print.call_args[0][0]
+        call_args = mock_console.print.call_args_list[0][0][0]
 
         # Verify Rich markup is present
         assert f"[{COLOR.PRIMARY}]" in call_args
@@ -140,9 +140,8 @@ class TestPrintTitle:
         print_title()
         print_title("Title 3")
 
-        # Verify console.print was called five times (1 + 1 + 3)
-        # Custom titles via pyfiglet print empty line + title + trailing empty line
-        assert mock_console.print.call_count == 5
+        # Each banner prints its content plus the default trailing blank line.
+        assert mock_console.print.call_count == 6
 
     @patch("usecli.cli.core.ui.title.console")
     def test_print_title_no_return_value(self, mock_console):
@@ -155,7 +154,7 @@ class TestPrintTitle:
         """Test print_title() ASCII art has expected structure."""
         print_title()
 
-        call_args = mock_console.print.call_args[0][0]
+        call_args = mock_console.print.call_args_list[0][0][0]
 
         # Verify structure contains multiple lines
         lines = call_args.split("\n")
@@ -170,7 +169,7 @@ class TestPrintTitle:
         """Test print_title() uses correct COLOR constants."""
         print_title()
 
-        call_args = mock_console.print.call_args[0][0]
+        call_args = mock_console.print.call_args_list[0][0][0]
 
         # Verify PRIMARY color is used
         assert COLOR.PRIMARY in call_args
