@@ -7,6 +7,7 @@ Tests cover:
 
 import sys
 from pathlib import Path
+from typing import Any, cast
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -445,7 +446,9 @@ class TestBaseCommandAbstractMethods:
 
     def test_base_command_cannot_be_instantiated(self):
         """Test BaseCommand is abstract and cannot be instantiated directly."""
-        abstract_cls = base_command.BaseCommand
+        # Runtime check: the class object is abstract even though the type
+        # checker would reject the call.
+        abstract_cls = cast(Any, base_command.BaseCommand)
         with pytest.raises(TypeError):
             abstract_cls(app=MagicMock())
 

@@ -311,7 +311,7 @@ class TestPrefixMatchingGroup:
 
         usecli._ensure_cli_initialized()
         PMG = usecli.PrefixMatchingGroup
-        group = PMG(name="test", commands={})  # type: ignore[ty:call-non-callable]
+        group = PMG(name="test", commands={})  # type: ignore[ty:not-callable]
         ctx = MagicMock()
         ctx.find_root.return_value = MagicMock(params={})
         with (
@@ -478,7 +478,7 @@ def _restore_cli_state(snapshot: dict) -> None:
 def _fresh_group():
     """Return a fresh PrefixMatchingGroup instance."""
     usecli._ensure_cli_initialized()
-    return usecli.PrefixMatchingGroup(name="test", commands={})  # type: ignore[ty:call-non-callable]
+    return usecli.PrefixMatchingGroup(name="test", commands={})  # type: ignore[ty:not-callable]
 
 
 def _json_main(group, exc):
