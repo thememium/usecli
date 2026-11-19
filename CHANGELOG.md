@@ -1,6 +1,28 @@
 # Changelog
 
 
+## v0.2.4
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.2.3...v0.2.4)
+
+### 💅 Refactors
+
+- **typer:** Add compatibility for Typer 0.28+ and click error hints ([cdda8cf](https://github.com/thememium/usecli/commit/cdda8cf))
+- **cli:** Extract prompt logic into _prompt_for_text ([60b60eb](https://github.com/thememium/usecli/commit/60b60eb))
+
+### ✅ Tests
+
+- **cli:** Add tests for Typer compatibility shims ([781cd40](https://github.com/thememium/usecli/commit/781cd40))
+- **interactive:** Use fzf.console.input and assert builtins.input is never used ([75061e4](https://github.com/thememium/usecli/commit/75061e4))
+
+### 🎨 Styles
+
+- **test:** Reformat import statement in test_typer_compat.py ([c613a89](https://github.com/thememium/usecli/commit/c613a89))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.2.3
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.2.2...v0.2.3)
