@@ -48,7 +48,10 @@ def _running_framework_distribution() -> Any | None:
     dist = _find_distribution_for_console_script(script_name)
     if dist is None:
         return None
-    dist_name = dist.metadata.get("Name") or ""
+    dist_metadata = getattr(dist, "metadata", None)
+    if dist_metadata is None:
+        return None
+    dist_name = dist_metadata.get("Name") or ""
     return dist if str(dist_name).strip().lower() == _FRAMEWORK_DIST_NAME else None
 
 
