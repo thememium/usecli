@@ -11,7 +11,6 @@ from usecli.cli.core.ui.title import (
     _banner_config,
     _get_script_command_name,
     _invoked_script_name,
-    _running_framework_distribution,
     get_framework_description,
     get_project_name,
     get_project_version,
@@ -19,6 +18,7 @@ from usecli.cli.core.ui.title import (
     print_title,
     render_figlet_title,
     render_plain_title,
+    running_framework_distribution,
 )
 
 # ---------------------------------------------------------------------------
@@ -772,7 +772,7 @@ class TestRunningFrameworkDistribution:
     @patch("usecli.shared.config.manager._find_distribution_for_console_script")
     @patch("usecli.cli.core.ui.title._invoked_script_name", return_value=None)
     def test_without_script_returns_none(self, mock_name, mock_find):
-        assert _running_framework_distribution() is None
+        assert running_framework_distribution() is None
         mock_find.assert_not_called()
 
     @patch(
@@ -781,26 +781,26 @@ class TestRunningFrameworkDistribution:
     )
     @patch("usecli.cli.core.ui.title._invoked_script_name", return_value="other")
     def test_unknown_script_returns_none(self, mock_name, mock_find):
-        assert _running_framework_distribution() is None
+        assert running_framework_distribution() is None
 
     @patch("usecli.shared.config.manager._find_distribution_for_console_script")
     @patch("usecli.cli.core.ui.title._invoked_script_name", return_value="cogrep")
     def test_downstream_script_returns_none(self, mock_name, mock_find):
         mock_find.return_value = _fake_dist("cogrep")
-        assert _running_framework_distribution() is None
+        assert running_framework_distribution() is None
 
     @patch("usecli.shared.config.manager._find_distribution_for_console_script")
     @patch("usecli.cli.core.ui.title._invoked_script_name", return_value="usecli")
     def test_framework_script_returns_distribution(self, mock_name, mock_find):
         dist = _fake_dist(" UseCli ")
         mock_find.return_value = dist
-        assert _running_framework_distribution() is dist
+        assert running_framework_distribution() is dist
 
     @patch("usecli.shared.config.manager._find_distribution_for_console_script")
     @patch("usecli.cli.core.ui.title._invoked_script_name", return_value="usecli")
     def test_distribution_without_name_returns_none(self, mock_name, mock_find):
         mock_find.return_value = _fake_dist(None)
-        assert _running_framework_distribution() is None
+        assert running_framework_distribution() is None
 
     @patch("usecli.shared.config.manager._find_distribution_for_console_script")
     @patch("usecli.cli.core.ui.title._invoked_script_name", return_value="usecli")
@@ -810,52 +810,50 @@ class TestRunningFrameworkDistribution:
 
         mock_find.return_value = _NoMetadata()
 
-        assert _running_framework_distribution() is None
+        assert running_framework_distribution() is None
 
 
 class TestGetFrameworkDescription:
-    @patch(
-        "usecli.cli.core.ui.title._running_framework_distribution", return_value=None
-    )
+    @patch("usecli.cli.core.ui.title.running_framework_distribution", return_value=None)
     def test_downstream_returns_none(self, mock_framework):
         assert get_framework_description() is None
 
-    @patch("usecli.cli.core.ui.title._running_framework_distribution")
+    @patch("usecli.cli.core.ui.title.running_framework_distribution")
     def test_returns_stripped_summary(self, mock_framework):
         mock_framework.return_value = _fake_dist("usecli", summary="  A framework  ")
         assert get_framework_description() == "A framework"
 
-    @patch("usecli.cli.core.ui.title._running_framework_distribution")
+    @patch("usecli.cli.core.ui.title.running_framework_distribution")
     def test_missing_summary_returns_none(self, mock_framework):
         mock_framework.return_value = _fake_dist("usecli", summary=None)
         assert get_framework_description() is None
 
-    @patch("usecli.cli.core.ui.title._running_framework_distribution")
+    @patch("usecli.cli.core.ui.title.running_framework_distribution")
     def test_blank_summary_returns_none(self, mock_framework):
         mock_framework.return_value = _fake_dist("usecli", summary="   ")
         assert get_framework_description() is None
 
 
 class TestFrameworkIdentity:
-    @patch("usecli.cli.core.ui.title._running_framework_distribution")
+    @patch("usecli.cli.core.ui.title.running_framework_distribution")
     def test_script_command_name_is_usecli(self, mock_framework):
         mock_framework.return_value = _fake_dist("usecli")
 
         assert get_script_command_name(default="cogrep") == "usecli"
 
-    @patch("usecli.cli.core.ui.title._running_framework_distribution")
+    @patch("usecli.cli.core.ui.title.running_framework_distribution")
     def test_project_name_is_usecli(self, mock_framework):
         mock_framework.return_value = _fake_dist("usecli")
 
         assert get_project_name() == "useCli"
 
-    @patch("usecli.cli.core.ui.title._running_framework_distribution")
+    @patch("usecli.cli.core.ui.title.running_framework_distribution")
     def test_project_version_is_framework_version(self, mock_framework):
         mock_framework.return_value = _fake_dist("usecli", version="0.2.1")
 
         assert get_project_version() == "0.2.1"
 
-    @patch("usecli.cli.core.ui.title._running_framework_distribution")
+    @patch("usecli.cli.core.ui.title.running_framework_distribution")
     def test_missing_framework_version_returns_none(self, mock_framework):
         class _NoVersion:
             version = None
@@ -864,7 +862,7 @@ class TestFrameworkIdentity:
 
         assert get_project_version() is None
 
-    @patch("usecli.cli.core.ui.title._running_framework_distribution")
+    @patch("usecli.cli.core.ui.title.running_framework_distribution")
     def test_unreadable_framework_version_returns_none(self, mock_framework):
         class _BadVersion:
             @property
@@ -970,7 +968,7 @@ class TestBannerConfig:
         assert _banner_config() is mock_get_config.return_value
 
     @patch("usecli.shared.config.manager.ConfigManager")
-    @patch("usecli.cli.core.ui.title._running_framework_distribution")
+    @patch("usecli.cli.core.ui.title.running_framework_distribution")
     def test_framework_uses_packaged_config(self, mock_framework, mock_manager):
         from usecli.shared.config.globals import PACKAGE_ROOT
 
