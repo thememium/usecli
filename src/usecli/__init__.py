@@ -297,7 +297,12 @@ def _ensure_cli_initialized() -> None:
             except _TyperBadParameter as e:
                 from usecli.cli.core.exceptions import UsecliBadParameter
 
-                styled_error = UsecliBadParameter(e.message, ctx=e.ctx, param=e.param)
+                styled_error = UsecliBadParameter(
+                    e.message,
+                    ctx=e.ctx,
+                    param=e.param,
+                    formatted_message=e.format_message(),
+                )
                 styled_error.show()
                 sys.exit(styled_error.exit_code)
             except _TyperUsageError as e:
@@ -627,7 +632,12 @@ def main() -> None:
     except _TyperBadParameter as e:
         from usecli.cli.core.exceptions import UsecliBadParameter
 
-        styled_error = UsecliBadParameter(e.message, ctx=e.ctx, param=e.param)
+        styled_error = UsecliBadParameter(
+            e.message,
+            ctx=e.ctx,
+            param=e.param,
+            formatted_message=e.format_message(),
+        )
         styled_error.show()
         sys.exit(styled_error.exit_code)
     except _TyperUsageError as e:
