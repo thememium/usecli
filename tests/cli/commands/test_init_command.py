@@ -55,9 +55,11 @@ def mock_console():
 def init_command(mock_console):
     with (
         patch("usecli.cli.commands.init_command.Prompt.ask") as mock_prompt,
+        patch("usecli.cli.commands.init_command.Confirm.ask") as mock_confirm,
         patch("usecli.cli.commands.init_command.terminal_menu") as mock_terminal_menu,
     ):
         mock_prompt.side_effect = lambda *args, **kwargs: kwargs.get("default", "")
+        mock_confirm.side_effect = lambda *args, **kwargs: kwargs.get("default", True)
 
         def _menu_side_effect(options, *args, **kwargs):
             if isinstance(options, list) and "big" in options:
@@ -79,9 +81,11 @@ def interactive_cmd(mock_console):
     """InitCommand with interactive prompts/menus mocked to their defaults."""
     with (
         patch("usecli.cli.commands.init_command.Prompt.ask") as mock_prompt,
+        patch("usecli.cli.commands.init_command.Confirm.ask") as mock_confirm,
         patch("usecli.cli.commands.init_command.terminal_menu") as mock_terminal_menu,
     ):
         mock_prompt.side_effect = lambda *args, **kwargs: kwargs.get("default", "")
+        mock_confirm.side_effect = lambda *args, **kwargs: kwargs.get("default", True)
 
         def _menu_side_effect(options, *args, **kwargs):
             if isinstance(options, list) and "big" in options:
@@ -181,6 +185,7 @@ class TestInitCommandPyprojectToml:
 
         with (
             patch("usecli.cli.commands.init_command.Prompt.ask") as mock_prompt,
+            patch("usecli.cli.commands.init_command.Confirm.ask", return_value=True),
             patch(
                 "usecli.cli.commands.init_command.terminal_menu"
             ) as mock_terminal_menu,
@@ -231,6 +236,7 @@ class TestInitCommandPyprojectToml:
         config_location = temp_project_dir / "config" / "nested"
         with (
             patch("usecli.cli.commands.init_command.Prompt.ask") as mock_prompt,
+            patch("usecli.cli.commands.init_command.Confirm.ask", return_value=True),
             patch(
                 "usecli.cli.commands.init_command.terminal_menu"
             ) as mock_terminal_menu,
@@ -1682,6 +1688,44 @@ class TestOptionalFiglet:
         assert "Demo" in printed
         assert "v1.2.3" in printed
         assert "A demo CLI" in printed
+
+    def test_interactive_init_can_decline_ascii_art(
+        self, temp_project_dir, init_command
+    ):
+        pyproject = temp_project_dir / "pyproject.toml"
+        pyproject.write_text('[project]\nname = "demo"\nversion = "1.2.3"\n')
+
+        with (
+            patch("usecli.cli.commands.init_command.Confirm.ask", return_value=False),
+            patch("usecli.cli.commands.init_command.console") as mock_console,
+        ):
+            init_command.handle("Demo", "A demo CLI", DEFAULT_COMMANDS_DIR, force=True)
+
+        config_path = _config_path(temp_project_dir, DEFAULT_COMMANDS_DIR)
+        config_content = config_path.read_text()
+        assert "title_font" not in config_content
+        assert 'title = "Demo"' in config_content
+        printed = "\n".join(
+            str(call.args[0]) for call in mock_console.print.call_args_list if call.args
+        )
+        assert "Selected logo style:" in printed
+        assert "text only" in printed
+        assert "Select a figlet font" not in printed
+
+    def test_interactive_init_skips_ascii_art_prompt_without_figlet(
+        self, temp_project_dir, init_command
+    ):
+        pyproject = temp_project_dir / "pyproject.toml"
+        pyproject.write_text('[project]\nname = "demo"\nversion = "1.2.3"\n')
+
+        with (
+            patch("usecli.cli.commands.init_command.get_figlet", return_value=None),
+            patch("usecli.cli.commands.init_command.Confirm.ask") as mock_confirm,
+            patch("usecli.cli.commands.init_command.console"),
+        ):
+            init_command.handle("Demo", "A demo CLI", DEFAULT_COMMANDS_DIR, force=True)
+
+        mock_confirm.assert_not_called()
 
     def test_new_project_without_figlet_uses_plain_usecli_dependency(
         self, temp_project_dir, init_command

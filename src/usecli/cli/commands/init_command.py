@@ -969,7 +969,17 @@ include = ["{root_package}*"]
         figlet = get_figlet()
         title_font: str | None = None
         if figlet is not None:
-            title_font = self._prompt_title_font(title)
+            use_ascii_art = Confirm.ask(
+                f"[bold {COLOR.SECONDARY}]Use ASCII art for the title logo?[/bold {COLOR.SECONDARY}]",
+                default=True,
+            )
+            console.print(
+                f"[bold {COLOR.PRIMARY}]Selected logo style:[/bold {COLOR.PRIMARY}] "
+                f"{'ASCII art' if use_ascii_art else 'text only'}"
+            )
+            console.print()
+            if use_ascii_art:
+                title_font = self._prompt_title_font(title)
         if show_description is None:
             show_description = not bool(title_font)
         if show_version is None:
@@ -997,11 +1007,12 @@ include = ["{root_package}*"]
             if title_extra_bottom_space:
                 console.print()
         else:
-            console.print(
-                f"[{COLOR.FOREGROUND_MUTED}]pyfiglet is not installed; "
-                "the title is rendered as text. Install "
-                "usecli\\[figlet] for ASCII art fonts.[/]"
-            )
+            if figlet is None:
+                console.print(
+                    f"[{COLOR.FOREGROUND_MUTED}]pyfiglet is not installed; "
+                    "the title is rendered as text. Install "
+                    "usecli\\[figlet] for ASCII art fonts.[/]"
+                )
             if title_extra_top_space:
                 console.print()
             console.print(
