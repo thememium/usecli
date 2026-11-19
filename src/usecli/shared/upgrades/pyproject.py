@@ -62,11 +62,7 @@ def _get_path():
 
 
 def _get_tomllib():
-    if sys.version_info >= (3, 11):
-        import tomllib
-
-        return tomllib
-    import tomli as tomllib
+    import tomllib
 
     return tomllib
 

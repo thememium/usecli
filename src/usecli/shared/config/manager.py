@@ -32,14 +32,9 @@ def _get_path():
 
 # Lazy tomllib import - only loaded when actually needed
 def _get_tomllib():
-    if sys.version_info >= (3, 11):
-        import tomllib
+    import tomllib
 
-        return tomllib
-    else:
-        import tomli as tomllib
-
-        return tomllib
+    return tomllib
 
 
 # Depth cap for rglob - prevents scanning massive trees like ~/ghq.
@@ -509,6 +504,9 @@ class ConfigManager:
     def _find_usecli_config(cls, start_dir: Path) -> Path | None:
         current = start_dir.resolve()
         command_name = cls._get_command_name()
+        command_is_framework = (
+            command_name == _get_package_name() if command_name else True
+        )
 
         # Check cache first to avoid repeated expensive searches.
         cache_key = str(start_dir.resolve())
@@ -527,6 +525,24 @@ class ConfigManager:
             if parent == current:
                 break
             current = parent
+
+        # The framework binary is generic scaffolding: running `usecli` inside a
+        # downstream project must target that project, never the framework's own
+        # installed package. Search the enclosing project before any
+        # distribution fallback, and do not filter by `command_name` — the
+        # project config names the project's CLI (e.g. "cogrep"), not the
+        # framework binary writing into it.
+        if command_is_framework and not cls._is_within_usecli_package(start_dir):
+            project_root = find_project_root(start_dir)
+            if project_root is not None:
+                local_match = cls._find_usecli_config_in_tree(
+                    project_root,
+                    start_dir,
+                    skip_venv=True,
+                    match_command=False,
+                )
+                _config_search_cache[cache_key] = local_match
+                return local_match
 
         # Try fast lookups before expensive rglob (perf: global tools).
         console_match = cls._find_usecli_config_for_console_script()
@@ -553,9 +569,8 @@ class ConfigManager:
             _config_search_cache[cache_key] = None
             return None
 
-        is_framework = command_name == "usecli" if command_name else True
         recursive_match = cls._find_usecli_config_in_tree(
-            search_root, start_dir, skip_venv=is_framework
+            search_root, start_dir, skip_venv=command_is_framework
         )
         _config_search_cache[cache_key] = recursive_match
         if recursive_match:
@@ -566,13 +581,17 @@ class ConfigManager:
 
     @staticmethod
     def _find_usecli_config_in_tree(
-        root_dir: Path, start_dir: Path, *, skip_venv: bool
+        root_dir: Path,
+        start_dir: Path,
+        *,
+        skip_venv: bool,
+        match_command: bool = True,
     ) -> Path | None:
         if not root_dir.exists() or not root_dir.is_dir():
             return None
 
         candidates = _rglob_limited(root_dir, USECLI_CONFIG_TOML, skip_venv=skip_venv)
-        command_name = ConfigManager._get_command_name()
+        command_name = ConfigManager._get_command_name() if match_command else None
         if command_name:
             candidates = [
                 path
