@@ -754,6 +754,33 @@ class TestBaseCommandIsHidden:
 
         mock_app.command.assert_not_called()
 
+    @patch("usecli.cli.core.ui.title.running_framework_distribution")
+    @patch("usecli.shared.config.manager.get_config")
+    def test_framework_binary_ignores_hidden(
+        self, mock_get_config, mock_framework_dist
+    ):
+        """The usecli binary exposes built-ins the enclosing project hides."""
+        mock_framework_dist.return_value = MagicMock()
+        mock_get_config.return_value.get.return_value = ["test-cmd"]
+
+        cmd = ConcreteCommand(app=MagicMock())
+
+        assert cmd.is_hidden() is False
+
+    @patch("usecli.cli.core.ui.title.running_framework_distribution")
+    @patch("usecli.shared.config.manager.get_config")
+    def test_framework_binary_registers_hidden_command(
+        self, mock_get_config, mock_framework_dist
+    ):
+        mock_framework_dist.return_value = MagicMock()
+        mock_get_config.return_value.get.return_value = ["test-cmd"]
+        mock_app = MagicMock()
+        mock_app.command = MagicMock(return_value=lambda f: f)
+
+        ConcreteCommand(app=mock_app)
+
+        mock_app.command.assert_called_once()
+
 
 class TestBaseCommandRegisterWithVisible:
     """Tests for BaseCommand register with visible check."""
