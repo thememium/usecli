@@ -77,6 +77,20 @@ def get_framework_description() -> str | None:
     return summary or None
 
 
+def _strip_blank_edges(text: str) -> str:
+    """Drop whitespace-only lines above and below rendered art.
+
+    Banner spacing belongs to ``banner.top_space``/``banner.bottom_space``;
+    literal blank lines baked into art would double it.
+    """
+    lines = text.split("\n")
+    while lines and not lines[0].strip():
+        lines.pop(0)
+    while lines and not lines[-1].strip():
+        lines.pop()
+    return "\n".join(lines)
+
+
 def _get_script_command_name(start_dir: Path | None = None) -> str | None:
     if start_dir is None:
         start_dir = Path.cwd()
@@ -212,6 +226,23 @@ def get_project_version() -> str | None:
         return None
 
 
+def _banner_config():
+    """Config that owns the banner layout.
+
+    The usecli binary renders the framework banner, so its layout (file, font,
+    spacing, show flags) comes from the installed framework config rather than
+    the downstream project being scaffolded. Downstream CLIs keep using the
+    discovered project config.
+    """
+    if _running_framework_distribution() is None:
+        return get_config()
+
+    from usecli.shared.config.globals import PACKAGE_ROOT
+    from usecli.shared.config.manager import ConfigManager
+
+    return ConfigManager(start_dir=PACKAGE_ROOT)
+
+
 def render_plain_title(
     title: str,
     description: str | None = None,
@@ -265,7 +296,7 @@ def print_title(title: str | None = None) -> None:
 
  █████▓▓▓▓▓▒▒▒▒▒░░░░░░░░░░░░░░▒▒▒▒▒▓▓▓▓▓█████
         """
-    config = get_config()
+    config = _banner_config()
 
     top_space = config.get("banner.top_space", True)
     bottom_space = config.get("banner.bottom_space", True)
@@ -313,7 +344,7 @@ def print_title(title: str | None = None) -> None:
             pass
 
     if title is None or title.lower() == "usecli":
-        console.print(f"[{COLOR.PRIMARY}]{default_title_text}")
+        console.print(f"[{COLOR.PRIMARY}]{_strip_blank_edges(default_title_text)}")
         if bottom_space:
             console.print()
         return
