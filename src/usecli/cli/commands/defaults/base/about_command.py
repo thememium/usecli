@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import os
+import re
 import sys
 import tomllib
 from importlib.metadata import PackageNotFoundError
+from importlib.metadata import version as get_version
 from pathlib import Path
 
 from usecli.cli.config.colors import COLOR
@@ -66,6 +68,22 @@ def _parse_dependency_requirement(req: str) -> tuple[str, str | None]:
     return name, remainder
 
 
+def _is_extra_requirement(req: str) -> bool:
+    """True when the requirement's marker gates it behind an optional extra."""
+    _, sep, marker = req.partition(";")
+    if not sep:
+        return False
+    return re.search(r"\bextra\b", marker) is not None
+
+
+def _is_dependency_installed(name: str) -> bool:
+    try:
+        get_version(name)
+    except (PackageNotFoundError, OSError):
+        return False
+    return True
+
+
 def _get_console_script_distribution(command_name: str | None):
     if not command_name:
         return None
@@ -81,8 +99,13 @@ def _get_package_dependencies_from_distribution(dist) -> list[tuple[str, str | N
         if not isinstance(req, str):
             continue
         name, spec = _parse_dependency_requirement(req)
-        if name and not req.startswith("("):
-            result.append((name, spec))
+        if not name or req.startswith("("):
+            continue
+        # ``dist.requires`` includes extra-gated requirements. Those are
+        # optional, so only list them when they are actually installed.
+        if _is_extra_requirement(req) and not _is_dependency_installed(name):
+            continue
+        result.append((name, spec))
     return result
 
 
