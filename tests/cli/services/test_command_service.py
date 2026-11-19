@@ -249,6 +249,28 @@ class TestCommandServiceLoadCommands:
             assert call_order[2] == "project_commands"
 
     @patch("usecli.cli.services.command_service.get_config")
+    def test_load_commands_skips_project_commands_for_usecli_binary(
+        self, mock_get_config, tmp_path
+    ):
+        project_commands_dir = tmp_path / "project_commands"
+        mock_get_config.return_value = _mock_config_project_dir(project_commands_dir)
+        service = CommandService(app=MagicMock())
+
+        with (
+            patch(
+                "usecli.cli.services.command_service.sys",
+                MagicMock(argv=["/usr/local/bin/usecli"]),
+            ),
+            patch.object(service, "_load_version"),
+            patch.object(service, "_load_from_dir") as mock_load_from_dir,
+        ):
+            service.load_commands()
+
+        loaded = [str(call.args[0]) for call in mock_load_from_dir.call_args_list]
+        assert loaded
+        assert all("project_commands" not in path for path in loaded)
+
+    @patch("usecli.cli.services.command_service.get_config")
     def test_load_commands_skips_project_dir_when_same_as_package(
         self, mock_get_config, tmp_path
     ):
