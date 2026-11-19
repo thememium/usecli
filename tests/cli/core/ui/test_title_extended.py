@@ -6,11 +6,15 @@ from importlib.metadata import PackageNotFoundError
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+from usecli.cli.config.colors import COLOR
 from usecli.cli.core.ui.title import (
     _get_script_command_name,
     get_project_name,
+    get_project_version,
     get_script_command_name,
     print_title,
+    render_figlet_title,
+    render_plain_title,
 )
 
 # ---------------------------------------------------------------------------
@@ -192,6 +196,21 @@ class TestGetProjectName:
 
 
 # ---------------------------------------------------------------------------
+# render_figlet_title
+# ---------------------------------------------------------------------------
+
+
+class TestRenderFigletTitle:
+    def test_strips_leading_blank_font_rows(self):
+        import pyfiglet
+
+        rendered = render_figlet_title(pyfiglet, "cogrep", "big")
+
+        assert rendered.split("\n")[0].strip()
+        assert "___" in rendered
+
+
+# ---------------------------------------------------------------------------
 # print_title
 # ---------------------------------------------------------------------------
 
@@ -220,7 +239,7 @@ class TestPrintTitle:
     def test_prints_custom_title_with_pyfiglet(self, mock_config, mock_console):
         mock_config.return_value = MagicMock(
             get=MagicMock(
-                side_effect=lambda k, d=None: None if k == "title_file" else d
+                side_effect=lambda k, d=None: None if k == "banner.file" else d
             ),
         )
         print_title("My App")
@@ -237,6 +256,65 @@ class TestPrintTitle:
         )
         print_title()
         assert mock_console.print.called
+
+    @patch("usecli.cli.core.ui.title.console")
+    @patch("usecli.cli.core.ui.title.get_config")
+    def test_title_file_trailing_newline_does_not_add_blank_line(
+        self, mock_config, mock_console, tmp_path
+    ):
+        title_file = tmp_path / "title.txt"
+        title_file.write_text("Custom Title Art\n\n")
+        mock_config.return_value = MagicMock(
+            get=MagicMock(
+                side_effect=lambda k, d=None: {
+                    "banner.file": str(title_file),
+                    "banner.top_space": False,
+                    "banner.bottom_space": False,
+                }.get(k, d)
+            ),
+            has_key=MagicMock(return_value=False),
+            get_project_root=MagicMock(return_value=tmp_path),
+        )
+
+        print_title()
+
+        art = next(
+            call.args[0]
+            for call in mock_console.print.call_args_list
+            if call.args and "Custom Title Art" in call.args[0]
+        )
+        assert not art.endswith("\n")
+
+    @patch("usecli.cli.core.ui.title.get_project_version", return_value="1.2.3")
+    @patch("usecli.cli.core.ui.title.console")
+    @patch("usecli.cli.core.ui.title.get_config")
+    def test_title_file_renders_description_and_version(
+        self, mock_config, mock_console, _mock_version, tmp_path
+    ):
+        title_file = tmp_path / "title.txt"
+        title_file.write_text("Custom Title Art")
+        values = {
+            "banner.file": str(title_file),
+            "banner.show_description": True,
+            "banner.show_version": True,
+            "banner.top_space": False,
+            "banner.bottom_space": False,
+            "description": "A demo CLI",
+        }
+        mock_config.return_value = MagicMock(
+            get=MagicMock(side_effect=lambda k, d=None: values.get(k, d)),
+            has_key=MagicMock(side_effect=lambda k: k in values),
+            get_project_root=MagicMock(return_value=tmp_path),
+        )
+
+        print_title("My App")
+
+        printed = [
+            call.args[0] for call in mock_console.print.call_args_list if call.args
+        ]
+        assert any("Custom Title Art" in value for value in printed)
+        assert any("v1.2.3" in value for value in printed)
+        assert any("A demo CLI" in value for value in printed)
 
     @patch("usecli.cli.core.ui.title.console")
     @patch("usecli.cli.core.ui.title.get_config")
@@ -260,11 +338,23 @@ class TestPrintTitle:
         ):
             mock_config.return_value = MagicMock(
                 get=MagicMock(
-                    side_effect=lambda k, d=None: "big" if k == "title_font" else None
+                    side_effect=lambda k, d=None: "big" if k == "banner.font" else None
                 ),
             )
             print_title("My App")
             assert mock_console.print.called
+
+    @patch("usecli.cli.core.ui.title.console")
+    @patch("usecli.cli.core.ui.title.get_config")
+    def test_renders_text_when_title_font_not_configured(
+        self, mock_config, mock_console
+    ):
+        mock_config.return_value = MagicMock(
+            get=MagicMock(return_value=None),
+            has_key=MagicMock(return_value=False),
+        )
+        print_title("My App")
+        assert "My App" in mock_console.print.call_args_list[0].args[0]
 
     @patch("usecli.cli.core.ui.title.console")
     @patch("usecli.cli.core.ui.title.get_config")
@@ -296,3 +386,345 @@ class TestPrintTitle:
         )
         print_title()
         assert mock_console.print.called
+
+    @patch("usecli.cli.core.ui.title.console")
+    @patch("usecli.cli.core.ui.title.get_config")
+    def test_banner_top_space_adds_leading_blank_in_figlet_mode(
+        self, mock_config, mock_console
+    ):
+        mock_config.return_value = MagicMock(
+            get=MagicMock(
+                side_effect=lambda k, d=None: (
+                    True
+                    if k == "banner.top_space"
+                    else ("big" if k == "banner.font" else None)
+                )
+            ),
+        )
+        print_title("My App")
+        assert mock_console.print.call_args_list[0].args == ()
+
+    @patch("usecli.cli.core.ui.title.console")
+    @patch("usecli.cli.core.ui.title.get_config")
+    def test_no_leading_blank_in_figlet_mode_by_default(
+        self, mock_config, mock_console
+    ):
+        mock_config.return_value = MagicMock(
+            get=MagicMock(
+                side_effect=lambda k, d=None: "big" if k == "banner.font" else None
+            ),
+        )
+        print_title("My App")
+        assert mock_console.print.call_args_list[0].args != ()
+
+    @patch("usecli.cli.core.ui.title.get_figlet", return_value=None)
+    @patch("usecli.cli.core.ui.title.console")
+    @patch("usecli.cli.core.ui.title.get_config")
+    def test_banner_top_space_adds_leading_blank_in_plain_mode(
+        self, mock_config, mock_console, _mock_figlet
+    ):
+        mock_config.return_value = MagicMock(
+            get=MagicMock(
+                side_effect=lambda k, d=None: True if k == "banner.top_space" else None
+            ),
+            has_key=MagicMock(return_value=False),
+        )
+        print_title("My App")
+        assert mock_console.print.call_args_list[0].args == ()
+
+    @patch("usecli.cli.core.ui.title.get_figlet", return_value=None)
+    @patch("usecli.cli.core.ui.title.console")
+    @patch("usecli.cli.core.ui.title.get_config")
+    def test_no_leading_blank_in_plain_mode_by_default(
+        self, mock_config, mock_console, _mock_figlet
+    ):
+        mock_config.return_value = MagicMock(
+            get=MagicMock(return_value=None),
+            has_key=MagicMock(return_value=False),
+        )
+        print_title("My App")
+        assert mock_console.print.call_args_list[0].args != ()
+
+    @patch("usecli.cli.core.ui.title.console")
+    @patch("usecli.cli.core.ui.title.get_config")
+    def test_banner_bottom_space_adds_trailing_blank_in_figlet_mode(
+        self, mock_config, mock_console
+    ):
+        mock_config.return_value = MagicMock(
+            get=MagicMock(
+                side_effect=lambda k, d=None: (
+                    True
+                    if k == "banner.bottom_space"
+                    else ("big" if k == "banner.font" else None)
+                )
+            ),
+        )
+        print_title("My App")
+        assert mock_console.print.call_args_list[-1].args == ()
+
+    @patch("usecli.cli.core.ui.title.console")
+    @patch("usecli.cli.core.ui.title.get_config")
+    def test_no_trailing_blank_in_figlet_mode_when_disabled(
+        self, mock_config, mock_console
+    ):
+        mock_config.return_value = MagicMock(
+            get=MagicMock(
+                side_effect=lambda k, d=None: "big" if k == "banner.font" else None
+            ),
+        )
+        print_title("My App")
+        assert mock_console.print.call_args_list[-1].args != ()
+
+    @patch("usecli.cli.core.ui.title.get_figlet", return_value=None)
+    @patch("usecli.cli.core.ui.title.console")
+    @patch("usecli.cli.core.ui.title.get_config")
+    def test_banner_bottom_space_adds_trailing_blank_in_plain_mode(
+        self, mock_config, mock_console, _mock_figlet
+    ):
+        mock_config.return_value = MagicMock(
+            get=MagicMock(
+                side_effect=lambda k, d=None: (
+                    True if k == "banner.bottom_space" else None
+                )
+            ),
+            has_key=MagicMock(return_value=False),
+        )
+        print_title("My App")
+        assert mock_console.print.call_args_list[-1].args == ()
+
+    @patch("usecli.cli.core.ui.title.get_figlet", return_value=None)
+    @patch("usecli.cli.core.ui.title.console")
+    @patch("usecli.cli.core.ui.title.get_config")
+    def test_no_trailing_blank_in_plain_mode_when_disabled(
+        self, mock_config, mock_console, _mock_figlet
+    ):
+        mock_config.return_value = MagicMock(
+            get=MagicMock(return_value=None),
+            has_key=MagicMock(return_value=False),
+        )
+        print_title("My App")
+        assert mock_console.print.call_args_list[-1].args != ()
+
+    @patch("usecli.cli.core.ui.title.console")
+    @patch("usecli.cli.core.ui.title.get_config")
+    def test_figlet_shows_description_when_enabled(self, mock_config, mock_console):
+        mock_config.return_value = MagicMock(
+            get=MagicMock(
+                side_effect=lambda k, d=None: {
+                    "banner.font": "big",
+                    "banner.show_description": True,
+                    "description": "A demo CLI",
+                }.get(k, d)
+            ),
+            has_key=MagicMock(
+                side_effect=lambda k: k in {"banner.show_description", "description"}
+            ),
+        )
+        print_title("My App")
+        calls = mock_console.print.call_args_list
+        description_index = next(
+            index
+            for index, call in enumerate(calls)
+            if call.args and "A demo CLI" in call.args[0]
+        )
+        assert calls[description_index - 1].args == ()
+        assert calls[description_index].args[0].startswith(" ")
+
+    @patch("usecli.cli.core.ui.title.console")
+    @patch("usecli.cli.core.ui.title.get_config")
+    def test_figlet_hides_description_by_default(self, mock_config, mock_console):
+        mock_config.return_value = MagicMock(
+            get=MagicMock(
+                side_effect=lambda k, d=None: {
+                    "banner.font": "big",
+                    "description": "A demo CLI",
+                }.get(k, d)
+            ),
+            has_key=MagicMock(side_effect=lambda k: k == "description"),
+        )
+        print_title("My App")
+        printed = [
+            call.args[0] for call in mock_console.print.call_args_list if call.args
+        ]
+        assert not any("A demo CLI" in value for value in printed)
+
+    @patch("usecli.cli.core.ui.title.get_figlet", return_value=None)
+    @patch("usecli.cli.core.ui.title.console")
+    @patch("usecli.cli.core.ui.title.get_config")
+    def test_plain_shows_description_by_default(
+        self, mock_config, mock_console, _mock_figlet
+    ):
+        mock_config.return_value = MagicMock(
+            get=MagicMock(
+                side_effect=lambda k, d=None: {
+                    "description": "A demo CLI",
+                }.get(k, d)
+            ),
+            has_key=MagicMock(side_effect=lambda k: k == "description"),
+        )
+        print_title("My App")
+        printed = [
+            call.args[0] for call in mock_console.print.call_args_list if call.args
+        ]
+        assert any("A demo CLI" in value for value in printed)
+
+    @patch("usecli.cli.core.ui.title.get_figlet", return_value=None)
+    @patch("usecli.cli.core.ui.title.console")
+    @patch("usecli.cli.core.ui.title.get_config")
+    def test_plain_hides_description_when_disabled(
+        self, mock_config, mock_console, _mock_figlet
+    ):
+        mock_config.return_value = MagicMock(
+            get=MagicMock(
+                side_effect=lambda k, d=None: {
+                    "banner.show_description": False,
+                    "description": "A demo CLI",
+                }.get(k, d)
+            ),
+            has_key=MagicMock(
+                side_effect=lambda k: k in {"banner.show_description", "description"}
+            ),
+        )
+        print_title("My App")
+        printed = [
+            call.args[0] for call in mock_console.print.call_args_list if call.args
+        ]
+        assert not any("A demo CLI" in value for value in printed)
+
+    @patch("usecli.cli.core.ui.title.get_project_version", return_value="1.2.3")
+    @patch("usecli.cli.core.ui.title.console")
+    @patch("usecli.cli.core.ui.title.get_config")
+    def test_figlet_shows_version_when_enabled(
+        self, mock_config, mock_console, _mock_version
+    ):
+        mock_config.return_value = MagicMock(
+            get=MagicMock(
+                side_effect=lambda k, d=None: {
+                    "banner.font": "big",
+                    "banner.show_version": True,
+                }.get(k, d)
+            ),
+            has_key=MagicMock(side_effect=lambda k: k == "banner.show_version"),
+        )
+        print_title("My App")
+        printed = [
+            call.args[0] for call in mock_console.print.call_args_list if call.args
+        ]
+        assert any("v1.2.3" in value for value in printed)
+
+    @patch("usecli.cli.core.ui.title.get_project_version", return_value="1.2.3")
+    @patch("usecli.cli.core.ui.title.console")
+    @patch("usecli.cli.core.ui.title.get_config")
+    def test_figlet_hides_version_by_default(
+        self, mock_config, mock_console, mock_version
+    ):
+        mock_config.return_value = MagicMock(
+            get=MagicMock(
+                side_effect=lambda k, d=None: {"banner.font": "big"}.get(k, d)
+            ),
+            has_key=MagicMock(return_value=False),
+        )
+        print_title("My App")
+        printed = [
+            call.args[0] for call in mock_console.print.call_args_list if call.args
+        ]
+        assert not any("v1.2.3" in value for value in printed)
+        mock_version.assert_not_called()
+
+    @patch("usecli.cli.core.ui.title.get_project_version", return_value="1.2.3")
+    @patch("usecli.cli.core.ui.title.get_figlet", return_value=None)
+    @patch("usecli.cli.core.ui.title.console")
+    @patch("usecli.cli.core.ui.title.get_config")
+    def test_plain_shows_version_by_default(
+        self, mock_config, mock_console, _mock_figlet, _mock_version
+    ):
+        mock_config.return_value = MagicMock(
+            get=MagicMock(return_value=None),
+            has_key=MagicMock(return_value=False),
+        )
+        print_title("My App")
+        printed = [
+            call.args[0] for call in mock_console.print.call_args_list if call.args
+        ]
+        assert any("v1.2.3" in value for value in printed)
+
+    @patch("usecli.cli.core.ui.title.get_project_version", return_value="1.2.3")
+    @patch("usecli.cli.core.ui.title.get_figlet", return_value=None)
+    @patch("usecli.cli.core.ui.title.console")
+    @patch("usecli.cli.core.ui.title.get_config")
+    def test_plain_hides_version_when_disabled(
+        self, mock_config, mock_console, _mock_figlet, _mock_version
+    ):
+        mock_config.return_value = MagicMock(
+            get=MagicMock(
+                side_effect=lambda k, d=None: {"banner.show_version": False}.get(k, d)
+            ),
+            has_key=MagicMock(side_effect=lambda k: k == "banner.show_version"),
+        )
+        print_title("My App")
+        printed = [
+            call.args[0] for call in mock_console.print.call_args_list if call.args
+        ]
+        assert not any("v1.2.3" in value for value in printed)
+
+
+# ---------------------------------------------------------------------------
+# render_plain_title / get_project_version
+# ---------------------------------------------------------------------------
+
+
+class TestRenderPlainTitle:
+    def test_renders_title_version_and_description(self):
+        markup = render_plain_title("cogrep", "A custom CLI tool", "v0.1.0")
+
+        first_line, second_line = markup.split("\n")
+        assert "cogrep" in first_line
+        assert f"[{COLOR.SECONDARY}]v0.1.0[/{COLOR.SECONDARY}]" in first_line
+        assert second_line == (
+            f"[{COLOR.FOREGROUND_MUTED}]A custom CLI tool[/{COLOR.FOREGROUND_MUTED}]"
+        )
+
+    def test_omits_version_and_description_when_missing(self):
+        assert render_plain_title("cogrep") == (
+            f"[bold {COLOR.PRIMARY}]cogrep[/bold {COLOR.PRIMARY}]"
+        )
+
+
+class TestGetProjectVersion:
+    @patch("usecli.cli.core.ui.title.get_config")
+    @patch("usecli.cli.core.ui.title.get_script_command_name", return_value=None)
+    def test_falls_back_to_project_version(self, mock_command, mock_config):
+        mock_config.return_value = MagicMock(
+            get_project_version=MagicMock(return_value="2.0.0")
+        )
+
+        assert get_project_version() == "2.0.0"
+
+    @patch("usecli.shared.config.manager._find_distribution_for_console_script")
+    @patch("usecli.cli.core.ui.title.get_script_command_name", return_value="cogrep")
+    @patch("usecli.cli.core.ui.title.get_config")
+    def test_unreadable_distribution_version_falls_back(
+        self, mock_config, mock_command, mock_find
+    ):
+        class _BadDist:
+            @property
+            def version(self):
+                raise AttributeError("missing version")
+
+        mock_find.return_value = _BadDist()
+        mock_config.return_value = MagicMock(
+            get_project_version=MagicMock(return_value="3.1.0")
+        )
+
+        assert get_project_version() == "3.1.0"
+
+    @patch("usecli.cli.core.ui.title.get_config")
+    @patch("usecli.cli.core.ui.title.get_script_command_name", return_value=None)
+    def test_returns_none_when_project_version_unreadable(
+        self, mock_command, mock_config
+    ):
+        mock_config.return_value = MagicMock(
+            get_project_version=MagicMock(side_effect=OSError("unreadable"))
+        )
+
+        assert get_project_version() is None

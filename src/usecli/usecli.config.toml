@@ -1,14 +1,21 @@
+# Runtime configuration for usecli.
+# Paths are relative to this file.
+
 [usecli]
 command_name = "usecli"
 title = "usecli"
-title_file = "cli/core/ui/title.txt"
-title_font = "ansi_shadow"
 description = "A powerful Python CLI framework for building beautiful, developer-friendly command-line tools."
-commands_dir = "cli/commands/custom"
-templates_dir = "cli/templates"
-themes_dir = "cli/themes"
-theme = "default"
-hide_init = false
-hide_inspire = false
-hide_make_command = false
-hide_make_theme = false
+
+[usecli.paths]
+commands = "cli/commands/custom"
+templates = "cli/templates"
+themes = ["cli/themes"]
+
+[usecli.theme]
+name = "default"
+
+[usecli.banner]
+file = "cli/core/ui/title.txt"
+font = "ansi_shadow"
+top_space = true
+bottom_space = false

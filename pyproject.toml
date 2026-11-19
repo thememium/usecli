@@ -14,7 +14,6 @@ dependencies = [
   "case-converter>=1.2.0",
   "click>=8.4.2",
   "jinja2>=3.1.6",
-  "pyfiglet>=1.0.4",
   "rich>=15.0.0",
   "simple-term-menu>=1.6.6",
   "tomli>=2.4.1",
@@ -24,6 +23,7 @@ license = "MIT"
 license-files = ["LICEN[CS]E*"]
 
 [project.optional-dependencies]
+figlet = ["pyfiglet>=1.0.4"]
 pyinstaller = ["pyinstaller>=6.21.0"]
 
 [project.urls]
@@ -46,6 +46,7 @@ dev = [
   "deptry>=0.25.1",
   "isort>=8.0.1",
   "poethepoet>=0.48.0",
+  "pyfiglet>=1.0.4",
   "pyinstaller>=6.21.0",
   "pytest>=9.1.1",
   "pytest-cov>=7.1.0",

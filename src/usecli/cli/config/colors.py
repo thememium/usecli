@@ -426,16 +426,16 @@ def _load_usecli_config_file(config_path: Path) -> dict[str, Any]:
         return {}
 
     tool = data.get("tool", {})
-    if isinstance(tool, dict) and "usecli" in tool:
-        usecli_config = tool.get("usecli")
-        if isinstance(usecli_config, dict):
-            return usecli_config
+    usecli_section = None
+    if isinstance(tool, dict):
+        usecli_section = tool.get("usecli")
+    if not isinstance(usecli_section, dict):
+        usecli_section = data.get("usecli")
 
-    usecli_section = data.get("usecli", {})
-    if isinstance(usecli_section, dict):
-        return usecli_section
+    # Imported lazily: colors loads before the rest of the CLI on startup.
+    from usecli.shared.config.manager import normalize_config
 
-    return {}
+    return normalize_config(usecli_section)
 
 
 def _get_package_name() -> str:
@@ -539,12 +539,24 @@ def _dedupe_paths(paths: list[Path]) -> list[Path]:
     return result
 
 
+def _theme_name(config: dict[str, Any]) -> str:
+    """Read ``[usecli.theme] name`` from a normalized config table."""
+    theme = config.get("theme")
+    if isinstance(theme, dict):
+        name = theme.get("name")
+        if isinstance(name, str) and name.strip():
+            return name.strip()
+    return DEFAULT_THEME_NAME
+
+
 def _get_theme_dirs(project_root: Path | None, config: dict[str, Any]) -> list[Path]:
     default_dirs: list[Path] = []
     if project_root is not None:
         default_dirs.append(project_root / "cli" / "themes")
 
-    config_dirs = _normalize_theme_dirs(config.get("themes_dir"), project_root)
+    paths = config.get("paths")
+    themes = paths.get("themes") if isinstance(paths, dict) else None
+    config_dirs = _normalize_theme_dirs(themes, project_root)
     merged = _dedupe_paths(default_dirs + config_dirs)
     return _dedupe_paths(merged + [THEMES_DIR])
 
@@ -640,11 +652,7 @@ def _load_theme() -> tuple[dict[str, str], dict[str, str], str, Path | None]:
     project_root = _find_project_root()
     config_values, _ = _load_usecli_config(project_root)
 
-    theme_name = DEFAULT_THEME_NAME
-    config_theme = config_values.get("theme")
-    if isinstance(config_theme, str) and config_theme.strip():
-        theme_name = config_theme.strip()
-
+    theme_name = _theme_name(config_values)
     theme_path = _resolve_theme_path(theme_name, project_root, config_values)
     package_default_theme = (THEMES_DIR / f"{DEFAULT_THEME_NAME}.toml").resolve()
     if (
@@ -686,10 +694,7 @@ def _config_signature(path: Path) -> tuple[Path, int | None, int | None]:
 def _compute_theme_context() -> tuple[Path | None, Path | None, str, Path | None]:
     project_root = _find_project_root()
     config_values, config_path = _load_usecli_config(project_root)
-    theme_name = DEFAULT_THEME_NAME
-    config_theme = config_values.get("theme")
-    if isinstance(config_theme, str) and config_theme.strip():
-        theme_name = config_theme.strip()
+    theme_name = _theme_name(config_values)
     theme_path = _resolve_theme_path(theme_name, project_root, config_values)
     return (
         project_root.resolve() if project_root else None,

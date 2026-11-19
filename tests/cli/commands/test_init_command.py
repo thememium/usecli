@@ -55,9 +55,11 @@ def mock_console():
 def init_command(mock_console):
     with (
         patch("usecli.cli.commands.init_command.Prompt.ask") as mock_prompt,
+        patch("usecli.cli.commands.init_command.Confirm.ask") as mock_confirm,
         patch("usecli.cli.commands.init_command.terminal_menu") as mock_terminal_menu,
     ):
         mock_prompt.side_effect = lambda *args, **kwargs: kwargs.get("default", "")
+        mock_confirm.side_effect = lambda *args, **kwargs: kwargs.get("default", True)
 
         def _menu_side_effect(options, *args, **kwargs):
             if isinstance(options, list) and "big" in options:
@@ -79,9 +81,11 @@ def interactive_cmd(mock_console):
     """InitCommand with interactive prompts/menus mocked to their defaults."""
     with (
         patch("usecli.cli.commands.init_command.Prompt.ask") as mock_prompt,
+        patch("usecli.cli.commands.init_command.Confirm.ask") as mock_confirm,
         patch("usecli.cli.commands.init_command.terminal_menu") as mock_terminal_menu,
     ):
         mock_prompt.side_effect = lambda *args, **kwargs: kwargs.get("default", "")
+        mock_confirm.side_effect = lambda *args, **kwargs: kwargs.get("default", True)
 
         def _menu_side_effect(options, *args, **kwargs):
             if isinstance(options, list) and "big" in options:
@@ -181,6 +185,7 @@ class TestInitCommandPyprojectToml:
 
         with (
             patch("usecli.cli.commands.init_command.Prompt.ask") as mock_prompt,
+            patch("usecli.cli.commands.init_command.Confirm.ask", return_value=True),
             patch(
                 "usecli.cli.commands.init_command.terminal_menu"
             ) as mock_terminal_menu,
@@ -231,6 +236,7 @@ class TestInitCommandPyprojectToml:
         config_location = temp_project_dir / "config" / "nested"
         with (
             patch("usecli.cli.commands.init_command.Prompt.ask") as mock_prompt,
+            patch("usecli.cli.commands.init_command.Confirm.ask", return_value=True),
             patch(
                 "usecli.cli.commands.init_command.terminal_menu"
             ) as mock_terminal_menu,
@@ -603,9 +609,9 @@ class TestInitCommandStandaloneConfig:
         config_content = config_path.read_text()
         assert 'title = "Test CLI"' in config_content
         assert 'description = "Test description"' in config_content
-        assert 'commands_dir = "custom_cmds"' in config_content
-        assert 'templates_dir = "templates"' in config_content
-        assert 'themes_dir = "themes"' in config_content
+        assert 'commands = "custom_cmds"' in config_content
+        assert 'templates = "templates"' in config_content
+        assert 'themes = ["themes"]' in config_content
 
     def test_prompts_to_overwrite_existing_config_in_pyproject(
         self, temp_project_dir, init_command
@@ -671,9 +677,61 @@ class TestInitCommandOptions:
         config_path = _config_path(temp_project_dir, "my_commands")
         assert config_path.exists()
         config_content = config_path.read_text()
-        assert 'commands_dir = "my_commands"' in config_content
-        assert 'templates_dir = "templates"' in config_content
-        assert 'themes_dir = "themes"' in config_content
+        assert 'commands = "my_commands"' in config_content
+        assert 'templates = "templates"' in config_content
+        assert 'themes = ["themes"]' in config_content
+
+    def test_banner_top_space_can_be_disabled(self, temp_project_dir, init_command):
+        init_command.handle(
+            DEFAULT_TITLE,
+            DEFAULT_DESCRIPTION,
+            DEFAULT_COMMANDS_DIR,
+            force=True,
+            title_extra_top_space=False,
+        )
+
+        config_path = _config_path(temp_project_dir, DEFAULT_COMMANDS_DIR)
+        assert "top_space = false" in config_path.read_text()
+
+    def test_banner_bottom_space_can_be_disabled(self, temp_project_dir, init_command):
+        init_command.handle(
+            DEFAULT_TITLE,
+            DEFAULT_DESCRIPTION,
+            DEFAULT_COMMANDS_DIR,
+            force=True,
+            title_extra_bottom_space=False,
+        )
+
+        config_path = _config_path(temp_project_dir, DEFAULT_COMMANDS_DIR)
+        assert "bottom_space = false" in config_path.read_text()
+
+    def test_show_description_can_be_enabled_with_figlet(
+        self, temp_project_dir, init_command
+    ):
+        init_command.handle(
+            DEFAULT_TITLE,
+            DEFAULT_DESCRIPTION,
+            DEFAULT_COMMANDS_DIR,
+            force=True,
+            show_description=True,
+        )
+
+        config_path = _config_path(temp_project_dir, DEFAULT_COMMANDS_DIR)
+        assert "show_description = true" in config_path.read_text()
+
+    def test_show_version_can_be_enabled_with_figlet(
+        self, temp_project_dir, init_command
+    ):
+        init_command.handle(
+            DEFAULT_TITLE,
+            DEFAULT_DESCRIPTION,
+            DEFAULT_COMMANDS_DIR,
+            force=True,
+            show_version=True,
+        )
+
+        config_path = _config_path(temp_project_dir, DEFAULT_COMMANDS_DIR)
+        assert "show_version = true" in config_path.read_text()
 
 
 class TestInitCommandDefaults:
@@ -693,11 +751,19 @@ class TestInitCommandDefaults:
         assert 'title = "My CLI"' in config_content
         assert 'description = "A custom CLI tool"' in config_content
         assert 'command_name = "usecli"' in config_content
-        assert 'commands_dir = "commands"' in config_content
-        assert 'templates_dir = "templates"' in config_content
-        assert 'themes_dir = "themes"' in config_content
-        assert 'title_font = "big"' in config_content
-        assert "hide_inspire = false" in config_content
+        assert 'commands = "commands"' in config_content
+        assert 'templates = "templates"' in config_content
+        assert 'themes = ["themes"]' in config_content
+        assert 'name = "default"' in config_content
+        assert '\nfont = "big"' in config_content
+        assert "# Optional: a text file" in config_content
+        assert '# file = "cli/title.txt"' in config_content
+        assert '# font = "big"' in config_content
+        assert "top_space = true" in config_content
+        assert "bottom_space = true" in config_content
+        assert "show_description = false" in config_content
+        assert "show_version = false" in config_content
+        assert "hidden = []" in config_content
 
 
 class TestInitCommandIntegration:
@@ -1331,6 +1397,8 @@ class TestHandleJsonMode:
                 title_font="big",
             )
         assert result["command_name"] == "mycli"
+        assert result["show_description"] is False
+        assert result["show_version"] is False
         assert result["config_status"] == "created"
         assert (temp_project_dir / "cli" / "usecli.config.toml").exists()
 
@@ -1557,3 +1625,161 @@ class TestUpgradeConfigSection:
             assert manager.get("upgrade.url") is None
         finally:
             reset_config()
+
+
+class TestOptionalFiglet:
+    def test_get_figlet_fonts_without_pyfiglet(self, init_cmd):
+        with patch("usecli.cli.commands.init_command.get_figlet", return_value=None):
+            assert init_cmd._get_figlet_fonts() == []
+
+    def test_prompt_title_font_without_pyfiglet_returns_default(self, init_cmd):
+        with patch("usecli.cli.commands.init_command.get_figlet", return_value=None):
+            assert init_cmd._prompt_title_font("Demo") == "big"
+
+    def test_project_version_from_pyproject(self, init_cmd, tmp_path):
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text('[project]\nname = "x"\nversion = "1.2.3"\n')
+
+        assert init_cmd._get_project_version_from_pyproject(pyproject) == "1.2.3"
+
+    def test_project_version_missing_file(self, init_cmd, tmp_path):
+        assert (
+            init_cmd._get_project_version_from_pyproject(tmp_path / "none.toml") is None
+        )
+
+    def test_project_version_invalid_toml(self, init_cmd, tmp_path):
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text("[project\n")
+
+        assert init_cmd._get_project_version_from_pyproject(pyproject) is None
+
+    def test_project_version_absent(self, init_cmd, tmp_path):
+        pyproject = tmp_path / "pyproject.toml"
+        pyproject.write_text('[project]\nname = "x"\n')
+
+        assert init_cmd._get_project_version_from_pyproject(pyproject) is None
+
+    def test_interactive_init_without_figlet_renders_text_banner(
+        self, temp_project_dir, init_command
+    ):
+        pyproject = temp_project_dir / "pyproject.toml"
+        pyproject.write_text('[project]\nname = "demo"\nversion = "1.2.3"\n')
+
+        with (
+            patch("usecli.cli.commands.init_command.get_figlet", return_value=None),
+            patch("usecli.cli.commands.init_command.console") as mock_console,
+        ):
+            init_command.handle(
+                "Demo",
+                "A demo CLI",
+                DEFAULT_COMMANDS_DIR,
+                force=True,
+                title_extra_top_space=True,
+            )
+
+        config_path = _config_path(temp_project_dir, DEFAULT_COMMANDS_DIR)
+        config_content = config_path.read_text()
+        assert "\nfont = " not in config_content
+        assert '# file = "cli/title.txt"' in config_content
+        assert "# Optional: a figlet font" in config_content
+        assert '# font = "big"' in config_content
+        assert "show_description = true" in config_content
+        assert "show_version = true" in config_content
+        printed = "\n".join(
+            str(call.args[0]) for call in mock_console.print.call_args_list if call.args
+        )
+        assert "Demo" in printed
+        assert "v1.2.3" in printed
+        assert "A demo CLI" in printed
+
+    def test_interactive_init_can_decline_ascii_art(
+        self, temp_project_dir, init_command
+    ):
+        pyproject = temp_project_dir / "pyproject.toml"
+        pyproject.write_text('[project]\nname = "demo"\nversion = "1.2.3"\n')
+
+        with (
+            patch("usecli.cli.commands.init_command.Confirm.ask", return_value=False),
+            patch("usecli.cli.commands.init_command.console") as mock_console,
+        ):
+            init_command.handle("Demo", "A demo CLI", DEFAULT_COMMANDS_DIR, force=True)
+
+        config_path = _config_path(temp_project_dir, DEFAULT_COMMANDS_DIR)
+        config_content = config_path.read_text()
+        assert "\nfont = " not in config_content
+        assert '# file = "cli/title.txt"' in config_content
+        assert "# Optional: a figlet font" in config_content
+        assert '# font = "big"' in config_content
+        assert 'title = "Demo"' in config_content
+        printed = "\n".join(
+            str(call.args[0]) for call in mock_console.print.call_args_list if call.args
+        )
+        assert "Selected logo style:" in printed
+        assert "text only" in printed
+        assert "Select a figlet font" not in printed
+
+    def test_interactive_init_skips_ascii_art_prompt_without_figlet(
+        self, temp_project_dir, init_command
+    ):
+        pyproject = temp_project_dir / "pyproject.toml"
+        pyproject.write_text('[project]\nname = "demo"\nversion = "1.2.3"\n')
+
+        with (
+            patch("usecli.cli.commands.init_command.get_figlet", return_value=None),
+            patch(
+                "usecli.cli.commands.init_command.Confirm.ask", return_value=True
+            ) as mock_confirm,
+            patch("usecli.cli.commands.init_command.console"),
+        ):
+            init_command.handle("Demo", "A demo CLI", DEFAULT_COMMANDS_DIR, force=True)
+
+        assert not any(
+            "ASCII art" in str(call.args[0]) for call in mock_confirm.call_args_list
+        )
+
+    def test_explicit_visibility_flags_skip_prompts(
+        self, temp_project_dir, init_command
+    ):
+        pyproject = temp_project_dir / "pyproject.toml"
+        pyproject.write_text('[project]\nname = "demo"\nversion = "1.2.3"\n')
+
+        with (
+            patch(
+                "usecli.cli.commands.init_command.Confirm.ask", return_value=True
+            ) as mock_confirm,
+            patch("usecli.cli.commands.init_command.console"),
+        ):
+            init_command.handle(
+                "Demo",
+                "A demo CLI",
+                DEFAULT_COMMANDS_DIR,
+                force=True,
+                show_description=False,
+                show_version=False,
+            )
+
+        prompts = [str(call.args[0]) for call in mock_confirm.call_args_list]
+        assert not any("Show the description" in prompt for prompt in prompts)
+        assert not any("Show the version" in prompt for prompt in prompts)
+        config_content = _config_path(
+            temp_project_dir, DEFAULT_COMMANDS_DIR
+        ).read_text()
+        assert "show_description = false" in config_content
+        assert "show_version = false" in config_content
+
+    def test_new_project_without_figlet_uses_plain_usecli_dependency(
+        self, temp_project_dir, init_command
+    ):
+        with (
+            patch("usecli.cli.commands.init_command.get_figlet", return_value=None),
+            patch("usecli.cli.commands.init_command.console") as mock_console,
+        ):
+            init_command.handle("Demo", "A demo CLI", DEFAULT_COMMANDS_DIR, force=True)
+
+        pyproject = (temp_project_dir / "pyproject.toml").read_text()
+        assert '"usecli",' in pyproject
+        assert "usecli[figlet]" not in pyproject
+        printed = "\n".join(
+            str(call.args[0]) for call in mock_console.print.call_args_list if call.args
+        )
+        assert "v0.1.0" in printed

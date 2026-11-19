@@ -714,6 +714,44 @@ class TestBaseCommandVisible:
         assert cmd.visible() is False
 
 
+class TestBaseCommandIsHidden:
+    """Tests for the ``[usecli.commands] hidden`` check."""
+
+    @patch("usecli.shared.config.manager.get_config")
+    def test_hidden_when_signature_listed(self, mock_get_config):
+        mock_get_config.return_value.get.return_value = ["test-cmd"]
+        cmd = ConcreteCommand(app=MagicMock())
+        assert cmd.is_hidden() is True
+
+    @patch("usecli.shared.config.manager.get_config")
+    def test_not_hidden_when_signature_absent(self, mock_get_config):
+        mock_get_config.return_value.get.return_value = ["other"]
+        cmd = ConcreteCommand(app=MagicMock())
+        assert cmd.is_hidden() is False
+
+    @patch("usecli.shared.config.manager.get_config")
+    def test_accepts_single_string(self, mock_get_config):
+        mock_get_config.return_value.get.return_value = "test-cmd"
+        cmd = ConcreteCommand(app=MagicMock())
+        assert cmd.is_hidden() is True
+
+    @patch("usecli.shared.config.manager.get_config")
+    def test_ignores_non_list_value(self, mock_get_config):
+        mock_get_config.return_value.get.return_value = 42
+        cmd = ConcreteCommand(app=MagicMock())
+        assert cmd.is_hidden() is False
+
+    @patch("usecli.shared.config.manager.get_config")
+    def test_register_skips_hidden_command(self, mock_get_config):
+        mock_get_config.return_value.get.return_value = ["test-cmd"]
+        mock_app = MagicMock()
+        mock_app.command = MagicMock(return_value=lambda f: f)
+
+        ConcreteCommand(app=mock_app)
+
+        mock_app.command.assert_not_called()
+
+
 class TestBaseCommandRegisterWithVisible:
     """Tests for BaseCommand register with visible check."""
 

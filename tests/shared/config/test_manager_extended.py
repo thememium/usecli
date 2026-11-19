@@ -12,12 +12,13 @@ from usecli.shared.config.manager import (
     _find_distribution_for_console_script,
     _get_distributions,
     _get_package_name,
-    _normalize_themes_dir,
+    _normalize_str_list,
     _reset_distributions_cache,
     _rglob_limited,
     _walk_for_filename,
     find_project_root,
     get_config,
+    normalize_config,
     reset_config,
 )
 
@@ -52,30 +53,150 @@ class TestDeepMerge:
         assert result == {"a": {"nested": True}}
 
 
-class TestNormalizeThemesDir:
+class TestNormalizeStrList:
     def test_returns_empty_for_none(self):
-        assert _normalize_themes_dir(None) == []
+        assert _normalize_str_list(None) == []
 
     def test_handles_string_value(self):
-        assert _normalize_themes_dir("themes") == ["themes"]
+        assert _normalize_str_list("themes") == ["themes"]
 
     def test_handles_empty_string(self):
-        assert _normalize_themes_dir("") == []
+        assert _normalize_str_list("") == []
 
     def test_handles_whitespace_string(self):
-        assert _normalize_themes_dir("   ") == []
+        assert _normalize_str_list("   ") == []
 
     def test_handles_list_value(self):
-        assert _normalize_themes_dir(["dir1", "dir2"]) == ["dir1", "dir2"]
+        assert _normalize_str_list(["dir1", "dir2"]) == ["dir1", "dir2"]
 
     def test_skips_empty_strings_in_list(self):
-        assert _normalize_themes_dir(["", "valid", "  "]) == ["valid"]
+        assert _normalize_str_list(["", "valid", "  "]) == ["valid"]
 
     def test_skips_non_strings_in_list(self):
-        assert _normalize_themes_dir([42, "valid"]) == ["valid"]
+        assert _normalize_str_list([42, "valid"]) == ["valid"]
 
     def test_returns_empty_for_other_types(self):
-        assert _normalize_themes_dir(42) == []
+        assert _normalize_str_list(42) == []
+
+
+class TestNormalizeConfig:
+    def test_returns_empty_for_non_dict(self):
+        assert normalize_config(None) == {}
+
+    def test_maps_flat_keys_into_sections(self):
+        result = normalize_config(
+            {
+                "title_font": "big",
+                "title_file": "art.txt",
+                "title_extra_top_space": False,
+                "title_extra_bottom_space": False,
+                "show_description": True,
+                "show_version": False,
+                "commands_dir": "cmds",
+                "templates_dir": "tmpl",
+                "themes_dir": ["th"],
+                "theme": "dark",
+            }
+        )
+        assert result == {
+            "banner": {
+                "font": "big",
+                "file": "art.txt",
+                "top_space": False,
+                "bottom_space": False,
+                "show_description": True,
+                "show_version": False,
+            },
+            "paths": {"commands": "cmds", "templates": "tmpl", "themes": ["th"]},
+            "theme": {"name": "dark"},
+        }
+
+    def test_sectioned_keys_win_over_flat_keys(self):
+        result = normalize_config(
+            {"title_font": "big", "banner": {"font": "small", "top_space": False}}
+        )
+        assert result["banner"] == {"font": "small", "top_space": False}
+
+    def test_maps_hide_inspire_into_hidden_list(self):
+        result = normalize_config({"hide_inspire": True})
+        assert result["commands"] == {"hidden": ["inspire"]}
+
+    def test_merges_hide_inspire_with_existing_hidden(self):
+        result = normalize_config({"hide_inspire": True, "commands": {"hidden": ["x"]}})
+        assert result["commands"]["hidden"] == ["x", "inspire"]
+
+    def test_does_not_duplicate_hidden_inspire(self):
+        result = normalize_config(
+            {"hide_inspire": True, "commands": {"hidden": ["inspire"]}}
+        )
+        assert result["commands"]["hidden"] == ["inspire"]
+
+    def test_ignores_false_hide_inspire(self):
+        assert normalize_config({"hide_inspire": False}) == {}
+
+    def test_maps_all_legacy_hide_flags(self):
+        result = normalize_config(
+            {
+                "hide_init": True,
+                "hide_inspire": True,
+                "hide_make_command": True,
+                "hide_make_theme": True,
+            }
+        )
+        assert result == {
+            "commands": {
+                "hidden": ["inspire", "init", "make:command", "make:theme"],
+            }
+        }
+
+    def test_ignores_disabled_legacy_hide_flags(self):
+        result = normalize_config(
+            {
+                "hide_init": False,
+                "hide_inspire": True,
+                "hide_make_command": False,
+                "hide_make_theme": True,
+            }
+        )
+        assert result["commands"]["hidden"] == ["inspire", "make:theme"]
+
+    def test_normalizes_flat_config_from_before_sections(self):
+        legacy = {
+            "command_name": "usecli",
+            "title": "usecli",
+            "title_file": "cli/core/ui/title.txt",
+            "title_font": "ansi_shadow",
+            "description": "A powerful Python CLI framework.",
+            "commands_dir": "cli/commands/custom",
+            "templates_dir": "cli/templates",
+            "themes_dir": "cli/themes",
+            "theme": "default",
+            "hide_init": False,
+            "hide_inspire": False,
+            "hide_make_command": False,
+            "hide_make_theme": False,
+        }
+        assert normalize_config(legacy) == {
+            "command_name": "usecli",
+            "title": "usecli",
+            "description": "A powerful Python CLI framework.",
+            "paths": {
+                "commands": "cli/commands/custom",
+                "templates": "cli/templates",
+                "themes": "cli/themes",
+            },
+            "theme": {"name": "default"},
+            "banner": {
+                "file": "cli/core/ui/title.txt",
+                "font": "ansi_shadow",
+            },
+        }
+
+    def test_copies_nested_tables(self):
+        source = {"paths": {"commands": "cmds"}}
+        result = normalize_config(source)
+        assert result["paths"] == source["paths"]
+        assert result["paths"] is not source["paths"]
 
 
 class TestDedupeItems:

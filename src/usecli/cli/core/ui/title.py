@@ -5,6 +5,7 @@ from __future__ import annotations
 import sys
 from importlib.metadata import PackageNotFoundError, metadata
 from pathlib import Path
+from typing import Any
 
 if sys.version_info >= (3, 11):
     import tomllib
@@ -89,8 +90,94 @@ def get_project_name() -> str:
         return "useCli"
 
 
+def get_figlet() -> Any | None:
+    """Return the optional ``pyfiglet`` module, or None when it is not installed."""
+    try:
+        import pyfiglet
+    except ImportError:
+        return None
+    return pyfiglet
+
+
+def render_figlet_title(figlet: Any, text: str, font: str) -> str:
+    """Render figlet art without blank rows above the glyphs.
+
+    Some fonts (notably ``big`` with lowercase-only text) start with a
+    whitespace-only row. That row is font layout, not intentional banner
+    spacing; ``banner.top_space`` owns the banner's top spacing.
+    """
+    raw_title = figlet.figlet_format(text=text, font=font).rstrip()
+    lines = raw_title.split("\n")
+    while lines and not lines[0].strip():
+        lines.pop(0)
+    return "\n".join(" " + line for line in lines)
+
+
+def get_project_version() -> str | None:
+    """Best-effort version of the running CLI.
+
+    Resolves the distribution that owns the invoked console script first, then
+    falls back to ``[project].version`` in the project's pyproject.toml.
+    """
+    command_name = get_script_command_name()
+    if command_name:
+        from usecli.shared.config.manager import _find_distribution_for_console_script
+
+        dist = _find_distribution_for_console_script(command_name)
+        if dist is not None:
+            try:
+                version = dist.version
+            except (AttributeError, OSError, TypeError):
+                version = None
+            if version:
+                return str(version)
+
+    try:
+        return get_config().get_project_version()
+    except (AttributeError, OSError, ValueError):
+        return None
+
+
+def render_plain_title(
+    title: str,
+    description: str | None = None,
+    version: str | None = None,
+) -> str:
+    """Render the non-figlet banner as Rich markup.
+
+    The title and version share the first line in different colors; the
+    description follows on the next line.
+    """
+    header = f"[bold {COLOR.PRIMARY}]{title}[/bold {COLOR.PRIMARY}]"
+    if version:
+        header += (
+            f" [{COLOR.SECONDARY}]v{version.removeprefix('v')}[/{COLOR.SECONDARY}]"
+        )
+    if not description:
+        return header
+    return (
+        f"{header}\n[{COLOR.FOREGROUND_MUTED}]{description}[/{COLOR.FOREGROUND_MUTED}]"
+    )
+
+
+def _print_banner_suffix(version: str | None, description: str | None) -> None:
+    """Print the version and description lines that follow ASCII art."""
+    if version:
+        console.print(
+            f" [{COLOR.SECONDARY}]v{version.removeprefix('v')}[/{COLOR.SECONDARY}]"
+        )
+    if description:
+        console.print()
+        console.print(
+            f" [{COLOR.FOREGROUND_MUTED}]{description}[/{COLOR.FOREGROUND_MUTED}]"
+        )
+
+
 def print_title(title: str | None = None) -> None:
-    """Print an ASCII art title, otherwise plain text.
+    """Print the CLI banner.
+
+    Uses figlet art when pyfiglet is installed; otherwise prints the title and
+    version as colored text with the description on the next line.
 
     Args:
         title: Optional custom title text. If not provided, uses ASCII art.
@@ -106,43 +193,65 @@ def print_title(title: str | None = None) -> None:
         """
     config = get_config()
 
-    title_file = config.get("title_file")
+    top_space = config.get("banner.top_space", True)
+    bottom_space = config.get("banner.bottom_space", True)
+    figlet = get_figlet()
+    title_font = config.get("banner.font")
+    show_description = (
+        bool(config.get("banner.show_description"))
+        if config.has_key("banner.show_description")
+        else not (figlet is not None and bool(title_font))
+    )
+    description = (
+        config.get("description")
+        if show_description and config.has_key("description")
+        else None
+    )
+    show_version = (
+        bool(config.get("banner.show_version"))
+        if config.has_key("banner.show_version")
+        else not (figlet is not None and bool(title_font))
+    )
+    if top_space:
+        console.print()
+
+    title_file = config.get("banner.file")
     if title_file:
         title_path = Path(title_file)
         if not title_path.is_absolute():
             title_path = config.get_project_root() / title_path
         try:
             if title_path.exists():
-                title_text = title_path.read_text()
-                console.print()
+                title_text = title_path.read_text().rstrip()
                 console.print(f"[{COLOR.PRIMARY}]{title_text}")
+                _print_banner_suffix(
+                    get_project_version() if show_version else None,
+                    description,
+                )
+                if bottom_space:
+                    console.print()
                 return
         except OSError:
             pass
 
-    try:
-        if title is None or title.lower() == "usecli":
-            console.print(f"[{COLOR.PRIMARY}]{default_title_text}")
-            return
-
-        # Print Title using pyfiglet if available and non title is provided, otherwise print plain text
-        import pyfiglet
-
-        title_font = config.get("title_font", "big") or "big"
-        is_figlet = False
-        try:
-            raw_title = pyfiglet.figlet_format(text=title, font=title_font).rstrip()
-            title_text = "\n".join(" " + line for line in raw_title.split("\n"))
-            is_figlet = True
-        except pyfiglet.FontNotFound:
-            title_text = title
-        console.print()
-        console.print(f"[{COLOR.PRIMARY}]{title_text}")
-        if is_figlet:
+    if title is None or title.lower() == "usecli":
+        console.print(f"[{COLOR.PRIMARY}]{default_title_text}")
+        if bottom_space:
             console.print()
-    except (ImportError, ModuleNotFoundError):
-        if title is None or title.lower() == "usecli":  # pragma: no cover - unreachable
-            console.print(f"[{COLOR.PRIMARY}]{default_title_text}")
-            return
+        return
 
-        console.print(f"[{COLOR.PRIMARY}]{title}")
+    version = get_project_version() if show_version else None
+    if figlet is not None and title_font:
+        try:
+            title_text = render_figlet_title(figlet, title, title_font)
+        except figlet.FontNotFound:
+            title_text = title
+        console.print(f"[{COLOR.PRIMARY}]{title_text}")
+        _print_banner_suffix(version, description)
+        if bottom_space:
+            console.print()
+        return
+
+    console.print(render_plain_title(title, description, version))
+    if bottom_space:
+        console.print()

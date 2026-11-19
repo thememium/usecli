@@ -931,7 +931,6 @@ dependencies = [
     { name = "case-converter" },
     { name = "click" },
     { name = "jinja2" },
-    { name = "pyfiglet" },
     { name = "rich" },
     { name = "simple-term-menu" },
     { name = "tomli" },
@@ -939,6 +938,9 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+figlet = [
+    { name = "pyfiglet" },
+]
 pyinstaller = [
     { name = "pyinstaller" },
 ]
@@ -948,6 +950,7 @@ dev = [
     { name = "deptry" },
     { name = "isort" },
     { name = "poethepoet" },
+    { name = "pyfiglet" },
     { name = "pyinstaller" },
     { name = "pytest" },
     { name = "pytest-cov" },
@@ -960,20 +963,21 @@ requires-dist = [
     { name = "case-converter", specifier = ">=1.2.0" },
     { name = "click", specifier = ">=8.4.2" },
     { name = "jinja2", specifier = ">=3.1.6" },
-    { name = "pyfiglet", specifier = ">=1.0.4" },
+    { name = "pyfiglet", marker = "extra == 'figlet'", specifier = ">=1.0.4" },
     { name = "pyinstaller", marker = "extra == 'pyinstaller'", specifier = ">=6.21.0" },
     { name = "rich", specifier = ">=15.0.0" },
     { name = "simple-term-menu", specifier = ">=1.6.6" },
     { name = "tomli", specifier = ">=2.4.1" },
     { name = "typer", specifier = ">=0.27.0" },
 ]
-provides-extras = ["pyinstaller"]
+provides-extras = ["figlet", "pyinstaller"]
 
 [package.metadata.requires-dev]
 dev = [
     { name = "deptry", specifier = ">=0.25.1" },
     { name = "isort", specifier = ">=8.0.1" },
     { name = "poethepoet", specifier = ">=0.48.0" },
+    { name = "pyfiglet", specifier = ">=1.0.4" },
     { name = "pyinstaller", specifier = ">=6.21.0" },
     { name = "pytest", specifier = ">=9.1.1" },
     { name = "pytest-cov", specifier = ">=7.1.0" },
