@@ -12,8 +12,13 @@ from rich.text import Text
 
 from usecli.cli.config.colors import COLOR
 from usecli.cli.core.runtime import NonInteractiveError, is_json_mode
+from usecli.cli.utils.interactive.prompt_input import install_prompt_input
 
 console = Console()
+
+# Any rich prompt method (Prompt, Confirm, IntPrompt, console.input) gets
+# interactive line editing as soon as the framework's UI module is imported.
+install_prompt_input()
 
 
 class Prompt:
