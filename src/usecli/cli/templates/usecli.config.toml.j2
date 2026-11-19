@@ -1,18 +1,39 @@
+# Runtime configuration for {{ command_name | default('usecli') }}.
+# Paths are relative to this file.
+
 [usecli]
 command_name = "{{ command_name | default('usecli') }}"
 title = "{{ title | default('My CLI') }}"
-title_file = "{{ title_file | default('') }}"
-{% if title_font %}title_font = "{{ title_font }}"
-{% endif %}title_extra_top_space = {{ title_extra_top_space | default(true) | lower }}
-title_extra_bottom_space = {{ title_extra_bottom_space | default(true) | lower }}
 description = "{{ description | default('A custom CLI tool') }}"
-show_description = {{ show_description | default(true) | lower }}
+
+[usecli.paths]
+commands = "{{ commands_dir | default('cli/commands') }}"
+templates = "{{ templates_dir | default('cli/templates') }}"
+# One directory or a list of directories; the first is where `make:theme`
+# writes new themes.
+themes = ["{{ themes_dir | default('cli/themes') }}"]
+
+[usecli.theme]
+# Theme TOML file to load, by name or path.
+name = "{{ theme | default('default') }}"
+
+[usecli.banner]
+# Optional: a text file whose contents replace the rendered title.
+# Relative paths resolve against the project root.
+# file = "cli/title.txt"
+{% if title_file %}file = "{{ title_file }}"
+{% endif %}# Optional: a figlet font for the title (requires the `figlet` extra).
+# font = "big"
+{% if title_font %}font = "{{ title_font }}"
+{% endif %}top_space = {{ title_extra_top_space | default(true) | lower }}
+bottom_space = {{ title_extra_bottom_space | default(true) | lower }}
+# Whether the version and description follow the title.
 show_version = {{ show_version | default(true) | lower }}
-commands_dir = "{{ commands_dir | default('cli/commands') }}"
-templates_dir = "{{ templates_dir | default('cli/templates') }}"
-themes_dir = "{{ themes_dir | default('cli/themes') }}"
-theme = "{{ theme | default('default') }}"
-hide_inspire = {{ hide_inspire | default(false) | lower }}
+show_description = {{ show_description | default(true) | lower }}
+
+[usecli.commands]
+# Built-in commands to leave unregistered, for example ["inspire"].
+hidden = []
 
 [usecli.upgrade]
 enabled = {{ upgrade_enabled | default(true) | lower }}
