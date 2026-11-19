@@ -1,6 +1,48 @@
 # Changelog
 
 
+## v0.2.1
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.2.0...v0.2.1)
+
+### 🚀 Enhancements
+
+- **cli/utils/interactive:** Add prompt_input patch for Rich Console.input ([c03881b](https://github.com/thememium/usecli/commit/c03881b))
+- **ui:** Enable interactive line editing for rich prompts on import ([199073d](https://github.com/thememium/usecli/commit/199073d))
+
+### 💅 Refactors
+
+- **usecli:** Import readline to enable line‑editing for prompts ([8bcd347](https://github.com/thememium/usecli/commit/8bcd347))
+- **usecli:** Remove optional readline import ([e71815e](https://github.com/thememium/usecli/commit/e71815e))
+- **usecli:** Clarify exit_code handling in validation and fix runtime type hints ([ce5588a](https://github.com/thememium/usecli/commit/ce5588a))
+- Replace tomli with builtin tomllib and remove helper functions ([aa02151](https://github.com/thememium/usecli/commit/aa02151))
+- **usecli:** Unify tomllib imports and update typing imports ([3c19692](https://github.com/thememium/usecli/commit/3c19692))
+- **usecli/progress.py:** Replace typing_extensions Self with typing.Self ([d6bd2d1](https://github.com/thememium/usecli/commit/d6bd2d1))
+- **config:** Simplify tomllib import and improve config search ([8834bac](https://github.com/thememium/usecli/commit/8834bac))
+- **test:** Use stdlib tomllib and add config precedence tests ([1985d5d](https://github.com/thememium/usecli/commit/1985d5d))
+
+### 📦 Build
+
+- **pyproject.toml:** Add prompt-toolkit dependency ([a44c7e6](https://github.com/thememium/usecli/commit/a44c7e6))
+
+### 🏡 Chore
+
+- **usecli:** Add theme and banner configuration options ([b00c55f](https://github.com/thememium/usecli/commit/b00c55f))
+- **usecli:** Adjust CLI UI configuration ([e7ad73b](https://github.com/thememium/usecli/commit/e7ad73b))
+- **pyproject.toml:** Bump Python requirement and dependencies ([c723b85](https://github.com/thememium/usecli/commit/c723b85))
+- **pyproject:** Drop tomli dependency in favor of stdlib tomllib ([a4a7b6a](https://github.com/thememium/usecli/commit/a4a7b6a))
+
+### ✅ Tests
+
+- **cli:** Add unit tests for Rich Console.input integration ([f1ade19](https://github.com/thememium/usecli/commit/f1ade19))
+- Add cast for BaseCommand and correct type ignore ([5aa7683](https://github.com/thememium/usecli/commit/5aa7683))
+- Add nested project config dir test and clean up test suite ([552310a](https://github.com/thememium/usecli/commit/552310a))
+- **cli/config:** Update tomllib import test to use stdlib tomllib ([4a4f397](https://github.com/thememium/usecli/commit/4a4f397))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.2.0
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.1.82...v0.2.0)
