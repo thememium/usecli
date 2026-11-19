@@ -6,7 +6,7 @@ from types import TracebackType
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from typing_extensions import Self
+    from typing import Self
 
 from rich.console import Console
 from rich.progress import (
