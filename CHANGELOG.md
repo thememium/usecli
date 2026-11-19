@@ -1,6 +1,28 @@
 # Changelog
 
 
+## v0.2.5
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.2.4...v0.2.5)
+
+### 🚀 Enhancements
+
+- **usecli:** Add formatted_message to UsecliBadParameter for clearer CLI errors ([7dbc21a](https://github.com/thememium/usecli/commit/7dbc21a))
+- **usage:** Add formatted message support to UsecliBadParameter and guard help output ([5361a44](https://github.com/thememium/usecli/commit/5361a44))
+
+### 💅 Refactors
+
+- **cli/commands/defaults/base/about_command.py:** Add helpers to detect and skip optional‑extra dependencies when they are not installed ([e837574](https://github.com/thememium/usecli/commit/e837574))
+
+### ✅ Tests
+
+- **cli:** Add tests for _get_package_dependencies_from_distribution extras handling ([5d5b091](https://github.com/thememium/usecli/commit/5d5b091))
+- **cli:** Add tests for UsecliBadParameter.show formatted_message handling and empty help suppression ([17bc6f4](https://github.com/thememium/usecli/commit/17bc6f4))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.2.4
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.2.3...v0.2.4)
