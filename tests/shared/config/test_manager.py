@@ -115,6 +115,44 @@ commands = "custom_cmds"
         assert manager.get("description") == "Custom CLI"
         assert manager.get("paths.commands") == "custom_cmds"
 
+    def test_loads_legacy_flat_config(self, temp_project_dir):
+        config_file = temp_project_dir / "usecli.config.toml"
+        config_file.write_text(
+            """
+[usecli]
+command_name = "usecli"
+title = "usecli"
+title_file = "cli/core/ui/title.txt"
+title_font = "ansi_shadow"
+description = "Legacy config"
+commands_dir = "cli/commands/custom"
+templates_dir = "cli/templates"
+themes_dir = "cli/themes"
+theme = "default"
+hide_init = true
+hide_inspire = false
+hide_make_command = true
+hide_make_theme = false
+"""
+        )
+
+        manager = ConfigManager(
+            usecli_config_path=config_file, start_dir=temp_project_dir
+        )
+
+        assert manager.get("paths.commands") == "cli/commands/custom"
+        assert manager.get("paths.templates") == "cli/templates"
+        assert manager.get("paths.themes") == ["cli/themes"]
+        assert manager.get("theme.name") == "default"
+        assert manager.get("banner.file") == "cli/core/ui/title.txt"
+        assert manager.get("banner.font") == "ansi_shadow"
+        assert manager.get("commands.hidden") == ["init", "make:command"]
+        assert manager.get_project_paths() == {
+            "commands_dir": (temp_project_dir / "cli/commands/custom").resolve(),
+            "templates_dir": (temp_project_dir / "cli/templates").resolve(),
+            "themes_dir": (temp_project_dir / "cli/themes").resolve(),
+        }
+
     def test_loads_from_nested_usecli_config(self, temp_project_dir):
         nested_dir = temp_project_dir / "package" / "config"
         nested_dir.mkdir(parents=True)

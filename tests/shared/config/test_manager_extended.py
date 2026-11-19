@@ -134,6 +134,64 @@ class TestNormalizeConfig:
     def test_ignores_false_hide_inspire(self):
         assert normalize_config({"hide_inspire": False}) == {}
 
+    def test_maps_all_legacy_hide_flags(self):
+        result = normalize_config(
+            {
+                "hide_init": True,
+                "hide_inspire": True,
+                "hide_make_command": True,
+                "hide_make_theme": True,
+            }
+        )
+        assert result == {
+            "commands": {
+                "hidden": ["inspire", "init", "make:command", "make:theme"],
+            }
+        }
+
+    def test_ignores_disabled_legacy_hide_flags(self):
+        result = normalize_config(
+            {
+                "hide_init": False,
+                "hide_inspire": True,
+                "hide_make_command": False,
+                "hide_make_theme": True,
+            }
+        )
+        assert result["commands"]["hidden"] == ["inspire", "make:theme"]
+
+    def test_normalizes_flat_config_from_before_sections(self):
+        legacy = {
+            "command_name": "usecli",
+            "title": "usecli",
+            "title_file": "cli/core/ui/title.txt",
+            "title_font": "ansi_shadow",
+            "description": "A powerful Python CLI framework.",
+            "commands_dir": "cli/commands/custom",
+            "templates_dir": "cli/templates",
+            "themes_dir": "cli/themes",
+            "theme": "default",
+            "hide_init": False,
+            "hide_inspire": False,
+            "hide_make_command": False,
+            "hide_make_theme": False,
+        }
+        assert normalize_config(legacy) == {
+            "command_name": "usecli",
+            "title": "usecli",
+            "description": "A powerful Python CLI framework.",
+            "paths": {
+                "commands": "cli/commands/custom",
+                "templates": "cli/templates",
+                "themes": "cli/themes",
+            },
+            "theme": {"name": "default"},
+            "banner": {
+                "file": "cli/core/ui/title.txt",
+                "font": "ansi_shadow",
+            },
+        }
+
     def test_copies_nested_tables(self):
         source = {"paths": {"commands": "cmds"}}
         result = normalize_config(source)

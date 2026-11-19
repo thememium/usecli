@@ -255,14 +255,23 @@ _LEGACY_KEYS: dict[str, tuple[str, str]] = {
     "show_version": ("banner", "show_version"),
 }
 
+# Boolean ``[usecli]`` flags that predate ``[usecli.commands] hidden``. Each
+# names the built-in command it hid; true values append to ``commands.hidden``.
+_LEGACY_HIDE_FLAGS: dict[str, str] = {
+    "hide_inspire": "inspire",
+    "hide_init": "init",
+    "hide_make_command": "make:command",
+    "hide_make_theme": "make:theme",
+}
+
 
 def normalize_config(data: Any) -> dict[str, Any]:
     """Return a copy of a ``[usecli]`` table in the current sectioned schema.
 
     Legacy flat keys fill their section only when that section key is absent,
-    so a config that mixes both forms keeps the new value. ``hide_inspire``
-    becomes an entry in ``commands.hidden``. Nested tables are copied so
-    normalization never mutates the parsed TOML.
+    so a config that mixes both forms keeps the new value. True
+    ``hide_*`` flags become entries in ``commands.hidden``. Nested tables are
+    copied so normalization never mutates the parsed TOML.
     """
     if not isinstance(data, dict):
         return {}
@@ -270,7 +279,7 @@ def normalize_config(data: Any) -> dict[str, Any]:
     result: dict[str, Any] = {
         key: dict(value) if isinstance(value, dict) else value
         for key, value in data.items()
-        if key != "hide_inspire"
+        if key not in _LEGACY_HIDE_FLAGS
         and not (key in _LEGACY_KEYS and not isinstance(value, dict))
     }
 
@@ -285,13 +294,19 @@ def normalize_config(data: Any) -> dict[str, Any]:
             section_data[key] = data[legacy_key]
         result[section] = section_data
 
-    if data.get("hide_inspire") is True:
+    legacy_hidden = [
+        command
+        for flag, command in _LEGACY_HIDE_FLAGS.items()
+        if data.get(flag) is True
+    ]
+    if legacy_hidden:
         commands = result.get("commands")
         if not isinstance(commands, dict):
             commands = {}
         hidden = _normalize_str_list(commands.get("hidden"))
-        if "inspire" not in hidden:
-            hidden.append("inspire")
+        for command in legacy_hidden:
+            if command not in hidden:
+                hidden.append(command)
         commands["hidden"] = hidden
         result["commands"] = commands
 
