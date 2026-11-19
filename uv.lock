@@ -1013,7 +1013,7 @@ wheels = [
 
 [[package]]
 name = "usecli"
-version = "0.2.5"
+version = "0.2.6"
 source = { editable = "." }
 dependencies = [
     { name = "case-converter" },

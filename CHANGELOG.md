@@ -1,6 +1,31 @@
 # Changelog
 
 
+## v0.2.6
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.2.5...v0.2.6)
+
+### 🩹 Fixes
+
+- **base_command.py:** Keep framework built-ins visible regardless of project hidden config ([2eae937](https://github.com/thememium/usecli/commit/2eae937))
+
+### 💅 Refactors
+
+- **usecli:** Rename `_running_framework_distribution` to `running_framework_distribution` and update all calls ([a56af51](https://github.com/thememium/usecli/commit/a56af51))
+- **core/ui/title:** Expose running_framework_distribution public API ([a8957bc](https://github.com/thememium/usecli/commit/a8957bc))
+
+### 📖 Documentation
+
+- **usecli:** Clarify built-in commands comment in config template ([85d5f78](https://github.com/thememium/usecli/commit/85d5f78))
+
+### ✅ Tests
+
+- **cli/core:** Add framework binary hidden command tests ([fe3ec03](https://github.com/thememium/usecli/commit/fe3ec03))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.2.5
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.2.4...v0.2.5)
