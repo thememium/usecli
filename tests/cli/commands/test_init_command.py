@@ -675,6 +675,32 @@ class TestInitCommandOptions:
         assert 'templates_dir = "templates"' in config_content
         assert 'themes_dir = "themes"' in config_content
 
+    def test_title_extra_top_space_option(self, temp_project_dir, init_command):
+        init_command.handle(
+            DEFAULT_TITLE,
+            DEFAULT_DESCRIPTION,
+            DEFAULT_COMMANDS_DIR,
+            force=True,
+            title_extra_top_space=True,
+        )
+
+        config_path = _config_path(temp_project_dir, DEFAULT_COMMANDS_DIR)
+        assert "title_extra_top_space = true" in config_path.read_text()
+
+    def test_title_extra_bottom_space_can_be_disabled(
+        self, temp_project_dir, init_command
+    ):
+        init_command.handle(
+            DEFAULT_TITLE,
+            DEFAULT_DESCRIPTION,
+            DEFAULT_COMMANDS_DIR,
+            force=True,
+            title_extra_bottom_space=False,
+        )
+
+        config_path = _config_path(temp_project_dir, DEFAULT_COMMANDS_DIR)
+        assert "title_extra_bottom_space = false" in config_path.read_text()
+
 
 class TestInitCommandDefaults:
     def test_default_values(self, temp_project_dir, init_command):
@@ -697,6 +723,8 @@ class TestInitCommandDefaults:
         assert 'templates_dir = "templates"' in config_content
         assert 'themes_dir = "themes"' in config_content
         assert 'title_font = "big"' in config_content
+        assert "title_extra_top_space = false" in config_content
+        assert "title_extra_bottom_space = true" in config_content
         assert "hide_inspire = false" in config_content
 
 
@@ -1601,7 +1629,13 @@ class TestOptionalFiglet:
             patch("usecli.cli.commands.init_command.get_figlet", return_value=None),
             patch("usecli.cli.commands.init_command.console") as mock_console,
         ):
-            init_command.handle("Demo", "A demo CLI", DEFAULT_COMMANDS_DIR, force=True)
+            init_command.handle(
+                "Demo",
+                "A demo CLI",
+                DEFAULT_COMMANDS_DIR,
+                force=True,
+                title_extra_top_space=True,
+            )
 
         config_path = _config_path(temp_project_dir, DEFAULT_COMMANDS_DIR)
         assert "title_font" not in config_path.read_text()
