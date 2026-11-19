@@ -144,6 +144,12 @@ def _get_application_version(config) -> str:
 
 
 def _get_application_description(config) -> str:
+    from usecli.cli.core.ui.title import get_framework_description
+
+    framework_description = get_framework_description()
+    if framework_description:
+        return framework_description
+
     description = config.get("description")
     if (
         config.has_key("description")
