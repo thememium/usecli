@@ -4,11 +4,7 @@ from __future__ import annotations
 
 from click.exceptions import BadParameter
 
-from usecli.cli.core._typer_compat import (
-    _accept_click_ctx,
-    make_argument,
-    make_option,
-)
+from usecli.cli.core._typer_compat import _accept_click_ctx, make_argument, make_option
 
 
 def test_typer_argument_error_hint_accepts_click_context() -> None:
