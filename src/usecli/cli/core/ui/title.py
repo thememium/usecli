@@ -194,7 +194,11 @@ def print_title(title: str | None = None) -> None:
         if show_description and config.has_key("description")
         else None
     )
-
+    show_version = (
+        bool(config.get("show_version"))
+        if config.has_key("show_version")
+        else not (figlet is not None and bool(title_font))
+    )
     if title_extra_top_space:
         console.print()
 
@@ -219,12 +223,17 @@ def print_title(title: str | None = None) -> None:
             console.print()
         return
 
+    version = get_project_version() if show_version else None
     if figlet is not None and title_font:
         try:
             title_text = render_figlet_title(figlet, title, title_font)
         except figlet.FontNotFound:
             title_text = title
         console.print(f"[{COLOR.PRIMARY}]{title_text}")
+        if version:
+            console.print(
+                f" [{COLOR.SECONDARY}]v{version.removeprefix('v')}[/{COLOR.SECONDARY}]"
+            )
         if description:
             console.print()
             console.print(
@@ -234,6 +243,6 @@ def print_title(title: str | None = None) -> None:
             console.print()
         return
 
-    console.print(render_plain_title(title, description, get_project_version()))
+    console.print(render_plain_title(title, description, version))
     if title_extra_bottom_space:
         console.print()

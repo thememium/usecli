@@ -618,6 +618,7 @@ include = ["{root_package}*"]
         title_extra_top_space: bool = True,
         title_extra_bottom_space: bool = True,
         show_description: bool | None = None,
+        show_version: bool | None = None,
     ) -> dict[str, object]:
         from usecli.cli.core.runtime import NonInteractiveError
 
@@ -744,6 +745,8 @@ include = ["{root_package}*"]
 
         if show_description is None:
             show_description = get_figlet() is None or not title_font
+        if show_version is None:
+            show_version = get_figlet() is None or not title_font
 
         config_content = template.render(
             title=title,
@@ -757,6 +760,7 @@ include = ["{root_package}*"]
             title_extra_top_space=title_extra_top_space,
             title_extra_bottom_space=title_extra_bottom_space,
             show_description=show_description,
+            show_version=show_version,
         )
 
         usecli_config_status = self._write_usecli_config(
@@ -775,6 +779,7 @@ include = ["{root_package}*"]
             "title_extra_top_space": title_extra_top_space,
             "title_extra_bottom_space": title_extra_bottom_space,
             "show_description": show_description,
+            "show_version": show_version,
             "config_path": str(resolved_config_path),
             "scripts_status": scripts_status,
             "config_status": usecli_config_status,
@@ -840,6 +845,16 @@ include = ["{root_package}*"]
                 ),
             ),
         ] = None,
+        show_version: Annotated[
+            bool | None,
+            typer.Option(
+                "--show-version/--no-show-version",
+                help=(
+                    "Show the version in the title banner "
+                    "(default: hidden with figlet, shown without)"
+                ),
+            ),
+        ] = None,
     ) -> dict[str, object] | None:
         from usecli.cli.core.runtime import is_json_mode
 
@@ -858,6 +873,7 @@ include = ["{root_package}*"]
                 title_extra_top_space=title_extra_top_space,
                 title_extra_bottom_space=title_extra_bottom_space,
                 show_description=show_description,
+                show_version=show_version,
             )
 
         cwd = Path.cwd()
@@ -956,11 +972,22 @@ include = ["{root_package}*"]
             title_font = self._prompt_title_font(title)
         if show_description is None:
             show_description = not bool(title_font)
+        if show_version is None:
+            show_version = not (figlet is not None and bool(title_font))
+        version = (
+            self._get_project_version_from_pyproject(pyproject_path)
+            or DEFAULT_PROJECT_VERSION
+        )
         if figlet is not None and title_font:
             title_text = render_figlet_title(figlet, title, title_font)
             if title_extra_top_space:
                 console.print()
             console.print(f"[{COLOR.PRIMARY}]{title_text}")
+            if show_version:
+                console.print(
+                    f" [{COLOR.SECONDARY}]v{version.removeprefix('v')}"
+                    f"[/{COLOR.SECONDARY}]"
+                )
             if show_description and description:
                 console.print()
                 console.print(
@@ -970,10 +997,6 @@ include = ["{root_package}*"]
             if title_extra_bottom_space:
                 console.print()
         else:
-            version = (
-                self._get_project_version_from_pyproject(pyproject_path)
-                or DEFAULT_PROJECT_VERSION
-            )
             console.print(
                 f"[{COLOR.FOREGROUND_MUTED}]pyfiglet is not installed; "
                 "the title is rendered as text. Install "
@@ -985,7 +1008,7 @@ include = ["{root_package}*"]
                 render_plain_title(
                     title,
                     description if show_description else None,
-                    version,
+                    version if show_version else None,
                 )
             )
             if title_extra_bottom_space:
@@ -1162,6 +1185,7 @@ include = ["{root_package}*"]
             title_extra_top_space=title_extra_top_space,
             title_extra_bottom_space=title_extra_bottom_space,
             show_description=show_description,
+            show_version=show_version,
         )
 
         usecli_config_status = self._write_usecli_config(
