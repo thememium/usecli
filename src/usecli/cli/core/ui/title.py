@@ -2,15 +2,10 @@
 
 from __future__ import annotations
 
-import sys
+import tomllib
 from importlib.metadata import PackageNotFoundError, metadata
 from pathlib import Path
 from typing import Any
-
-if sys.version_info >= (3, 11):
-    import tomllib
-else:
-    import tomli as tomllib  # pragma: no cover - only on Python < 3.11
 
 from rich.console import Console
 
