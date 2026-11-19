@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import sys
+from collections.abc import Sequence
 from typing import IO
 
 from click.core import Context as ClickContext
+from click.core import Parameter as ClickParameter
 from click.exceptions import BadParameter, Exit, UsageError
 from rich.console import Console
 
@@ -67,7 +69,8 @@ class UsecliUsageError(UsageError):
         if self.ctx:
             console.print()
             help_text = _get_help_text_with_command_name(self.ctx)
-            console.print(help_text)
+            if help_text:
+                console.print(help_text)
 
 
 class UsecliBadParameter(BadParameter):
@@ -76,6 +79,30 @@ class UsecliBadParameter(BadParameter):
     Use this in parameter callbacks for consistent error styling.
     Provides highlighted error boxes and command help on validation failures.
     """
+
+    def __init__(
+        self,
+        message: str,
+        ctx: ClickContext | None = None,
+        param: ClickParameter | None = None,
+        param_hint: str | Sequence[str] | None = None,
+        formatted_message: str | None = None,
+    ) -> None:
+        """Initialize the styled parameter error.
+
+        Args:
+            message: Raw error reason (Click's ``BadParameter.message``).
+            ctx: Click context used to render command help.
+            param: Parameter the error refers to.
+            param_hint: Explicit hint replacing the parameter-derived hint.
+            formatted_message: Fully formatted message to render instead of
+                rebuilding one from ``message``. Wrappers use this to keep
+                the original exception's wording (for example Click's
+                ``MissingParameter``, whose reason lives only in
+                ``format_message``).
+        """
+        super().__init__(message, ctx=ctx, param=param, param_hint=param_hint)
+        self.formatted_message = formatted_message
 
     def show(self, file: IO[str] | None = None) -> None:
         """Display styled parameter error with command help.
@@ -88,12 +115,14 @@ class UsecliBadParameter(BadParameter):
 
         console.print()
 
+        message = self.formatted_message or self.format_message()
         error_prefix = (
             f"[bold black on {COLOR.ERROR}] ERROR [/bold black on {COLOR.ERROR}]"
         )
-        error_msg = f"[bold {COLOR.ERROR}]{self.format_message()}[/bold {COLOR.ERROR}]"
+        error_msg = f"[bold {COLOR.ERROR}]{message}[/bold {COLOR.ERROR}]"
         console.print(f"{error_prefix} {error_msg}")
 
         if self.ctx:
             help_text = _get_help_text_with_command_name(self.ctx)
-            console.print(help_text)
+            if help_text:
+                console.print(help_text)
