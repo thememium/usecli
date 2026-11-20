@@ -65,8 +65,11 @@ case-converter = "caseconverter"
 dev = "uv run usecli -i"
 clean-full = "sh -c 'uv run isort . && uv run ruff check . --fix && uv run ruff format . && uv run deptry . && uv run ty check'"
 clean = "sh -c 'uv run isort . && uv run ruff format .'"
-test = "sh -c 'PYTEST_XDIST_AUTO_NUM_WORKERS=$(( ($(getconf _NPROCESSORS_ONLN) * 2 + 2) / 3 )) uv run pytest tests/ -n auto --dist worksteal -v $@' --"
-test-cov = "sh -c 'PYTEST_XDIST_AUTO_NUM_WORKERS=$(( ($(getconf _NPROCESSORS_ONLN) * 2 + 2) / 3 )) uv run pytest tests/ -n auto --dist worksteal -v --cov=usecli --cov-report=term-missing $@' --"
+# xdist `-n auto` pins every core at 100%, which ramps the fans on long runs.
+# PYTEST_XDIST_AUTO_NUM_WORKERS caps `auto` at half the online CPUs; override
+# per run, e.g. PYTEST_XDIST_AUTO_NUM_WORKERS=4 uv run poe test.
+test = "sh -c 'PYTEST_XDIST_AUTO_NUM_WORKERS=$(( ($(getconf _NPROCESSORS_ONLN) + 1) / 2 )) uv run pytest tests/ -n auto --dist worksteal -v $@' --"
+test-cov = "sh -c 'PYTEST_XDIST_AUTO_NUM_WORKERS=$(( ($(getconf _NPROCESSORS_ONLN) + 1) / 2 )) uv run pytest tests/ -n auto --dist worksteal -v --cov=usecli --cov-report=term-missing $@' --"
 sort = "uv run isort ."
 lint = "uv run ruff check ."
 format = "uv run ruff format ."
