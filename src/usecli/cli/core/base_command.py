@@ -289,7 +289,13 @@ class CustomHelpCommand(TyperCommand):
         from usecli.cli.core.ui.title import get_script_command_name
 
         command_name = get_script_command_name(default="usecli") or "usecli"
-        usage = f"  [bold {COLOR.WARNING}]{command_name} {self.name}[/bold {COLOR.WARNING}] [bold {COLOR.PRIMARY}][OPTIONS]{f' {arg_usage}' if arg_usage else ''}[/bold {COLOR.PRIMARY}]"
+        # Use the invoked command path (without the program name) so nested
+        # commands print "mycli savings explain", not "mycli explain".
+        command_path = getattr(ctx, "command_path", None)
+        relative_path = (
+            " ".join(command_path.split()[1:]) if isinstance(command_path, str) else ""
+        )
+        usage = f"  [bold {COLOR.WARNING}]{command_name} {relative_path or self.name or ''}[/bold {COLOR.WARNING}] [bold {COLOR.PRIMARY}][OPTIONS]{f' {arg_usage}' if arg_usage else ''}[/bold {COLOR.PRIMARY}]"
 
         console.print()
         console.print(f"[bold {COLOR.SECONDARY}]Usage:[/bold {COLOR.SECONDARY}]")
