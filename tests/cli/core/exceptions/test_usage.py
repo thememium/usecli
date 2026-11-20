@@ -2,6 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 
+import click
 import pytest
 from click.exceptions import BadParameter, Exit, UsageError
 
@@ -546,6 +547,7 @@ class TestGetHelpTextWithCommandName:
         from usecli.cli.core.exceptions.usage import _get_help_text_with_command_name
 
         ctx = MagicMock()
+        ctx.parent = None
         ctx.info_name = None
         ctx.get_help.return_value = "Help text"
 
@@ -561,6 +563,7 @@ class TestGetHelpTextWithCommandName:
         from usecli.cli.core.exceptions.usage import _get_help_text_with_command_name
 
         ctx = MagicMock()
+        ctx.parent = None
         ctx.info_name = None
         ctx.get_help.side_effect = Exit(0)
 
@@ -576,6 +579,7 @@ class TestGetHelpTextWithCommandName:
         from usecli.cli.core.exceptions.usage import _get_help_text_with_command_name
 
         ctx = MagicMock()
+        ctx.parent = None
         ctx.info_name = "original"
         ctx.get_help.return_value = "Help text"
 
@@ -586,5 +590,45 @@ class TestGetHelpTextWithCommandName:
             result = _get_help_text_with_command_name(ctx)
 
         assert result == "Help text"
-        # info_name should be restored
+        # info_name was restored
         assert ctx.info_name == "original"
+
+    def test_returns_empty_when_named_command_help_raises_exit(self):
+        from usecli.cli.core.exceptions.usage import _get_help_text_with_command_name
+
+        ctx = MagicMock()
+        ctx.parent = None
+        ctx.info_name = "original"
+        ctx.get_help.side_effect = Exit()
+        with patch(
+            "usecli.cli.core.exceptions.usage.get_script_command_name",
+            return_value="mycli",
+        ):
+            result = _get_help_text_with_command_name(ctx)
+
+        assert result == ""
+        assert ctx.info_name == "original"
+
+    def test_nested_context_uses_invoked_name_without_rewriting(self):
+        """A nested context keeps its own name, so Click prints the real path."""
+        from usecli.cli.core.exceptions.usage import _get_help_text_with_command_name
+
+        @click.group()
+        def root():
+            pass
+
+        @root.command()
+        def leaf():
+            pass
+
+        parent = click.Context(root, info_name="mycli")
+        child = click.Context(leaf, info_name="savings", parent=parent)
+
+        with patch(
+            "usecli.cli.core.exceptions.usage.get_script_command_name",
+            return_value="mycli",
+        ):
+            result = _get_help_text_with_command_name(child)
+
+        assert "Usage: mycli savings" in result
+        assert "mycli mycli" not in result

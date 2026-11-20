@@ -13,7 +13,8 @@ from unittest.mock import MagicMock, patch
 import pytest
 import typer
 from click.exceptions import Exit
-from typer.core import TyperOption
+from typer._click.core import Context as TyperClickContext
+from typer.core import TyperCommand, TyperOption
 
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "src"))
@@ -90,6 +91,28 @@ class TestCustomHelpCommandFormatHelpNoParams:
             c for c in mock_console.print.call_args_list if "Usage:" in str(c)
         ]
         assert len(usage_calls) > 0
+
+    @patch("usecli.cli.core.base_command.console")
+    def test_format_help_uses_full_command_path(self, mock_console):
+        """Nested commands print the invoked path, not just the leaf name."""
+        cmd = CustomHelpCommand(name="explain")
+        cmd.params = []
+
+        root = TyperClickContext(TyperCommand("mycli"), info_name="mycli")
+        group = TyperClickContext(
+            TyperCommand("savings"), info_name="savings", parent=root
+        )
+        leaf = TyperClickContext(cmd, info_name="explain", parent=group)
+
+        with patch(
+            "usecli.cli.core.ui.title.get_script_command_name",
+            return_value="mycli",
+        ):
+            cmd.format_help(leaf, MagicMock())
+
+        printed = " ".join(str(call) for call in mock_console.print.call_args_list)
+        assert "mycli savings explain" in printed
+        assert "mycli explain" not in printed
 
     @patch("usecli.cli.core.base_command.console")
     def test_format_help_no_params_prints_options_section(self, mock_console):
