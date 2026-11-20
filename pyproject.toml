@@ -24,9 +24,7 @@ license-files = ["LICEN[CS]E*"]
 
 [project.optional-dependencies]
 figlet = ["pyfiglet>=1.0.4"]
-pyinstaller = [
-    "pyinstaller>=6.22.3",
-]
+pyinstaller = ["pyinstaller>=6.22.3"]
 
 [project.urls]
 Homepage = "https://github.com/thememium/usecli"
@@ -52,6 +50,7 @@ dev = [
   "pyinstaller>=6.22.3",
   "pytest>=9.2.0",
   "pytest-cov>=7.1.0",
+  "pytest-xdist[psutil]>=3.8.0",
   "ruff>=0.17.5",
   "ty>=0.0.107",
 ]
@@ -66,8 +65,8 @@ case-converter = "caseconverter"
 dev = "uv run usecli -i"
 clean-full = "sh -c 'uv run isort . && uv run ruff check . --fix && uv run ruff format . && uv run deptry . && uv run ty check'"
 clean = "sh -c 'uv run isort . && uv run ruff format .'"
-test = "uv run pytest tests/ -v"
-test-cov = "uv run pytest tests/ -v --cov=usecli --cov-report=term-missing"
+test = "uv run pytest tests/ -n auto --dist worksteal -v"
+test-cov = "uv run pytest tests/ -n auto --dist worksteal -v --cov=usecli --cov-report=term-missing"
 sort = "uv run isort ."
 lint = "uv run ruff check ."
 format = "uv run ruff format ."
