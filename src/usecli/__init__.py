@@ -7,6 +7,8 @@ from importlib import import_module
 
 from click import Command as _ClickCommand
 
+from usecli._rich_exports import RICH_EXPORT_NAMES
+
 # Avoid importing typing at module level (costs ~6ms)
 # TYPE_CHECKING is False at runtime, so the if-block never executes
 TYPE_CHECKING = False
@@ -42,9 +44,19 @@ _LAZY_EXPORTS = {
     "console": ("usecli.ui", "console"),
     "Spinner": ("usecli.progress", "Spinner"),
     "ProgressBar": ("usecli.progress", "ProgressBar"),
+    "Table": ("usecli.ui", "Table"),
+    "Text": ("usecli.ui", "Text"),
+    "Panel": ("usecli.ui", "Panel"),
+    "box": ("usecli.ui", "box"),
     "pyinstaller": ("usecli.bundler", "pyinstaller"),
     "run": ("usecli.entry", "run"),
 }
+
+_RICH_EXPORTS = frozenset(RICH_EXPORT_NAMES)
+
+# `print` must not be cached in this module's globals: the CLI code below calls
+# the builtin, and a cached rich.print would silently replace it.
+_UNCACHED_RICH_EXPORTS = frozenset({"print"})
 
 
 def __getattr__(name: str) -> Any:
@@ -54,6 +66,13 @@ def __getattr__(name: str) -> Any:
         module_name, attr_name = export
         value = getattr(import_module(module_name), attr_name)
         globals()[name] = value
+        return value
+
+    # Handle Rich components re-exported under the usecli namespace
+    if name in _RICH_EXPORTS:
+        value = getattr(import_module("usecli.rich"), name)
+        if name not in _UNCACHED_RICH_EXPORTS:
+            globals()[name] = value
         return value
 
     # Handle CLI framework components - lazy initialization
@@ -368,9 +387,13 @@ __all__ = [
     "Console",
     "Menu",
     "Option",
+    "Panel",
     "ProgressBar",
     "Prompt",
     "Spinner",
+    "Table",
+    "Text",
+    "box",
     "colors",
     "console",
     "main",
@@ -378,6 +401,9 @@ __all__ = [
     "run",
     "theme",
 ]
+
+# Rich components come from usecli.rich; skip names already listed above.
+__all__ += [name for name in RICH_EXPORT_NAMES if name not in __all__]
 
 
 def _console():
