@@ -15,6 +15,8 @@ prompt and ``console.input`` call.
 
 from __future__ import annotations
 
+import sys
+
 from rich import box
 from rich.console import Console
 from rich.panel import Panel
@@ -104,16 +106,77 @@ class Prompt:
         )
 
 
+def _can_read_single_key() -> bool:
+    """Return whether a keypress can be read without waiting for Enter."""
+    stdin = sys.stdin
+    isatty = getattr(stdin, "isatty", None)
+    return bool(isatty is not None and isatty() and console.is_terminal)
+
+
+def _read_key() -> str:
+    """Read one keypress from the terminal without line buffering."""
+    if sys.platform == "win32":
+        import msvcrt
+
+        return msvcrt.getwch()
+
+    import os
+    import termios
+    import tty
+
+    fd = sys.stdin.fileno()
+    previous = termios.tcgetattr(fd)
+    try:
+        tty.setcbreak(fd, termios.TCSADRAIN)
+        data = os.read(fd, 1)
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, previous)
+    encoding = getattr(sys.stdin, "encoding", None) or "utf-8"
+    return data.decode(encoding, "ignore")
+
+
+def _ask_single_key(prompt: str, *, default: bool) -> bool:
+    """Render a Rich confirm prompt and return on the first valid keypress."""
+    prompt_text = RichConfirm(prompt, console=console).make_prompt(default)
+    console.print(prompt_text, end="")
+    while True:
+        key = _read_key()
+        if key == "\x03":
+            raise KeyboardInterrupt
+        if key in ("y", "Y"):
+            console.print("y")
+            return True
+        if key in ("n", "N"):
+            console.print("n")
+            return False
+        if key in ("\r", "\n"):
+            console.print("y" if default else "n")
+            return default
+        if key in ("\x04", ""):
+            console.print()
+            return default
+        # Ignore other keys (arrows, backspace, ...) and keep waiting.
+
+
 class Confirm:
     """Yes/no confirmation that stays safe in non-interactive runs.
 
-    Delegates to :class:`rich.prompt.Confirm` with the shared :data:`console`.
-    In JSON mode it returns ``default`` without reading stdin, so a command
-    can keep its confirmation step while producing machine-readable output.
+    By default it behaves like :class:`rich.prompt.Confirm`: the answer is
+    read as a line, so Enter is required. Pass ``single_key=True`` to answer
+    on the first ``y`` or ``n`` keypress instead; Enter alone then accepts
+    ``default`` and Ctrl-D does the same.
+
+    Single-key mode only applies when stdin and stdout are terminals. Pipes,
+    test runners, and redirected output always fall back to the line-based
+    prompt. In JSON mode the method returns ``default`` without reading stdin,
+    so a command can keep its confirmation step while producing
+    machine-readable output.
 
     Example:
         >>> if Confirm.ask("Delete the build directory?", default=False):
         ...     shutil.rmtree("build")
+        >>> if Confirm.ask("Continue?", single_key=True):
+        ...     run_next_step()
     """
 
     @staticmethod
@@ -121,24 +184,33 @@ class Confirm:
         prompt: str,
         *,
         default: bool = True,
+        single_key: bool = False,
     ) -> bool:
         """Ask a yes/no question.
 
         Args:
             prompt: Question shown to the user.
-            default: Answer used when the user submits an empty line, and the
-                answer returned without prompting in JSON mode.
+            default: Answer used when the user presses Enter without choosing,
+                and the answer returned without prompting in JSON mode.
+            single_key: Answer on the first ``y`` or ``n`` keypress instead of
+                waiting for Enter. Ignored when stdin or stdout is not a
+                terminal, and in JSON mode.
 
         Returns:
             ``True`` for yes, ``False`` for no. In JSON mode this is
-            ``default``; in interactive mode it reflects the user's answer.
+            ``default``; in single-key mode it reflects the first valid
+            keypress.
 
         Example:
             >>> if Confirm.ask("Do you want to continue?"):
             ...     print("Continuing...")
+            >>> if Confirm.ask("Continue?", single_key=True):
+            ...     print("Continuing immediately...")
         """
         if is_json_mode():
             return default
+        if single_key and _can_read_single_key():
+            return _ask_single_key(prompt, default=default)
         return RichConfirm.ask(prompt, default=default, console=console)
 
 
