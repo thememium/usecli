@@ -9,7 +9,9 @@ from unittest.mock import PropertyMock, patch
 
 import pytest
 
-from usecli import Confirm
+from usecli import Confirm, Prompt
+from usecli.cli.core import runtime
+from usecli.cli.core.runtime import NonInteractiveError
 from usecli.ui import _ask_single_key, _can_read_single_key, _read_key, console
 
 
@@ -154,3 +156,256 @@ def test_read_key_uses_msvcrt_on_windows(monkeypatch: pytest.MonkeyPatch) -> Non
     monkeypatch.setattr(sys, "platform", "win32")
 
     assert _read_key() == "n"
+
+
+def test_prompt_passes_rich_options_through() -> None:
+    with patch("usecli.ui.RichPrompt.ask", return_value="secret") as rich_ask:
+        result = Prompt.ask(
+            "Token",
+            default="fallback",
+            choices=["one", "two"],
+            show_choices=False,
+            show_default=False,
+            password=True,
+            case_sensitive=False,
+        )
+
+    assert result == "secret"
+    kwargs = rich_ask.call_args.kwargs
+    assert kwargs["default"] == "fallback"
+    assert kwargs["choices"] == ["one", "two"]
+    assert kwargs["show_choices"] is False
+    assert kwargs["show_default"] is False
+    assert kwargs["password"] is True
+    assert kwargs["case_sensitive"] is False
+    assert kwargs["console"] is console
+
+
+@pytest.mark.parametrize(("key", "expected"), [("a", "a"), ("c", "c")])
+def test_prompt_single_key_returns_matching_choice(key: str, expected: str) -> None:
+    with (
+        patch("usecli.ui._can_read_single_key", return_value=True),
+        patch("usecli.ui._read_key", return_value=key),
+        patch("usecli.ui.RichPrompt.ask") as rich_ask,
+    ):
+        result = Prompt.ask("Mode", choices=["a", "b", "c"], single_key=True)
+
+    assert result == expected
+    rich_ask.assert_not_called()
+
+
+def test_prompt_single_key_is_case_insensitive_when_requested() -> None:
+    with (
+        patch("usecli.ui._can_read_single_key", return_value=True),
+        patch("usecli.ui._read_key", return_value="B"),
+    ):
+        result = Prompt.ask(
+            "Mode",
+            choices=["a", "b", "c"],
+            case_sensitive=False,
+            single_key=True,
+        )
+
+    assert result == "b"
+
+
+def test_prompt_single_key_enter_accepts_default() -> None:
+    with (
+        patch("usecli.ui._can_read_single_key", return_value=True),
+        patch("usecli.ui._read_key", return_value="\r"),
+    ):
+        result = Prompt.ask(
+            "Mode",
+            choices=["a", "b"],
+            default="b",
+            single_key=True,
+        )
+
+    assert result == "b"
+
+
+def test_prompt_single_key_enter_without_default_keeps_waiting() -> None:
+    with (
+        patch("usecli.ui._can_read_single_key", return_value=True),
+        patch("usecli.ui._read_key", side_effect=["\r", "a"]),
+    ):
+        result = Prompt.ask("Mode", choices=["a", "b"], single_key=True)
+
+    assert result == "a"
+
+
+def test_prompt_single_key_ctrl_d_returns_default() -> None:
+    with (
+        patch("usecli.ui._can_read_single_key", return_value=True),
+        patch("usecli.ui._read_key", return_value="\x04"),
+    ):
+        result = Prompt.ask(
+            "Mode",
+            choices=["a", "b"],
+            default="a",
+            single_key=True,
+        )
+
+    assert result == "a"
+
+
+def test_prompt_single_key_ctrl_d_without_default_returns_none() -> None:
+    with (
+        patch("usecli.ui._can_read_single_key", return_value=True),
+        patch("usecli.ui._read_key", return_value="\x04"),
+    ):
+        result = Prompt.ask("Mode", choices=["a", "b"], single_key=True)
+
+    assert result is None
+
+
+def test_prompt_single_key_ctrl_c_interrupts() -> None:
+    with (
+        patch("usecli.ui._can_read_single_key", return_value=True),
+        patch("usecli.ui._read_key", return_value="\x03"),
+        pytest.raises(KeyboardInterrupt),
+    ):
+        Prompt.ask("Mode", choices=["a", "b"], single_key=True)
+
+
+def test_prompt_single_key_ignores_unrelated_keys() -> None:
+    with (
+        patch("usecli.ui._can_read_single_key", return_value=True),
+        patch("usecli.ui._read_key", side_effect=["x", "b"]),
+    ):
+        result = Prompt.ask("Mode", choices=["a", "b"], single_key=True)
+
+    assert result == "b"
+
+
+@pytest.mark.parametrize("choices", [None, ["red", "green"]])
+def test_prompt_single_key_requires_single_character_choices(
+    choices: list[str] | None,
+) -> None:
+    with pytest.raises(ValueError, match="one character"):
+        Prompt.ask("Mode", choices=choices, single_key=True)
+
+
+def test_prompt_single_key_rejects_password() -> None:
+    with pytest.raises(ValueError, match="password"):
+        Prompt.ask(
+            "Token",
+            choices=["a", "b"],
+            password=True,
+            single_key=True,
+        )
+
+
+def test_prompt_single_key_falls_back_without_tty() -> None:
+    with (
+        patch("usecli.ui._can_read_single_key", return_value=False),
+        patch("usecli.ui.RichPrompt.ask", return_value="b") as rich_ask,
+    ):
+        result = Prompt.ask("Mode", choices=["a", "b"], single_key=True)
+
+    assert result == "b"
+    rich_ask.assert_called_once()
+
+
+def test_prompt_int_returns_default_in_json_mode() -> None:
+    with (
+        runtime.execution_context(json_mode=True),
+        patch("usecli.ui.RichIntPrompt.ask") as rich_ask,
+    ):
+        result = Prompt.ask("Port", type="int", default=8000)
+
+    assert result == 8000
+    assert isinstance(result, int)
+    rich_ask.assert_not_called()
+
+
+def test_prompt_int_without_default_raises_in_json_mode() -> None:
+    with (
+        runtime.execution_context(json_mode=True),
+        pytest.raises(NonInteractiveError, match="default"),
+    ):
+        Prompt.ask("Port", type="int")
+
+
+def test_prompt_int_delegates_in_normal_mode() -> None:
+    with patch("usecli.ui.RichIntPrompt.ask", return_value=42) as rich_ask:
+        result = Prompt.ask("Port", type="int", default=8000, show_default=False)
+
+    assert result == 42
+    kwargs = rich_ask.call_args.kwargs
+    assert kwargs["default"] == 8000
+    assert kwargs["show_default"] is False
+    assert kwargs["console"] is console
+
+
+def test_prompt_float_returns_default_in_json_mode() -> None:
+    with (
+        runtime.execution_context(json_mode=True),
+        patch("usecli.ui.RichFloatPrompt.ask") as rich_ask,
+    ):
+        result = Prompt.ask("Ratio", type="float", default=1)
+
+    assert result == 1.0
+    assert isinstance(result, float)
+    rich_ask.assert_not_called()
+
+
+def test_prompt_float_without_default_raises_in_json_mode() -> None:
+    with (
+        runtime.execution_context(json_mode=True),
+        pytest.raises(NonInteractiveError, match="default"),
+    ):
+        Prompt.ask("Ratio", type="float")
+
+
+def test_prompt_float_delegates_in_normal_mode() -> None:
+    with patch("usecli.ui.RichFloatPrompt.ask", return_value=0.25) as rich_ask:
+        result = Prompt.ask("Ratio", type="float", default=0.5)
+
+    assert result == 0.25
+    assert rich_ask.call_args.kwargs["default"] == 0.5
+    assert rich_ask.call_args.kwargs["console"] is console
+
+
+def test_prompt_string_rejects_non_string_default() -> None:
+    with pytest.raises(TypeError, match="str default"):
+        Prompt.ask("Value", default=cast(Any, 1))
+
+
+def test_prompt_int_rejects_float_default() -> None:
+    with pytest.raises(TypeError, match="int default"):
+        Prompt.ask("Value", type="int", default=cast(Any, 1.5))
+
+
+def test_prompt_float_rejects_string_default() -> None:
+    with pytest.raises(TypeError, match="float default"):
+        Prompt.ask("Value", type="float", default=cast(Any, "1"))
+
+
+def test_prompt_rejects_unknown_type() -> None:
+    ask: Any = Prompt.ask
+
+    with pytest.raises(ValueError, match="type must be"):
+        ask("Value", type="bool")
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [{"password": True}, {"choices": ["a"]}, {"single_key": True}],
+)
+def test_prompt_non_string_type_rejects_string_only_options(
+    kwargs: dict[str, Any],
+) -> None:
+    ask: Any = Prompt.ask
+
+    with pytest.raises(ValueError, match="type='string'"):
+        ask("Value", type="int", **kwargs)
+
+
+def test_numeric_prompts_are_not_separate_exports() -> None:
+    import usecli
+
+    assert "IntPrompt" not in usecli.__all__
+    assert "FloatPrompt" not in usecli.__all__
+    assert not hasattr(usecli, "IntPrompt")
+    assert not hasattr(usecli, "FloatPrompt")
