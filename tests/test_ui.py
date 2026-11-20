@@ -12,7 +12,13 @@ import pytest
 from usecli import Confirm, Prompt
 from usecli.cli.core import runtime
 from usecli.cli.core.runtime import NonInteractiveError
-from usecli.ui import _ask_single_key, _can_read_single_key, _read_key, console
+from usecli.ui import (
+    _ask_masked,
+    _ask_single_key,
+    _can_read_single_key,
+    _read_key,
+    console,
+)
 
 
 class _FakeStdin:
@@ -409,3 +415,114 @@ def test_numeric_prompts_are_not_separate_exports() -> None:
     assert "FloatPrompt" not in usecli.__all__
     assert not hasattr(usecli, "IntPrompt")
     assert not hasattr(usecli, "FloatPrompt")
+
+
+def test_prompt_mask_delegates_to_masked_reader() -> None:
+    with (
+        patch("usecli.ui._can_read_single_key", return_value=True),
+        patch("usecli.ui._ask_masked", return_value="secret") as ask_masked,
+        patch("usecli.ui.RichPrompt.ask") as rich_ask,
+    ):
+        result = Prompt.ask("Token", mask="*", default="fallback")
+
+    assert result == "secret"
+    assert ask_masked.call_args.kwargs["mask"] == "*"
+    assert ask_masked.call_args.kwargs["default"] == "fallback"
+    rich_ask.assert_not_called()
+
+
+def test_prompt_mask_falls_back_to_hidden_input_without_tty() -> None:
+    with (
+        patch("usecli.ui._can_read_single_key", return_value=False),
+        patch("usecli.ui.RichPrompt.ask", return_value="secret") as rich_ask,
+    ):
+        result = Prompt.ask("Token", mask="*")
+
+    assert result == "secret"
+    assert rich_ask.call_args.kwargs["password"] is True
+    assert "mask" not in rich_ask.call_args.kwargs
+
+
+def test_prompt_mask_uses_prompt_toolkit_password_processor() -> None:
+    class _FakeSession:
+        def __init__(self) -> None:
+            self.calls: list[dict[str, Any]] = []
+
+        def prompt(self, text: Any, **kwargs: Any) -> str:
+            self.calls.append({"text": text, **kwargs})
+            return "secret"
+
+    session = _FakeSession()
+    with patch("usecli.ui._get_masked_session", return_value=session):
+        result = _ask_masked("Token", mask="#", default=None, show_default=True)
+
+    assert result == "secret"
+    processors = session.calls[0]["input_processors"]
+    assert processors[0].char == "#"
+
+
+def test_prompt_mask_returns_default_for_empty_input() -> None:
+    class _EmptySession:
+        def prompt(self, text: Any, **kwargs: Any) -> str:
+            return ""
+
+    with patch("usecli.ui._get_masked_session", return_value=_EmptySession()):
+        assert (
+            _ask_masked("Token", mask="*", default="fallback", show_default=True)
+            == "fallback"
+        )
+        assert _ask_masked("Token", mask="*", default=None, show_default=True) is None
+
+
+def test_get_masked_session_is_cached(monkeypatch: pytest.MonkeyPatch) -> None:
+    from usecli import ui
+
+    monkeypatch.setattr(ui, "_masked_session", None)
+    with patch("prompt_toolkit.PromptSession") as session_cls:
+        session_cls.return_value = object()
+        first = ui._get_masked_session()
+        second = ui._get_masked_session()
+
+    assert first is second is session_cls.return_value
+    assert session_cls.call_args.kwargs["reserve_space_for_menu"] == 0
+
+
+def test_prompt_mask_returns_default_in_json_mode() -> None:
+    with (
+        runtime.execution_context(json_mode=True),
+        patch("usecli.ui._ask_masked") as ask_masked,
+    ):
+        assert Prompt.ask("Token", mask="*", default="fallback") == "fallback"
+
+    ask_masked.assert_not_called()
+
+
+def test_prompt_mask_requires_one_character() -> None:
+    with pytest.raises(ValueError, match="one character"):
+        Prompt.ask("Token", mask="**")
+
+
+def test_prompt_mask_takes_precedence_over_password() -> None:
+    with (
+        patch("usecli.ui._can_read_single_key", return_value=True),
+        patch("usecli.ui._ask_masked", return_value="secret") as ask_masked,
+    ):
+        result = Prompt.ask("Token", password=True, mask="*")
+
+    assert result == "secret"
+    ask_masked.assert_called_once()
+
+
+@pytest.mark.parametrize("kwargs", [{"choices": ["a"]}, {"single_key": True}])
+def test_prompt_mask_rejects_conflicting_options(kwargs: dict[str, Any]) -> None:
+    ask: Any = Prompt.ask
+
+    with pytest.raises(ValueError, match="cannot be combined"):
+        ask("Token", mask="*", **kwargs)
+
+
+def test_prompt_mask_requires_string_type() -> None:
+    ask: Any = Prompt.ask
+
+    with pytest.raises(ValueError, match="type='string'"):
+        ask("Value", type="int", mask="*")
