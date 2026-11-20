@@ -16,11 +16,14 @@ prompt and ``console.input`` call.
 from __future__ import annotations
 
 import sys
+from typing import TYPE_CHECKING, cast, overload
 
 from rich import box
 from rich.console import Console
 from rich.panel import Panel
 from rich.prompt import Confirm as RichConfirm
+from rich.prompt import FloatPrompt as RichFloatPrompt
+from rich.prompt import IntPrompt as RichIntPrompt
 from rich.prompt import Prompt as RichPrompt
 from rich.table import Table
 from rich.text import Text
@@ -28,6 +31,9 @@ from rich.text import Text
 from usecli.cli.config.colors import COLOR
 from usecli.cli.core.runtime import NonInteractiveError, is_json_mode
 from usecli.cli.utils.interactive.prompt_input import install_prompt_input
+
+if TYPE_CHECKING:
+    from typing import Literal
 
 console: Console = Console()
 console.__doc__ = """Shared console for human-facing output.
@@ -43,65 +49,190 @@ install_prompt_input()
 
 
 class Prompt:
-    """Line input that stays safe in non-interactive runs.
+    """Text, integer, and float input that stays safe in non-interactive runs.
 
-    Delegates to :class:`rich.prompt.Prompt` with the shared :data:`console`,
-    adding the guarantees CLI commands need:
+    Delegates to Rich's prompt classes with the shared :data:`console` and
+    selects the parser with ``type``:
+
+    * ``"string"`` (default) - :class:`rich.prompt.Prompt`
+    * ``"int"`` - :class:`rich.prompt.IntPrompt`
+    * ``"float"`` - :class:`rich.prompt.FloatPrompt`
+
+    The wrapper adds the guarantees CLI commands need:
 
     * In JSON mode the prompt never reads stdin. It returns ``default``, or
       raises :class:`~usecli.cli.core.runtime.NonInteractiveError` when no
       default was supplied.
     * Interactive line editing is installed for every Rich prompt when this
       module is imported.
+    * ``single_key=True`` answers single-character choices on one keypress,
+      like :meth:`Confirm.ask`.
 
     Example:
         >>> name = Prompt.ask("Project name", default="demo")
+        >>> port = Prompt.ask("Port", type="int", default=8000)
+        >>> ratio = Prompt.ask("Ratio", type="float", default=0.5)
         >>> color = Prompt.ask("Color", choices=["red", "green", "blue"])
+        >>> token = Prompt.ask("API token", password=True)
+        >>> mode = Prompt.ask("Mode [a/b/c]", choices=["a", "b", "c"], single_key=True)
     """
+
+    @overload
+    @staticmethod
+    def ask(
+        prompt: str,
+        *,
+        type: Literal["string"] = "string",
+        default: str | None = None,
+        choices: list[str] | None = None,
+        show_choices: bool = True,
+        show_default: bool = True,
+        password: bool = False,
+        case_sensitive: bool = True,
+        single_key: bool = False,
+    ) -> str | None: ...
+
+    @overload
+    @staticmethod
+    def ask(
+        prompt: str,
+        *,
+        type: Literal["int"],
+        default: int | None = None,
+        show_default: bool = True,
+    ) -> int | None: ...
+
+    @overload
+    @staticmethod
+    def ask(
+        prompt: str,
+        *,
+        type: Literal["float"],
+        default: float | None = None,
+        show_default: bool = True,
+    ) -> float | None: ...
 
     @staticmethod
     def ask(
         prompt: str,
         *,
-        default: str | None = None,
+        type: Literal["string", "int", "float"] = "string",
+        default: str | float | None = None,
         choices: list[str] | None = None,
         show_choices: bool = True,
         show_default: bool = True,
-    ) -> str | None:
-        """Ask for a line of text.
+        password: bool = False,
+        case_sensitive: bool = True,
+        single_key: bool = False,
+    ) -> str | int | float | None:
+        """Ask for text, an integer, or a float.
 
         Args:
             prompt: Text shown to the user.
+            type: Parser to use: ``"string"`` (default), ``"int"``, or
+                ``"float"``.
             default: Value returned when the user submits an empty line, and
-                the value returned instead of prompting in JSON mode.
-            choices: Accepted answers. Rich re-prompts until the response
-                matches one of them.
+                the value returned instead of prompting in JSON mode. Must
+                match ``type``.
+            choices: Accepted answers. String prompts only; Rich re-prompts
+                until the response matches one of them.
             show_choices: Render the choices after the prompt (``[a/b/c]``).
             show_default: Render the default after the prompt (``[default]``).
+            password: Hide the typed characters. String prompts only.
+            case_sensitive: Match ``choices`` case-sensitively.
+            single_key: Answer on the first keypress instead of waiting for
+                Enter. String prompts only, requires ``choices`` where every
+                choice is exactly one character, and cannot be combined with
+                ``password``. Ignored when stdin or stdout is not a terminal,
+                and in JSON mode.
 
         Returns:
-            The entered text, or ``default`` when the user accepts it. The
-            return value is a string in every path that returns; the ``None``
-            in the signature is unreachable because JSON mode with
-            ``default=None`` raises instead.
+            The parsed value, the matched choice, or ``default``. ``None`` is
+            returned only when single-key mode receives Ctrl-D and no
+            ``default`` was supplied.
 
         Raises:
             NonInteractiveError: In JSON mode when ``default`` is ``None``.
+            TypeError: When ``default`` does not match ``type``.
+            ValueError: When ``password``, ``choices``, or ``single_key`` are
+                used with a non-string ``type``, or when single-key choices
+                are not all single characters.
 
         Example:
             >>> name = Prompt.ask("Enter your name")
-            >>> choice = Prompt.ask("Pick a color", choices=["red", "green", "blue"])
+            >>> port = Prompt.ask("Port", type="int", default=8000)
+            >>> mode = Prompt.ask("Mode [a/b/c]", choices=["a", "b", "c"], single_key=True)
         """
+        if type not in ("string", "int", "float"):
+            raise ValueError("type must be 'string', 'int', or 'float'")
+        if type != "string":
+            if password:
+                raise ValueError("password requires type='string'")
+            if choices is not None:
+                raise ValueError("choices requires type='string'")
+            if single_key:
+                raise ValueError("single_key requires type='string'")
+
+        if type == "string":
+            if default is not None and not isinstance(default, str):
+                raise TypeError("type='string' requires a str default")
+        elif type == "int":
+            if default is not None and (
+                isinstance(default, bool) or not isinstance(default, int)
+            ):
+                raise TypeError("type='int' requires an int default")
+        else:
+            if default is not None and (
+                isinstance(default, bool) or not isinstance(default, (int, float))
+            ):
+                raise TypeError("type='float' requires a float default")
+            if default is not None:
+                default = float(default)
+
+        if single_key:
+            if password:
+                raise ValueError("single_key cannot be combined with password")
+            if not choices or any(len(choice) != 1 for choice in choices):
+                raise ValueError(
+                    "single_key requires choices with exactly one character each"
+                )
+
         if is_json_mode():
             if default is not None:
                 return default
             raise NonInteractiveError("Prompt requires a default value in JSON mode")
+
+        if type == "int":
+            return RichIntPrompt.ask(
+                prompt,
+                default=cast("int | None", default),
+                show_default=show_default,
+                console=console,
+            )
+        if type == "float":
+            return RichFloatPrompt.ask(
+                prompt,
+                default=cast("float | None", default),
+                show_default=show_default,
+                console=console,
+            )
+        if single_key and _can_read_single_key():
+            return _ask_single_choice(
+                prompt,
+                choices=choices or [],
+                default=cast("str | None", default),
+                case_sensitive=case_sensitive,
+                show_choices=show_choices,
+                show_default=show_default,
+            )
         return RichPrompt.ask(
             prompt,
-            default=default,
+            default=cast("str | None", default),
             choices=choices,
             show_choices=show_choices,
             show_default=show_default,
+            password=password,
+            case_sensitive=case_sensitive,
             console=console,
         )
 
@@ -133,6 +264,44 @@ def _read_key() -> str:
         termios.tcsetattr(fd, termios.TCSADRAIN, previous)
     encoding = getattr(sys.stdin, "encoding", None) or "utf-8"
     return data.decode(encoding, "ignore")
+
+
+def _ask_single_choice(
+    prompt: str,
+    *,
+    choices: list[str],
+    default: str | None,
+    case_sensitive: bool,
+    show_choices: bool,
+    show_default: bool,
+) -> str | None:
+    """Render a Rich choice prompt and return on the first valid keypress."""
+    prompt_text = RichPrompt(
+        prompt,
+        console=console,
+        choices=choices,
+        case_sensitive=case_sensitive,
+        show_choices=show_choices,
+        show_default=show_default,
+    ).make_prompt(default)
+    console.print(prompt_text, end="")
+    while True:
+        key = _read_key()
+        if key == "\x03":
+            raise KeyboardInterrupt
+        if key in ("\r", "\n"):
+            if default is None:
+                continue
+            console.print(default, markup=False)
+            return default
+        if key in ("\x04", ""):
+            console.print()
+            return default
+        for choice in choices:
+            if choice == key or (not case_sensitive and choice.lower() == key.lower()):
+                console.print(choice, markup=False)
+                return choice
+        # Ignore other keys (arrows, backspace, ...) and keep waiting.
 
 
 def _ask_single_key(prompt: str, *, default: bool) -> bool:
