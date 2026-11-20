@@ -956,12 +956,12 @@ class TestCollectCommandsDataUsageName:
 
         monkeypatch.setattr(
             "usecli.cli.core.ui.list.get_script_command_name",
-            lambda default=None: "ssgrep",
+            lambda default=None: "mycli",
         )
 
         data = collect_commands_data(app)
 
-        assert data["usage"] == "ssgrep [COMMAND] [OPTIONS] [ARGUMENTS]"
+        assert data["usage"] == "mycli [COMMAND] [OPTIONS] [ARGUMENTS]"
 
     @patch("usecli.cli.core.ui.list.typer.main.get_command")
     def test_prefers_explicit_typer_app_name(self, mock_get_command):
