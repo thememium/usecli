@@ -207,6 +207,10 @@ ok = Confirm.ask("Continue?")
 choice = Menu.select(["A", "B", "C"])
 ```
 
+`Confirm.ask(..., single_key=True)` answers on the first `y`/`n` keypress
+instead of requiring Enter. Without the flag it keeps Rich's line-based
+prompt; non-terminal stdin/stdout always falls back to line input.
+
 Rich renderables are re-exported, so commands never import `rich` directly:
 
 ```python
