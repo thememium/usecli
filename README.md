@@ -207,6 +207,21 @@ ok = Confirm.ask("Continue?")
 choice = Menu.select(["A", "B", "C"])
 ```
 
+Rich renderables are re-exported, so commands never import `rich` directly:
+
+```python
+from usecli import Markdown, Panel, Syntax, Table, Tree
+
+console.print(Panel(Markdown("# Report")))
+console.print(Syntax(source, "python"))
+```
+
+`from usecli.rich import ...` exposes the same set as an explicit namespace. All
+Rich console, text, layout, progress, and prompt components are covered
+(`Table`, `Tree`, `Panel`, `Rule`, `Layout`, `Live`, `Progress`, `Pretty`,
+`JSON`, `Traceback`, and the rest); imports stay lazy, so `import usecli` does
+not load Rich.
+
 ### Progress Indicators
 
 Use `Spinner` when the amount of work is unknown and `ProgressBar` when a total is known:
