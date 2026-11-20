@@ -33,7 +33,7 @@ from usecli.cli.core.runtime import NonInteractiveError, is_json_mode
 from usecli.cli.utils.interactive.prompt_input import install_prompt_input
 
 if TYPE_CHECKING:
-    from typing import Literal
+    from typing import Any, Literal
 
 console: Console = Console()
 console.__doc__ = """Shared console for human-facing output.
@@ -74,6 +74,7 @@ class Prompt:
         >>> ratio = Prompt.ask("Ratio", type="float", default=0.5)
         >>> color = Prompt.ask("Color", choices=["red", "green", "blue"])
         >>> token = Prompt.ask("API token", password=True)
+        >>> pin = Prompt.ask("PIN", mask="*")
         >>> mode = Prompt.ask("Mode [a/b/c]", choices=["a", "b", "c"], single_key=True)
     """
 
@@ -88,6 +89,7 @@ class Prompt:
         show_choices: bool = True,
         show_default: bool = True,
         password: bool = False,
+        mask: str | None = None,
         case_sensitive: bool = True,
         single_key: bool = False,
     ) -> str | None: ...
@@ -122,6 +124,7 @@ class Prompt:
         show_choices: bool = True,
         show_default: bool = True,
         password: bool = False,
+        mask: str | None = None,
         case_sensitive: bool = True,
         single_key: bool = False,
     ) -> str | int | float | None:
@@ -138,7 +141,13 @@ class Prompt:
                 until the response matches one of them.
             show_choices: Render the choices after the prompt (``[a/b/c]``).
             show_default: Render the default after the prompt (``[default]``).
-            password: Hide the typed characters. String prompts only.
+            password: Hide the typed characters. String prompts only. Ignored
+                when ``mask`` is set.
+            mask: Echo this character once per typed character instead of the
+                real input, for example ``mask="*"``. Takes precedence over
+                ``password``. String prompts only, exactly one character, and
+                cannot be combined with ``choices`` or ``single_key``. Falls
+                back to hidden input when stdin or stdout is not a terminal.
             case_sensitive: Match ``choices`` case-sensitively.
             single_key: Answer on the first keypress instead of waiting for
                 Enter. String prompts only, requires ``choices`` where every
@@ -154,13 +163,16 @@ class Prompt:
         Raises:
             NonInteractiveError: In JSON mode when ``default`` is ``None``.
             TypeError: When ``default`` does not match ``type``.
-            ValueError: When ``password``, ``choices``, or ``single_key`` are
-                used with a non-string ``type``, or when single-key choices
-                are not all single characters.
+            ValueError: When ``password``, ``mask``, ``choices``, or
+                ``single_key`` are used with a non-string ``type``, when
+                ``mask`` is not one character or conflicts with another
+                input option, or when single-key choices are not all single
+                characters.
 
         Example:
             >>> name = Prompt.ask("Enter your name")
             >>> port = Prompt.ask("Port", type="int", default=8000)
+            >>> token = Prompt.ask("Token", mask="*")
             >>> mode = Prompt.ask("Mode [a/b/c]", choices=["a", "b", "c"], single_key=True)
         """
         if type not in ("string", "int", "float"):
@@ -172,6 +184,16 @@ class Prompt:
                 raise ValueError("choices requires type='string'")
             if single_key:
                 raise ValueError("single_key requires type='string'")
+            if mask is not None:
+                raise ValueError("mask requires type='string'")
+
+        if mask is not None:
+            if len(mask) != 1:
+                raise ValueError("mask must be exactly one character")
+            if choices is not None:
+                raise ValueError("mask cannot be combined with choices")
+            if single_key:
+                raise ValueError("mask cannot be combined with single_key")
 
         if type == "string":
             if default is not None and not isinstance(default, str):
@@ -214,6 +236,21 @@ class Prompt:
                 prompt,
                 default=cast("float | None", default),
                 show_default=show_default,
+                console=console,
+            )
+        if mask is not None:
+            if _can_read_single_key():
+                return _ask_masked(
+                    prompt,
+                    mask=mask,
+                    default=cast("str | None", default),
+                    show_default=show_default,
+                )
+            return RichPrompt.ask(
+                prompt,
+                default=cast("str | None", default),
+                show_default=show_default,
+                password=True,
                 console=console,
             )
         if single_key and _can_read_single_key():
@@ -264,6 +301,48 @@ def _read_key() -> str:
         termios.tcsetattr(fd, termios.TCSADRAIN, previous)
     encoding = getattr(sys.stdin, "encoding", None) or "utf-8"
     return data.decode(encoding, "ignore")
+
+
+_masked_session: Any = None
+
+
+def _get_masked_session() -> Any:
+    """Return a prompt_toolkit session that never stores input in history."""
+    global _masked_session
+    if _masked_session is None:
+        from prompt_toolkit import PromptSession
+        from prompt_toolkit.history import DummyHistory
+
+        _masked_session = PromptSession(
+            history=DummyHistory(),
+            reserve_space_for_menu=0,
+        )
+    return _masked_session
+
+
+def _ask_masked(
+    prompt: str,
+    *,
+    mask: str,
+    default: str | None,
+    show_default: bool,
+) -> str | None:
+    """Render a Rich prompt and echo ``mask`` for every typed character."""
+    from prompt_toolkit.formatted_text import ANSI
+    from prompt_toolkit.layout.processors import PasswordProcessor
+
+    prompt_text = RichPrompt(
+        prompt,
+        console=console,
+        show_default=show_default,
+    ).make_prompt(default)
+    with console.capture() as capture:
+        console.print(prompt_text, end="", soft_wrap=True)
+    value = _get_masked_session().prompt(
+        ANSI(capture.get()),
+        input_processors=[PasswordProcessor(mask)],
+    )
+    return value if value else default
 
 
 def _ask_single_choice(
