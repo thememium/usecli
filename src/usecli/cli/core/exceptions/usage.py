@@ -29,6 +29,17 @@ def _get_help_text_with_command_name(ctx: ClickContext) -> str:
     # usage error was about to set. The help has already been printed as a
     # side effect by that point, so it's safe to treat this as "no
     # additional help text to append" and let the caller continue.
+    #
+    # Nested contexts already carry the invoked name. Rewriting info_name to
+    # the program name there doubles the program in Click's usage line
+    # ("mycli mycli") and drops the parent group from leaf commands. Only
+    # the root context needs the program name substituted.
+    if getattr(ctx, "parent", None) is not None:
+        try:
+            return ctx.get_help()
+        except Exit:
+            return ""
+
     command_name = get_script_command_name(default=getattr(ctx, "info_name", None))
     if not command_name:
         try:
