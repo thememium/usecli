@@ -1,4 +1,9 @@
-"""Theme-aware progress indicators for usecli commands."""
+"""Theme-aware progress indicators for usecli commands.
+
+Both indicators write to stderr and are suppressed automatically in JSON mode,
+quiet mode, and non-interactive terminals. Prefer importing them from the
+package root (``from usecli import ProgressBar, Spinner``).
+"""
 
 from __future__ import annotations
 
@@ -28,7 +33,34 @@ def _is_disabled(console: Console, *, quiet: bool) -> bool:
 
 
 class Spinner:
-    """Indeterminate progress indicator that renders only to terminal stderr."""
+    """Indeterminate progress indicator for work with no known total.
+
+    Renders a transient spinner and status message to stderr using the active
+    usecli theme. Rendering is suppressed automatically in JSON mode, in quiet
+    mode, when ``quiet=True``, or when stderr is not a terminal, so commands
+    can keep the block in place in every environment.
+
+    Use it as a context manager; the spinner line is erased on exit. Call
+    :meth:`update` to change the message while the block runs.
+
+    Args:
+        message: Initial status message.
+        quiet: Suppress rendering regardless of the terminal.
+        spinner: Rich spinner style name, for example ``"dots"`` or ``"line"``.
+
+    Attributes:
+        message: Current status message.
+        quiet: Whether rendering was explicitly suppressed.
+        spinner: Rich spinner style name.
+
+    Example:
+        >>> with Spinner("Loading records") as spinner:
+        ...     load_records()
+        ...     spinner.update("Indexing records")
+
+    Note:
+        Instances are not thread-safe.
+    """
 
     def __init__(
         self,
@@ -77,14 +109,45 @@ class Spinner:
             self._task_id = None
 
     def update(self, message: str) -> None:
-        """Replace the status message without changing command behavior."""
+        """Change the status message shown while the block runs.
+
+        Safe to call before entering the context manager: the message is
+        applied when the spinner starts. The message is still recorded when
+        rendering is suppressed, so later ``update`` calls remain consistent.
+        """
         self.message = message
         if self._progress is not None and self._task_id is not None:
             self._progress.update(self._task_id, description=message)
 
 
 class ProgressBar:
-    """Determinate progress bar that renders only to terminal stderr."""
+    """Determinate progress bar for work with a known total.
+
+    Renders the description, a bar, and a percentage to stderr using the active
+    usecli theme. Advance it with :meth:`advance`, or set absolute progress
+    with :meth:`update`. Rendering is suppressed automatically in JSON mode, in
+    quiet mode, when ``quiet=True``, or when stderr is not a terminal; counters
+    still update, so command logic never branches on the environment.
+
+    Args:
+        total: Number of steps expected.
+        description: Label shown before the bar.
+        quiet: Suppress rendering regardless of the terminal.
+
+    Attributes:
+        total: Number of steps expected.
+        description: Current label.
+        completed: Steps recorded so far.
+
+    Example:
+        >>> with ProgressBar(total=len(items), description="Processing") as bar:
+        ...     for item in items:
+        ...         process(item)
+        ...         bar.advance()
+
+    Note:
+        Not thread-safe; update from the thread that entered the context.
+    """
 
     def __init__(
         self,
@@ -142,7 +205,12 @@ class ProgressBar:
             self._task_id = None
 
     def advance(self, amount: float = 1) -> None:
-        """Advance the tracked task by ``amount`` steps."""
+        """Record ``amount`` completed steps.
+
+        ``amount`` may be fractional when ``total`` is fractional. The local
+        counter is always updated; the rendered bar refreshes only while the
+        context manager is active and rendering is enabled.
+        """
         self.completed += amount
         if self._progress is not None and self._task_id is not None:
             self._progress.advance(self._task_id, amount)
@@ -153,7 +221,12 @@ class ProgressBar:
         completed: float | None = None,
         description: str | None = None,
     ) -> None:
-        """Update completed work and/or the displayed description."""
+        """Set completed steps, the description, or both.
+
+        ``None`` leaves the corresponding field unchanged. Local state is
+        always updated; the rendered bar refreshes only while the context
+        manager is active and rendering is enabled.
+        """
         if completed is not None:
             self.completed = completed
         if description is not None:
