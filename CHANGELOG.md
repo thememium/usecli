@@ -1,6 +1,28 @@
 # Changelog
 
 
+## v0.2.7
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.2.6...v0.2.7)
+
+### 🚀 Enhancements
+
+- Add all rich exports ([#17](https://github.com/thememium/usecli/pull/17))
+
+### 💅 Refactors
+
+- Adjust help command to display correct command path ([c4353a4](https://github.com/thememium/usecli/commit/c4353a4))
+- **usage:** Fix duplicate program name in nested Click contexts ([787651b](https://github.com/thememium/usecli/commit/787651b))
+
+### ✅ Tests
+
+- **cli:** Add tests for nested command help and context handling ([b1dd496](https://github.com/thememium/usecli/commit/b1dd496))
+- **cli:** Rename default command from ssgrep to mycli ([5cb1201](https://github.com/thememium/usecli/commit/5cb1201))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.2.6
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.2.5...v0.2.6)
