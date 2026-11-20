@@ -70,6 +70,4 @@ RICH_EXPORT_NAMES: tuple[str, ...] = (
     # Prompts
     "Prompt",
     "Confirm",
-    "IntPrompt",
-    "FloatPrompt",
 )

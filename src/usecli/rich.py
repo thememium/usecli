@@ -53,7 +53,7 @@ from rich.progress import (
     TransferSpeedColumn,
     track,
 )
-from rich.prompt import Confirm, FloatPrompt, IntPrompt, Prompt
+from rich.prompt import Confirm, Prompt
 from rich.rule import Rule
 from rich.screen import Screen
 from rich.segment import Segment
