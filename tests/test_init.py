@@ -64,6 +64,42 @@ class TestLazyExports:
             _ = usecli.nonexistent_xyz_123
 
 
+class TestRichExports:
+    def test_components_import_from_package_root(self):
+        import rich.markdown
+        import rich.syntax
+        import rich.table
+        import rich.tree
+
+        from usecli import Markdown, Syntax, Table, Tree
+
+        assert Markdown is rich.markdown.Markdown
+        assert Syntax is rich.syntax.Syntax
+        assert Table is rich.table.Table
+        assert Tree is rich.tree.Tree
+
+    def test_every_registered_name_resolves_from_root(self):
+        import usecli
+        from usecli._rich_exports import RICH_EXPORT_NAMES
+
+        for name in RICH_EXPORT_NAMES:
+            assert getattr(usecli, name) is not None
+
+    def test_facade_exposes_every_registered_name(self):
+        from usecli import rich as usecli_rich
+        from usecli._rich_exports import RICH_EXPORT_NAMES
+
+        for name in RICH_EXPORT_NAMES:
+            assert hasattr(usecli_rich, name)
+
+    def test_print_export_is_not_cached_in_module_globals(self):
+        import usecli
+        from usecli import print as rich_print
+
+        assert rich_print.__module__ == "rich"
+        assert "print" not in usecli.__dict__
+
+
 # ---------------------------------------------------------------------------
 # _is_interactive_flag_present
 # ---------------------------------------------------------------------------

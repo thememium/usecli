@@ -203,9 +203,39 @@ from usecli import Confirm, Menu, Prompt, console
 
 console.print("[green]Done![/green]")
 name = Prompt.ask("Enter name")
-ok = Confirm.ask("Continue?")
+port = Prompt.ask("Port", type="int", default=8000)
+ratio = Prompt.ask("Ratio", type="float", default=0.5)
+token = Prompt.ask("API token", password=True)
+masked = Prompt.ask("PIN", mask="*")
+mode = Prompt.ask("Mode [a/b/c]", choices=["a", "b", "c"], single_key=True)
+ok = Confirm.ask("Continue?", single_key=True)
 choice = Menu.select(["A", "B", "C"])
 ```
+
+`Prompt.ask(type=...)` parses `"string"` (default), `"int"`, or `"float"`.
+`password=True` hides input entirely; `mask="*"` echoes one mask character per
+keystroke (and wins if both are supplied) and falls back to hidden input
+without a terminal. Single-key
+`Prompt.ask(..., single_key=True)` answers single-character choices on the
+first keypress; `Confirm.ask(..., single_key=True)` does the same for `y`/`n`.
+Without the flag both keep Rich's line-based prompt, and non-terminal
+stdin/stdout always falls back to line input. In JSON mode prompts return their
+declared default or raise `NonInteractiveError`.
+
+Rich renderables are re-exported, so commands never import `rich` directly:
+
+```python
+from usecli import Markdown, Panel, Syntax, Table, Tree
+
+console.print(Panel(Markdown("# Report")))
+console.print(Syntax(source, "python"))
+```
+
+`from usecli.rich import ...` exposes the same set as an explicit namespace. All
+Rich console, text, layout, progress, and prompt components are covered
+(`Table`, `Tree`, `Panel`, `Rule`, `Layout`, `Live`, `Progress`, `Pretty`,
+`JSON`, `Traceback`, and the rest); imports stay lazy, so `import usecli` does
+not load Rich.
 
 ### Progress Indicators
 

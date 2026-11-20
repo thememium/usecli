@@ -5,27 +5,87 @@ from __future__ import annotations
 import sys
 from importlib import import_module
 
+# `typing` is already imported by click, so TYPE_CHECKING costs nothing extra.
+# The block below gives type checkers concrete types for the lazy exports; the
+# module `__getattr__` returns `Any` at runtime only.
+from typing import TYPE_CHECKING
+
 from click import Command as _ClickCommand
 
-# Avoid importing typing at module level (costs ~6ms)
-# TYPE_CHECKING is False at runtime, so the if-block never executes
-TYPE_CHECKING = False
+from usecli._rich_exports import RICH_EXPORT_NAMES
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
     from typing import Any
 
     import typer
-    from rich.console import Console
 
     from usecli.cli.config.colors import COLOR
     from usecli.cli.config.colors import COLOR as theme
     from usecli.cli.core.base_command import BaseCommand
+    from usecli.cli.services.command_service import CommandService
     from usecli.menu import Menu
     from usecli.params import Argument, Option
     from usecli.progress import ProgressBar, Spinner
-    from usecli.ui import Confirm, Prompt
+    from usecli.rich import (  # noqa: F401 - re-exported via __all__
+        JSON,
+        Align,
+        Bar,
+        BarColumn,
+        Column,
+        Columns,
+        ConsoleOptions,
+        ConsoleRenderable,
+        Control,
+        DownloadColumn,
+        Group,
+        Layout,
+        LayoutRender,
+        Live,
+        Markdown,
+        MofNCompleteColumn,
+        Padding,
+        Pretty,
+        Progress,
+        ProgressColumn,
+        RenderableType,
+        RenderHook,
+        RichCast,
+        Rule,
+        Screen,
+        Segment,
+        Span,
+        SpinnerColumn,
+        Status,
+        Style,
+        StyleType,
+        Syntax,
+        TaskID,
+        TaskProgressColumn,
+        TextColumn,
+        TextType,
+        Theme,
+        TimeElapsedColumn,
+        TimeRemainingColumn,
+        TotalFileSizeColumn,
+        Traceback,
+        TransferSpeedColumn,
+        Tree,
+        get_console,
+        inspect,
+        pprint,
+        print_json,
+        reconfigure,
+        track,
+    )
+    from usecli.ui import Confirm, Console, Panel, Prompt, Table, Text, box
+
+    # `print` must stay the builtin at runtime; this types only the re-export.
+    print: Callable[..., None]
 
     console: Console
+    app: typer.Typer
+    service: CommandService
 
 # Lazy module-level placeholders - these are populated on first access
 _app: Any = None
@@ -42,9 +102,19 @@ _LAZY_EXPORTS = {
     "console": ("usecli.ui", "console"),
     "Spinner": ("usecli.progress", "Spinner"),
     "ProgressBar": ("usecli.progress", "ProgressBar"),
+    "Table": ("usecli.ui", "Table"),
+    "Text": ("usecli.ui", "Text"),
+    "Panel": ("usecli.ui", "Panel"),
+    "box": ("usecli.ui", "box"),
     "pyinstaller": ("usecli.bundler", "pyinstaller"),
     "run": ("usecli.entry", "run"),
 }
+
+_RICH_EXPORTS = frozenset(RICH_EXPORT_NAMES)
+
+# `print` must not be cached in this module's globals: the CLI code below calls
+# the builtin, and a cached rich.print would silently replace it.
+_UNCACHED_RICH_EXPORTS = frozenset({"print"})
 
 
 def __getattr__(name: str) -> Any:
@@ -54,6 +124,13 @@ def __getattr__(name: str) -> Any:
         module_name, attr_name = export
         value = getattr(import_module(module_name), attr_name)
         globals()[name] = value
+        return value
+
+    # Handle Rich components re-exported under the usecli namespace
+    if name in _RICH_EXPORTS:
+        value = getattr(import_module("usecli.rich"), name)
+        if name not in _UNCACHED_RICH_EXPORTS:
+            globals()[name] = value
         return value
 
     # Handle CLI framework components - lazy initialization
@@ -368,9 +445,13 @@ __all__ = [
     "Console",
     "Menu",
     "Option",
+    "Panel",
     "ProgressBar",
     "Prompt",
     "Spinner",
+    "Table",
+    "Text",
+    "box",
     "colors",
     "console",
     "main",
@@ -378,6 +459,9 @@ __all__ = [
     "run",
     "theme",
 ]
+
+# Rich components come from usecli.rich; skip names already listed above.
+__all__ += [name for name in RICH_EXPORT_NAMES if name not in __all__]
 
 
 def _console():
