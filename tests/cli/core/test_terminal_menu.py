@@ -125,6 +125,33 @@ class TestTerminalMenuSingleSelectMode:
         result = terminal_menu(["Option A", "Option B", "Option C"], multi_select=False)
         assert result == []
 
+    @patch("usecli.cli.utils.interactive.terminal_menu.TerminalMenu")
+    def test_reports_accept_keys_and_chosen_key(self, mock_menu_class):
+        """Extra accept keys are passed through and reported on the selection."""
+        mock_menu_instance = Mock()
+        mock_menu_instance.show.return_value = 1
+        mock_menu_instance.chosen_accept_key = "tab"
+        mock_menu_class.return_value = mock_menu_instance
+
+        result = terminal_menu(["a", "b"], accept_keys=("enter", "tab"))
+
+        assert result == ["b"]
+        assert getattr(result, "accept_key", None) == "tab"
+        assert mock_menu_class.call_args.kwargs["accept_keys"] == ("enter", "tab")
+
+    @patch("usecli.cli.utils.interactive.terminal_menu.TerminalMenu")
+    def test_canceled_selection_reports_accept_key(self, mock_menu_class):
+        """A canceled menu still exposes the accept key slot."""
+        mock_menu_instance = Mock()
+        mock_menu_instance.show.return_value = None
+        mock_menu_instance.chosen_accept_key = None
+        mock_menu_class.return_value = mock_menu_instance
+
+        result = terminal_menu(["a"], accept_keys=("enter", "tab"))
+
+        assert result == []
+        assert getattr(result, "accept_key", "missing") is None
+
 
 class TestTerminalMenuMultiSelectMode:
     """Test cases for terminal_menu in multi-select mode."""
