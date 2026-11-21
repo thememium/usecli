@@ -15,6 +15,20 @@ from simple_term_menu import TerminalMenu
 from usecli.cli.core.runtime import NonInteractiveError, is_json_mode
 
 T = TypeVar("T")
+
+
+class MenuSelection(list[T]):
+    """Selected menu items plus the key that accepted the menu.
+
+    ``accept_key`` mirrors ``simple_term_menu.TerminalMenu.chosen_accept_key``
+    so callers can distinguish Enter from an extra accept key such as Tab.
+    Subclassing ``list`` keeps the existing list-return contract for callers
+    that only care about the selection.
+    """
+
+    accept_key: str | None = None
+
+
 _PATCHED_SEARCH_LEN = False
 _PATCHED_VIM_PAGE_KEYS = False
 _PATCHED_VIM_SEARCH = False
@@ -361,6 +375,7 @@ def terminal_menu(
     entry_renderer: Callable[[str], str] | None = None,
     clear_screen: bool | None = None,
     clear_menu_on_exit: bool | None = None,
+    accept_keys: tuple[str, ...] = ("enter",),
 ) -> list[T]:
     """Display an interactive terminal menu.
 
@@ -382,6 +397,9 @@ def terminal_menu(
         title_style: Optional ANSI sequence used to color the title.
         entry_renderer: Optional callable that styles a menu entry for display.
             It is skipped for the active row and while a search is active.
+        accept_keys: Keys that accept the menu. Defaults to ``("enter",)``;
+            add ``"tab"`` to let callers tell Tab from Enter via the returned
+            selection's ``accept_key`` attribute.
 
     Returns:
         List of selected items (empty if cancelled or nothing selected).
@@ -474,6 +492,7 @@ def terminal_menu(
         preview_size=preview_size_value,
         clear_screen=clear_screen_value,
         clear_menu_on_exit=clear_menu_on_exit_value,
+        accept_keys=accept_keys,
     )
 
     if vim_search:
@@ -495,22 +514,23 @@ def terminal_menu(
 
     result = menu.show()
 
+    selection: MenuSelection[T] = MenuSelection()
+    selection.accept_key = getattr(menu, "chosen_accept_key", None)
+
     # Handle different return types from TerminalMenu
     if result is None:
         # User cancelled (Ctrl+C or Escape)
-        return []
+        return selection
 
     if multi_select:
         if isinstance(result, int):
             # Single selection in multi-select mode shouldn't happen,
             # but handle it gracefully
-            return [options[result]]
+            selection.append(options[result])
         elif isinstance(result, tuple):
             # Multi-select result - empty tuple means nothing selected
-            return [options[idx] for idx in result]
-        else:
-            return []
-    else:
-        if isinstance(result, int):
-            return [options[result]]
-        return []
+            selection.extend(options[idx] for idx in result)
+    elif isinstance(result, int):
+        selection.append(options[result])
+
+    return selection

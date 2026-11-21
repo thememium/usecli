@@ -25,6 +25,11 @@ This project uses `poe` for task management:
 | `uv run poe deptry` | Check for dependency issues |
 | `uv run poe typecheck` | Run ty type checker |
 
+`dev` is configured with `use_exec`, so it replaces the poe process instead of
+running in a new session. That keeps the controlling terminal, which lets the
+interactive picker put the selected command on the parent shell's line when you
+press Tab.
+
 ## Testing
 
 Run the test suite:

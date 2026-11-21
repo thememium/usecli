@@ -8,11 +8,13 @@ search and a styled cursor.
 
 from __future__ import annotations
 
+import fcntl
 import inspect
 import os
 import shutil
 import subprocess
 import sys
+import termios
 from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
@@ -33,7 +35,69 @@ if TYPE_CHECKING:
 
 console = Console()
 
-_STATUS_BAR = "↑↓/j/k move · / search · ctrl-u clear · ⏎ run · esc cancel"
+_STATUS_BAR = "↑↓/j/k move · / search · ctrl-u clear · ⏎ run · tab insert · esc cancel"
+
+
+def _open_tty_fd() -> int | None:
+    """Open a file descriptor for the terminal that should receive input.
+
+    Process runners such as poethepoet start tasks in a new session, so
+    ``/dev/tty`` no longer resolves while stdin/stdout still point at the pty.
+    Fall back to the device behind those streams.
+    """
+    candidates: list[str] = ["/dev/tty"]
+    for stream in (sys.stdin, sys.stdout):
+        try:
+            if stream is not None and stream.isatty():
+                candidates.append(os.ttyname(stream.fileno()))
+        except (OSError, ValueError):
+            continue
+    for path in candidates:
+        try:
+            return os.open(path, os.O_RDWR)
+        except OSError:
+            continue
+    return None
+
+
+def _type_into_terminal(text: str) -> bool:
+    """Type ``text`` into the terminal input queue without submitting it.
+
+    ``TIOCSTI`` pushes characters into the terminal as if the user typed them,
+    so the parent shell keeps the text on its editable command line. Echo is
+    muted while injecting so the terminal driver does not display the text on
+    its own line before the shell redraws its prompt. Returns False when no
+    terminal can be reached or the ioctl is restricted, letting the caller
+    fall back to printing the command.
+    """
+    tiocsti = getattr(termios, "TIOCSTI", None)
+    if tiocsti is None:
+        return False
+    tty_errors = (OSError, getattr(termios, "error", OSError))
+    fd = _open_tty_fd()
+    if fd is None:
+        return False
+    saved: list[Any] | None = None
+    try:
+        try:
+            saved = termios.tcgetattr(fd)
+            muted = list(saved)
+            muted[3] &= ~termios.ECHO
+            termios.tcsetattr(fd, termios.TCSANOW, muted)
+        except tty_errors:
+            saved = None
+        for byte in text.encode():
+            fcntl.ioctl(fd, tiocsti, bytes([byte]))
+    except tty_errors:
+        return False
+    finally:
+        if saved is not None:
+            try:
+                termios.tcsetattr(fd, termios.TCSANOW, saved)
+            except tty_errors:
+                pass
+        os.close(fd)
+    return True
 
 
 def _get_required_arguments(command: ClickCommand) -> list[tuple[str, str, type]]:
@@ -160,14 +224,16 @@ def _run_command_menu(
     *,
     title: str,
     entry_renderer: Callable[[str], str] | None = None,
-) -> str | None:
+) -> tuple[str | None, bool]:
     """Show the interactive picker and return the selected entry.
 
-    Returns ``None`` when the user cancels. Raises :class:`UsecliError` when
-    there is no terminal to draw the menu on.
+    Returns ``(entry, prefill)``. ``prefill`` is True when Tab accepted
+    the menu, meaning the command should be typed into the shell line instead
+    of run. Returns ``(None, False)`` when the user cancels. Raises
+    :class:`UsecliError` when there is no terminal to draw the menu on.
     """
     if not entries:
-        return None
+        return None, False
 
     if not sys.stdin.isatty() or not sys.stdout.isatty():
         raise UsecliError(
@@ -187,21 +253,22 @@ def _run_command_menu(
         status_bar=_STATUS_BAR,
         title_style=COLOR.ANSI.SECONDARY,
         entry_renderer=entry_renderer,
+        accept_keys=("enter", "tab"),
     )
     if not selection:
-        return None
+        return None, False
 
-    return selection[0]
+    return selection[0], getattr(selection, "accept_key", None) == "tab"
 
 
 def _select_command(
     commands: list[dict[str, Any]],
     *,
     title: str,
-) -> str | None:
-    """Show a picker for ``commands`` and return the selected name."""
+) -> tuple[str | None, bool]:
+    """Show a picker for ``commands`` and return ``(name, prefill)``."""
     if not commands:
-        return None
+        return None, False
 
     name_width = max(len(cmd["name"]) for cmd in commands)
     terminal_width = shutil.get_terminal_size((80, 24)).columns
@@ -243,10 +310,12 @@ def _select_command(
     entry_renderer = (
         (lambda entry: colored_entries.get(entry, entry)) if colored_entries else None
     )
-    selected = _run_command_menu(entries, title=title, entry_renderer=entry_renderer)
-    if selected is None:
-        return None
-    return name_by_entry.get(selected)
+    entry, prefill = _run_command_menu(
+        entries, title=title, entry_renderer=entry_renderer
+    )
+    if entry is None:
+        return None, False
+    return name_by_entry.get(entry), prefill
 
 
 def _resolve_group_alias(app: typer.Typer, group_name: str) -> str:
@@ -365,9 +434,10 @@ def run_interactive(
 
     cmd_name: str | None = None
     selected_cmd: dict[str, Any] | None = None
+    prefill = False
 
     if not cmd_parts:
-        cmd_name = _select_command(
+        cmd_name, prefill = _select_command(
             ordered_commands,
             title=f"{script_name} » select a command",
         )
@@ -409,10 +479,11 @@ def run_interactive(
         if cmd_parts and len(cmd_parts) > 1:
             sub_name = cmd_parts[1]
         else:
-            sub_name = _select_command(
+            sub_name, sub_prefill = _select_command(
                 subcommands,
                 title=f"{script_name} {cmd_name} » select a subcommand",
             )
+            prefill = prefill or sub_prefill
             if sub_name is None:
                 ErrorHandler.display_warning("No subcommand selected")
                 return
@@ -435,6 +506,24 @@ def run_interactive(
         raise typer.Exit(code=1)
 
     extra = " ".join(extra_args) if extra_args else ""
+
+    if prefill:
+        full_cmd = f"{script_name} {cmd_name}{' ' + extra if extra else ''}"
+        if _type_into_terminal(f"{full_cmd} "):
+            return
+
+        # Detached runners (e.g. poethepoet) have no controlling terminal, so
+        # the text cannot be pushed into the parent shell's line. Let the user
+        # edit it in place and submit it themselves.
+        from usecli.cli.utils.interactive.prompt_input import edit_line
+
+        try:
+            edited = edit_line(f"{full_cmd} ").strip()
+        except (EOFError, KeyboardInterrupt):
+            return
+        if edited:
+            subprocess.run(edited, shell=True, check=False)
+        return
 
     required_args = (
         _get_required_arguments(selected_cmd["command"]) if selected_cmd else []
