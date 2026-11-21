@@ -1,6 +1,27 @@
 # Changelog
 
 
+## v0.2.8
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.2.7...v0.2.8)
+
+### 🚀 Enhancements
+
+- Tab interactive mode prefill ([#18](https://github.com/thememium/usecli/pull/18))
+
+### 🏡 Chore
+
+- **pyproject:** Enable parallel pytest and tidy pyinstaller entry ([4d38299](https://github.com/thememium/usecli/commit/4d38299))
+- **pyproject:** Compute pytest workers from CPU count ([3cea2cf](https://github.com/thememium/usecli/commit/3cea2cf))
+
+### 🤖 CI
+
+- **test:** Cap automatic pytest workers to half of CPUs, avoiding 100% core usage ([522ce09](https://github.com/thememium/usecli/commit/522ce09))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.2.7
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.2.6...v0.2.7)
