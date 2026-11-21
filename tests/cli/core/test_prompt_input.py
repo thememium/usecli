@@ -81,6 +81,21 @@ def test_install_is_idempotent() -> None:
     assert Console.input is installed
 
 
+def test_edit_line_prefills_the_default(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: dict[str, Any] = {}
+
+    class FakeSession:
+        def prompt(self, message: Any, *, default: str = "") -> str:
+            calls["message"] = message
+            calls["default"] = default
+            return default + "--more"
+
+    monkeypatch.setattr(prompt_input, "_session", FakeSession())
+
+    assert prompt_input.edit_line("usecli about ") == "usecli about --more"
+    assert calls["default"] == "usecli about "
+
+
 def test_inline_prompt_uses_session(monkeypatch: pytest.MonkeyPatch) -> None:
     stream = use_tty(monkeypatch)
     messages: list[Any] = []
