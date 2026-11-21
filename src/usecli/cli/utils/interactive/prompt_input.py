@@ -94,6 +94,18 @@ def _ask_inline(
     return _prompt_session().prompt(ANSI(rendered))
 
 
+def edit_line(default: str = "") -> str:
+    """Read an editable line pre-filled with ``default``.
+
+    Lets a caller place text on the line for further editing instead of
+    submitting it. Uses the same process-wide session as rich prompts, so
+    history and editing keys behave consistently.
+    """
+    from prompt_toolkit.formatted_text import ANSI
+
+    return _prompt_session().prompt(ANSI(""), default=default)
+
+
 def install_prompt_input() -> None:
     """Patch rich's ``Console.input`` once for correct interactive editing."""
     global _installed
@@ -140,4 +152,4 @@ def install_prompt_input() -> None:
     setattr(Console, "input", prompt_input)  # noqa: B010
 
 
-__all__ = ["install_prompt_input"]
+__all__ = ["edit_line", "install_prompt_input"]
