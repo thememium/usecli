@@ -391,11 +391,16 @@ class TestOpenTtyFd:
 
 class TestTypeIntoTerminal:
     @patch(f"{_FZF}.fcntl.ioctl")
+    @patch(f"{_FZF}.termios.tcsetattr")
+    @patch(f"{_FZF}.termios.tcgetattr", side_effect=termios.error("unavailable"))
     @patch(f"{_FZF}.os.close")
     @patch(f"{_FZF}.os.open", return_value=9)
-    def test_types_each_byte_into_the_tty(self, mock_open, mock_close, mock_ioctl):
+    def test_types_each_byte_into_the_tty(
+        self, mock_open, mock_close, mock_getattr, mock_setattr, mock_ioctl
+    ):
         assert _type_into_terminal("ab") is True
         mock_open.assert_called_once_with("/dev/tty", os.O_RDWR)
+        mock_setattr.assert_not_called()
         assert mock_ioctl.call_count == 2
         mock_ioctl.assert_any_call(9, termios.TIOCSTI, b"a")
         mock_ioctl.assert_any_call(9, termios.TIOCSTI, b"b")
