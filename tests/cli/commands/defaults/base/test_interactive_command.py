@@ -5,6 +5,8 @@ from __future__ import annotations
 import contextlib
 import inspect
 import os
+import termios
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import click
@@ -17,9 +19,11 @@ from usecli.cli.commands.defaults.base.internal.interactive_command import (
     _get_required_arguments,
     _humanize_name,
     _menu_entry,
+    _open_tty_fd,
     _resolve_group_alias,
     _run_command_menu,
     _select_command,
+    _type_into_terminal,
     run_interactive,
 )
 
@@ -269,19 +273,45 @@ class TestRunCommandMenu:
         mock_sys.stdin.isatty.return_value = True
         mock_sys.stdout.isatty.return_value = True
         result = _run_command_menu(["hello  Say hello"], title="usecli » commands")
-        assert result == "hello  Say hello"
+        assert result == ("hello  Say hello", False)
         kwargs = mock_menu.call_args.kwargs
         assert kwargs["search"] is True
         assert kwargs["search_key"] == "/"
         assert kwargs["vim_search"] is True
         assert kwargs["title"] == "usecli » commands"
+        assert kwargs["accept_keys"] == ("enter", "tab")
         assert "/ search" in kwargs["status_bar"]
         assert "ctrl-u clear" in kwargs["status_bar"]
+        assert "tab insert" in kwargs["status_bar"]
         assert "preview_command" not in kwargs
         from usecli.cli.config.colors import COLOR
 
         assert kwargs["title_style"] == COLOR.ANSI.SECONDARY
         assert kwargs["entry_renderer"] is None
+
+    @patch(f"{_FZF}.terminal_menu")
+    @patch(f"{_FZF}.sys")
+    def test_tab_accept_reports_print_only(self, mock_sys, mock_menu):
+        mock_sys.stdin.isatty.return_value = True
+        mock_sys.stdout.isatty.return_value = True
+
+        class _Tabbed(list):
+            accept_key = "tab"
+
+        mock_menu.return_value = _Tabbed(["hello"])
+        assert _run_command_menu(["hello"], title="t") == ("hello", True)
+
+    @patch(f"{_FZF}.terminal_menu")
+    @patch(f"{_FZF}.sys")
+    def test_enter_accept_does_not_print(self, mock_sys, mock_menu):
+        mock_sys.stdin.isatty.return_value = True
+        mock_sys.stdout.isatty.return_value = True
+
+        class _Entered(list):
+            accept_key = "enter"
+
+        mock_menu.return_value = _Entered(["hello"])
+        assert _run_command_menu(["hello"], title="t") == ("hello", False)
 
     @patch(f"{_FZF}.terminal_menu", return_value=["hello"])
     @patch(f"{_FZF}.sys")
@@ -297,7 +327,7 @@ class TestRunCommandMenu:
     def test_returns_none_when_cancelled(self, mock_sys, mock_menu):
         mock_sys.stdin.isatty.return_value = True
         mock_sys.stdout.isatty.return_value = True
-        assert _run_command_menu(["hello"], title="t") is None
+        assert _run_command_menu(["hello"], title="t") == (None, False)
 
     @patch(f"{_FZF}.terminal_menu")
     @patch(f"{_FZF}.sys")
@@ -312,8 +342,123 @@ class TestRunCommandMenu:
 
     @patch(f"{_FZF}.terminal_menu")
     def test_returns_none_without_entries(self, mock_menu):
-        assert _run_command_menu([], title="t") is None
+        assert _run_command_menu([], title="t") == (None, False)
         mock_menu.assert_not_called()
+
+
+class TestOpenTtyFd:
+    @patch(f"{_FZF}.os.open", return_value=7)
+    def test_opens_dev_tty_first(self, mock_open):
+        assert _open_tty_fd() == 7
+        mock_open.assert_called_once_with("/dev/tty", os.O_RDWR)
+
+    @patch(f"{_FZF}.os.ttyname", return_value="/dev/ttys009")
+    @patch(f"{_FZF}.os.open", side_effect=[OSError("no tty"), 8])
+    def test_falls_back_to_the_stream_tty(self, mock_open, mock_ttyname):
+        stdin = MagicMock()
+        stdin.isatty.return_value = True
+        stdin.fileno.return_value = 0
+        stdout = MagicMock()
+        stdout.isatty.return_value = False
+        with patch(f"{_FZF}.sys") as mock_sys:
+            mock_sys.stdin = stdin
+            mock_sys.stdout = stdout
+            assert _open_tty_fd() == 8
+        mock_ttyname.assert_called_once_with(0)
+        mock_open.assert_any_call("/dev/ttys009", os.O_RDWR)
+
+    @patch(f"{_FZF}.os.open", side_effect=OSError("no tty"))
+    def test_returns_none_when_no_tty(self, mock_open):
+        with patch(f"{_FZF}.sys") as mock_sys:
+            mock_sys.stdin = None
+            mock_sys.stdout = None
+            assert _open_tty_fd() is None
+
+    @patch(f"{_FZF}.os.open", side_effect=OSError("no tty"))
+    def test_skips_streams_that_cannot_report_a_tty(self, mock_open):
+        broken = MagicMock()
+        broken.isatty.side_effect = ValueError("closed")
+        with patch(f"{_FZF}.sys") as mock_sys:
+            mock_sys.stdin = broken
+            mock_sys.stdout = None
+            assert _open_tty_fd() is None
+
+
+# ---------------------------------------------------------------------------
+# _type_into_terminal
+# ---------------------------------------------------------------------------
+
+
+class TestTypeIntoTerminal:
+    @patch(f"{_FZF}.fcntl.ioctl")
+    @patch(f"{_FZF}.os.close")
+    @patch(f"{_FZF}.os.open", return_value=9)
+    def test_types_each_byte_into_the_tty(self, mock_open, mock_close, mock_ioctl):
+        assert _type_into_terminal("ab") is True
+        mock_open.assert_called_once_with("/dev/tty", os.O_RDWR)
+        assert mock_ioctl.call_count == 2
+        mock_ioctl.assert_any_call(9, termios.TIOCSTI, b"a")
+        mock_ioctl.assert_any_call(9, termios.TIOCSTI, b"b")
+        mock_close.assert_called_once_with(9)
+
+    @patch(f"{_FZF}.fcntl.ioctl")
+    @patch(f"{_FZF}.termios.tcsetattr")
+    @patch(
+        f"{_FZF}.termios.tcgetattr",
+        return_value=[0, 0, 0, termios.ECHO, 0, 0, []],
+    )
+    @patch(f"{_FZF}.os.close")
+    @patch(f"{_FZF}.os.open", return_value=9)
+    def test_mutes_echo_while_typing_and_restores_it(
+        self, mock_open, mock_close, mock_getattr, mock_setattr, mock_ioctl
+    ):
+        assert _type_into_terminal("x") is True
+        muted, restored = mock_setattr.call_args_list
+        assert muted.args[1] == termios.TCSANOW
+        assert muted.args[2][3] & termios.ECHO == 0
+        assert restored.args[2][3] & termios.ECHO == termios.ECHO
+        mock_close.assert_called_once_with(9)
+
+    @patch(f"{_FZF}.termios.tcsetattr")
+    @patch(
+        f"{_FZF}.termios.tcgetattr",
+        return_value=[0, 0, 0, termios.ECHO, 0, 0, []],
+    )
+    @patch(f"{_FZF}.fcntl.ioctl", side_effect=OSError("blocked"))
+    @patch(f"{_FZF}.os.close")
+    @patch(f"{_FZF}.os.open", return_value=9)
+    def test_returns_false_and_restores_echo_when_ioctl_is_blocked(
+        self, mock_open, mock_close, mock_ioctl, mock_getattr, mock_setattr
+    ):
+        assert _type_into_terminal("x") is False
+        assert mock_setattr.call_count == 2
+        assert mock_setattr.call_args_list[1].args[2][3] & termios.ECHO
+        mock_close.assert_called_once_with(9)
+
+    @patch(
+        f"{_FZF}.termios.tcsetattr",
+        side_effect=[None, OSError("restore failed")],
+    )
+    @patch(
+        f"{_FZF}.termios.tcgetattr",
+        return_value=[0, 0, 0, termios.ECHO, 0, 0, []],
+    )
+    @patch(f"{_FZF}.fcntl.ioctl")
+    @patch(f"{_FZF}.os.close")
+    @patch(f"{_FZF}.os.open", return_value=9)
+    def test_ignores_echo_restore_failure(
+        self, mock_open, mock_close, mock_ioctl, mock_getattr, mock_setattr
+    ):
+        assert _type_into_terminal("x") is True
+        mock_close.assert_called_once_with(9)
+
+    @patch(f"{_FZF}.os.open", side_effect=OSError("no tty"))
+    def test_returns_false_without_a_controlling_tty(self, mock_open):
+        assert _type_into_terminal("x") is False
+
+    @patch(f"{_FZF}.termios", new=SimpleNamespace())
+    def test_returns_false_without_tiocsti(self):
+        assert _type_into_terminal("x") is False
 
 
 # ---------------------------------------------------------------------------
@@ -328,10 +473,11 @@ class TestSelectCommand:
             {"name": "db:migrate", "help": ""},
         ]
         with patch(
-            f"{_FZF}._run_command_menu", side_effect=lambda entries, **_: entries[0]
+            f"{_FZF}._run_command_menu",
+            side_effect=lambda entries, **_: (entries[0], False),
         ) as menu:
             result = _select_command(commands, title="usecli » select a command")
-        assert result == "hello"
+        assert result == ("hello", False)
         entries = menu.call_args.args[0]
         assert entries[0].startswith("hello")
         assert "Say hello" in entries[0]
@@ -344,22 +490,34 @@ class TestSelectCommand:
             {"name": "beta", "help": "B"},
         ]
         with patch(
-            f"{_FZF}._run_command_menu", side_effect=lambda entries, **_: entries[1]
+            f"{_FZF}._run_command_menu",
+            side_effect=lambda entries, **_: (entries[1], False),
         ):
-            assert _select_command(commands, title="t") == "beta"
+            assert _select_command(commands, title="t") == ("beta", False)
+
+    def test_propagates_print_only(self):
+        commands = [
+            {"name": "alpha", "help": "A"},
+            {"name": "beta", "help": "B"},
+        ]
+        with patch(
+            f"{_FZF}._run_command_menu",
+            side_effect=lambda entries, **_: (entries[1], True),
+        ):
+            assert _select_command(commands, title="t") == ("beta", True)
 
     def test_returns_none_when_cancelled(self):
         commands = [{"name": "alpha", "help": "A"}]
-        with patch(f"{_FZF}._run_command_menu", return_value=None):
-            assert _select_command(commands, title="t") is None
+        with patch(f"{_FZF}._run_command_menu", return_value=(None, False)):
+            assert _select_command(commands, title="t") == (None, False)
 
     def test_returns_none_for_unknown_selection(self):
         commands = [{"name": "alpha", "help": "A"}]
-        with patch(f"{_FZF}._run_command_menu", return_value="not an entry"):
-            assert _select_command(commands, title="t") is None
+        with patch(f"{_FZF}._run_command_menu", return_value=("not an entry", False)):
+            assert _select_command(commands, title="t") == (None, False)
 
     def test_returns_none_without_commands(self):
-        assert _select_command([], title="t") is None
+        assert _select_command([], title="t") == (None, False)
 
     @patch(f"{_FZF}.shutil.get_terminal_size")
     def test_colors_entries_when_space_allows(self, mock_size):
@@ -370,10 +528,10 @@ class TestSelectCommand:
         def fake_menu(entries, *, title, entry_renderer=None):
             captured["entry"] = entries[0]
             captured["renderer"] = entry_renderer
-            return entries[0]
+            return entries[0], False
 
         with patch(f"{_FZF}._run_command_menu", side_effect=fake_menu):
-            assert _select_command(commands, title="t") == "hello"
+            assert _select_command(commands, title="t") == ("hello", False)
 
         from usecli.cli.config.colors import COLOR
 
@@ -390,7 +548,7 @@ class TestSelectCommand:
         def fake_menu(entries, *, title, entry_renderer=None):
             captured["entry"] = entries[0]
             captured["renderer"] = entry_renderer
-            return entries[0]
+            return entries[0], False
 
         with patch(f"{_FZF}._run_command_menu", side_effect=fake_menu):
             _select_command([{"name": "", "help": ""}], title="t")
@@ -409,7 +567,7 @@ class TestSelectCommand:
 
         def fake_menu(entries, *, title, entry_renderer=None):
             captured["renderer"] = entry_renderer
-            return entries[0]
+            return entries[0], False
 
         with patch(f"{_FZF}._run_command_menu", side_effect=fake_menu):
             _select_command(commands, title="t")
@@ -443,7 +601,7 @@ class TestSelectCommand:
 class TestRunInteractive:
     @patch(
         "usecli.cli.commands.defaults.base.internal.interactive_command._select_command",
-        return_value=None,
+        return_value=(None, False),
     )
     def test_returns_when_no_selection(self, mock_select):
         app = MagicMock()
@@ -457,7 +615,7 @@ class TestRunInteractive:
 
     @patch(
         "usecli.cli.commands.defaults.base.internal.interactive_command._select_command",
-        return_value="test",
+        return_value=("test", False),
     )
     @patch(
         "usecli.cli.commands.defaults.base.internal.interactive_command.subprocess.run"
@@ -473,6 +631,140 @@ class TestRunInteractive:
             run_interactive(app)
         mock_run.assert_called_once()
 
+    @patch(f"{_FZF}._type_into_terminal", return_value=True)
+    @patch(
+        "usecli.cli.commands.defaults.base.internal.interactive_command._select_command",
+        return_value=("test", True),
+    )
+    @patch(
+        "usecli.cli.commands.defaults.base.internal.interactive_command.subprocess.run"
+    )
+    @patch("usecli.cli.commands.defaults.base.internal.interactive_command.console")
+    def test_tab_types_command_into_shell_line(
+        self, mock_console, mock_run, mock_select, mock_type
+    ):
+        app = MagicMock()
+        cmd = _cmd("test", "Test")
+        app.registered_commands = [cmd]
+        with patch(
+            "usecli.cli.commands.defaults.base.internal.interactive_command.typer.main.get_command"
+        ) as mock_get_cmd:
+            mock_get_cmd.return_value = MagicMock(spec=click.Group, commands={})
+            run_interactive(app, extra_args=["--verbose"])
+        mock_run.assert_not_called()
+        mock_console.print.assert_not_called()
+        typed = mock_type.call_args.args[0]
+        assert typed.endswith(" test --verbose ")
+        assert not typed.endswith("\n")
+
+    @patch(
+        "usecli.cli.utils.interactive.prompt_input.edit_line",
+        return_value="custom-cmd --more",
+    )
+    @patch(f"{_FZF}._type_into_terminal", return_value=False)
+    @patch(
+        "usecli.cli.commands.defaults.base.internal.interactive_command._select_command",
+        return_value=("test", True),
+    )
+    @patch(
+        "usecli.cli.commands.defaults.base.internal.interactive_command.subprocess.run"
+    )
+    @patch("usecli.cli.commands.defaults.base.internal.interactive_command.console")
+    def test_tab_falls_back_to_editable_line_when_tty_rejects(
+        self, mock_console, mock_run, mock_select, mock_type, mock_edit
+    ):
+        app = MagicMock()
+        cmd = _cmd("test", "Test")
+        app.registered_commands = [cmd]
+        with patch(
+            "usecli.cli.commands.defaults.base.internal.interactive_command.typer.main.get_command"
+        ) as mock_get_cmd:
+            mock_get_cmd.return_value = MagicMock(spec=click.Group, commands={})
+            run_interactive(app, extra_args=["--verbose"])
+        mock_console.print.assert_not_called()
+        mock_edit.assert_called_once()
+        assert mock_edit.call_args.args[0].endswith(" test --verbose ")
+        mock_run.assert_called_once_with("custom-cmd --more", shell=True, check=False)
+
+    @patch(
+        "usecli.cli.utils.interactive.prompt_input.edit_line",
+        side_effect=KeyboardInterrupt,
+    )
+    @patch(f"{_FZF}._type_into_terminal", return_value=False)
+    @patch(
+        "usecli.cli.commands.defaults.base.internal.interactive_command._select_command",
+        return_value=("test", True),
+    )
+    @patch(
+        "usecli.cli.commands.defaults.base.internal.interactive_command.subprocess.run"
+    )
+    def test_tab_editable_line_cancel_does_not_run(
+        self, mock_run, mock_select, mock_type, mock_edit
+    ):
+        app = MagicMock()
+        cmd = _cmd("test", "Test")
+        app.registered_commands = [cmd]
+        with patch(
+            "usecli.cli.commands.defaults.base.internal.interactive_command.typer.main.get_command"
+        ) as mock_get_cmd:
+            mock_get_cmd.return_value = MagicMock(spec=click.Group, commands={})
+            run_interactive(app)
+        mock_run.assert_not_called()
+
+    @patch("usecli.cli.utils.interactive.prompt_input.edit_line", return_value="   ")
+    @patch(f"{_FZF}._type_into_terminal", return_value=False)
+    @patch(
+        "usecli.cli.commands.defaults.base.internal.interactive_command._select_command",
+        return_value=("test", True),
+    )
+    @patch(
+        "usecli.cli.commands.defaults.base.internal.interactive_command.subprocess.run"
+    )
+    def test_tab_editable_line_empty_does_not_run(
+        self, mock_run, mock_select, mock_type, mock_edit
+    ):
+        app = MagicMock()
+        cmd = _cmd("test", "Test")
+        app.registered_commands = [cmd]
+        with patch(
+            "usecli.cli.commands.defaults.base.internal.interactive_command.typer.main.get_command"
+        ) as mock_get_cmd:
+            mock_get_cmd.return_value = MagicMock(spec=click.Group, commands={})
+            run_interactive(app)
+        mock_run.assert_not_called()
+
+    @patch(f"{_FZF}._type_into_terminal", return_value=True)
+    @patch(
+        "usecli.cli.commands.defaults.base.internal.interactive_command._select_command",
+        side_effect=[("group", True), ("sub", False)],
+    )
+    @patch(
+        "usecli.cli.commands.defaults.base.internal.interactive_command.subprocess.run"
+    )
+    @patch("usecli.cli.commands.defaults.base.internal.interactive_command.console")
+    def test_tab_on_group_keeps_prefill_for_subcommand(
+        self, mock_console, mock_run, mock_select, mock_type
+    ):
+        app = MagicMock()
+        app._usecli_group_aliases = {}
+        group_cmd_entry = _cmd("group", "Group", is_group=True)
+        sub_cmd = _cmd("sub", "Sub")
+        app.registered_commands = [group_cmd_entry]
+        with patch(
+            "usecli.cli.commands.defaults.base.internal.interactive_command.typer.main.get_command"
+        ) as mock_get_cmd:
+            mock_group = MagicMock(spec=click.Group)
+            mock_group.commands = {"group": MagicMock(spec=click.Group, help="Group")}
+            mock_get_cmd.return_value = mock_group
+            with patch(
+                "usecli.cli.commands.defaults.base.internal.interactive_command._get_group_subcommands",
+                return_value=[{"name": "sub", "help": "Sub", "command": sub_cmd}],
+            ):
+                run_interactive(app)
+        mock_run.assert_not_called()
+        mock_console.print.assert_not_called()
+        assert mock_type.call_args.args[0].endswith(" group sub ")
+
     def test_raises_when_no_commands(self):
         app = MagicMock()
         app.registered_commands = []
@@ -481,7 +773,7 @@ class TestRunInteractive:
 
     @patch(
         "usecli.cli.commands.defaults.base.internal.interactive_command._select_command",
-        return_value="test",
+        return_value=("test", False),
     )
     @patch(
         "usecli.cli.commands.defaults.base.internal.interactive_command.subprocess.run"
@@ -512,7 +804,7 @@ class TestRunInteractive:
 
     @patch(
         "usecli.cli.commands.defaults.base.internal.interactive_command._select_command",
-        return_value="make:command",
+        return_value=("make:command", False),
     )
     @patch(
         "usecli.cli.commands.defaults.base.internal.interactive_command.subprocess.run"
@@ -530,7 +822,7 @@ class TestRunInteractive:
 
     @patch(
         "usecli.cli.commands.defaults.base.internal.interactive_command._select_command",
-        return_value="test",
+        return_value=("test", False),
     )
     @patch(
         "usecli.cli.commands.defaults.base.internal.interactive_command.subprocess.run"
@@ -545,7 +837,7 @@ class TestRunInteractive:
         ) as mock_get_cmd:
             mock_get_cmd.return_value = MagicMock(spec=click.Group, commands={})
             # First call returns "test" (the alias), second call returns "test" (the resolved)
-            mock_select.side_effect = ["test", "test"]
+            mock_select.side_effect = [("test", False), ("test", False)]
             run_interactive(app)
         mock_run.assert_called_once()
 
@@ -563,7 +855,7 @@ class TestRunInteractive:
 
     @patch(
         "usecli.cli.commands.defaults.base.internal.interactive_command._select_command",
-        return_value="group",
+        return_value=("group", False),
     )
     @patch(
         "usecli.cli.commands.defaults.base.internal.interactive_command.subprocess.run"
@@ -589,7 +881,7 @@ class TestRunInteractive:
 
     @patch(
         "usecli.cli.commands.defaults.base.internal.interactive_command._select_command",
-        return_value="group",
+        return_value=("group", False),
     )
     def test_returns_when_group_subcommand_cancelled(self, mock_select):
         app = MagicMock()
@@ -607,12 +899,12 @@ class TestRunInteractive:
                 "usecli.cli.commands.defaults.base.internal.interactive_command._get_group_subcommands",
                 return_value=[{"name": "sub", "help": "Sub", "command": sub_cmd}],
             ):
-                mock_select.side_effect = ["group", None]
+                mock_select.side_effect = [("group", False), (None, False)]
                 run_interactive(app)
 
     @patch(
         "usecli.cli.commands.defaults.base.internal.interactive_command._select_command",
-        return_value="group",
+        return_value=("group", False),
     )
     def test_raises_when_group_has_no_subcommands(self, mock_select):
         app = MagicMock()
@@ -636,7 +928,7 @@ class TestRunInteractive:
 
     @patch(
         "usecli.cli.commands.defaults.base.internal.interactive_command._select_command",
-        return_value="group",
+        return_value=("group", False),
     )
     def test_raises_when_unknown_group_subcommand(self, mock_select):
         app = MagicMock()
@@ -661,7 +953,7 @@ class TestRunInteractive:
 
     @patch(
         "usecli.cli.commands.defaults.base.internal.interactive_command._select_command",
-        return_value="test",
+        return_value=("test", False),
     )
     @patch(
         "usecli.cli.commands.defaults.base.internal.interactive_command.subprocess.run"
@@ -680,7 +972,7 @@ class TestRunInteractive:
 
     @patch(
         "usecli.cli.commands.defaults.base.internal.interactive_command._select_command",
-        return_value="test",
+        return_value=("test", False),
     )
     @patch(
         "usecli.cli.commands.defaults.base.internal.interactive_command.subprocess.run"
@@ -702,7 +994,7 @@ class TestRunInteractive:
 
     @patch(
         "usecli.cli.commands.defaults.base.internal.interactive_command._select_command",
-        return_value="test",
+        return_value=("test", False),
     )
     @patch(
         "usecli.cli.commands.defaults.base.internal.interactive_command.subprocess.run"
@@ -828,7 +1120,7 @@ class TestRunInteractiveColonSections:
     def test_groups_and_sorts_colon_commands(self):
         app = _make_app([_cmd("db:migrate", "Migrate")])
         with (
-            patch(f"{_FZF}._select_command", return_value="db:migrate"),
+            patch(f"{_FZF}._select_command", return_value=("db:migrate", False)),
             patch(f"{_FZF}.subprocess.run", _mock_run()),
             _patch_get_command({}),
         ):
@@ -839,7 +1131,7 @@ class TestRunInteractiveUnparseableSelection:
     def test_empty_cmd_name_raises(self):
         app = _make_app([_cmd("test", "Test")])
         with (
-            patch(f"{_FZF}._select_command", return_value=""),
+            patch(f"{_FZF}._select_command", return_value=("", False)),
             _patch_get_command({}),
             pytest.raises(typer.Exit),
         ):
@@ -866,7 +1158,7 @@ class TestRunInteractiveSubcommandFallback:
         app = self._group_app()
         sub_cmd = _cmd("sub", "Sub")
         with (
-            patch(f"{_FZF}._select_command", return_value="sub"),
+            patch(f"{_FZF}._select_command", return_value=("sub", False)),
             patch(f"{_FZF}.subprocess.run", _mock_run()),
             _patch_get_command({"group": MagicMock(spec=click.Group, help="Group")}),
             patch(
@@ -880,7 +1172,7 @@ class TestRunInteractiveSubcommandFallback:
         app = self._group_app()
         sub_cmd = _cmd("sub", "Sub")
         with (
-            patch(f"{_FZF}._select_command", return_value=""),
+            patch(f"{_FZF}._select_command", return_value=("", False)),
             _patch_get_command({"group": MagicMock(spec=click.Group, help="Group")}),
             patch(
                 f"{_FZF}._get_group_subcommands",
