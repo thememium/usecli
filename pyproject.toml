@@ -62,10 +62,8 @@ known_first_party = ["usecli"]
 case-converter = "caseconverter"
 
 [tool.poe.tasks]
-# `use_exec` replaces the poe process instead of spawning a detached session,
-# so the interactive picker keeps the controlling terminal and can prefill the
-# parent shell's command line with Tab.
-dev = { cmd = "uv run usecli -i", use_exec = true }
+dev-interactive = { cmd = "uv run usecli -i", use_exec = true }
+dev = "uv run usecli"
 clean-full = "sh -c 'uv run isort . && uv run ruff check . --fix && uv run ruff format . && uv run deptry . && uv run ty check'"
 clean = "sh -c 'uv run isort . && uv run ruff format .'"
 # xdist `-n auto` pins every core at 100%, which ramps the fans on long runs.
