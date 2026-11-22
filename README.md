@@ -275,8 +275,9 @@ make:skill   Create a bundled skill (usecli only)
 make:bundle  Build a standalone executable with PyInstaller (usecli only)
 ```
 
-By default, skill installation appears in the root options as
-`--install-skills` and runs the interactive installer. Set
+By default, `--install-skills` appears in the root options and runs the
+interactive installer, but only when the CLI has bundled skills (the `usecli`
+framework binary always has its generated skill). Set
 `[usecli.commands] skill_install = "command"` to show `skill:install` under a
 `skill:` section instead.
 
