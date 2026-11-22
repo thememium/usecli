@@ -950,6 +950,27 @@ class TestInteractiveInstall:
         assert data["installed"][0]["status"] == "overwritten"
         assert "local edit" not in target.read_text(encoding="utf-8")
 
+    def test_app_defaults_to_the_running_cli(
+        self,
+        app: typer.Typer,
+        project_skill: Skill,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ) -> None:
+        import usecli
+
+        monkeypatch.setitem(usecli.__dict__, "app", app)
+        monkeypatch.setattr(module, "_prompt_scope", lambda global_: False)
+        monkeypatch.setattr(module, "_prompt_agents", lambda agent: ["claude"])
+
+        data = prompt_skill_install(
+            show_skills=False,
+            print_results=False,
+            project_root=tmp_path,
+        )
+
+        assert data["skills"] == [project_skill.name]
+
     def test_prompts_for_a_skill_when_several_exist(
         self,
         app: typer.Typer,
