@@ -6,21 +6,15 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
-from jinja2 import Template
 from rich.console import Console
 
 from usecli.cli.config.colors import COLOR
 from usecli.cli.core.base_command import BaseCommand
 from usecli.cli.core.validators import validate_skill_name
-from usecli.shared.config.globals import TEMPLATES_DIR
+from usecli.scaffold import ScaffoldError, make_skill
 from usecli.shared.config.manager import find_project_root, get_config, reset_config
 
 console = Console()
-
-
-def _frontmatter_description(value: str) -> str:
-    normalized = " ".join(value.split())
-    return normalized.replace("\\", "\\\\").replace('"', '\\"')
 
 
 class MakeSkillCommand(BaseCommand):
@@ -52,35 +46,14 @@ class MakeSkillCommand(BaseCommand):
             reset_config()
             config = get_config()
 
-        skills_dir = config.get_project_skills_dir()
-        target_dir = skills_dir / name
-        target_file = target_dir / "SKILL.md"
-        if target_file.exists():
-            console.print(
-                f"[{COLOR.ERROR}]Error: Skill {target_file} already exists."
-                f"[/{COLOR.ERROR}]"
-            )
+        try:
+            target_file = make_skill(name, description, config=config)
+        except ScaffoldError as error:
+            console.print(f"[{COLOR.ERROR}]Error: {error}[/{COLOR.ERROR}]")
             return
 
         command_name = config.get("command_name") or "usecli"
         command_name = " ".join(str(command_name).split()) or "usecli"
-        description = _frontmatter_description(
-            description or f"Use the {name} skill with the {command_name} CLI."
-        )
-
-        template = Template(
-            (TEMPLATES_DIR / "project_skill.md.j2").read_text(encoding="utf-8"),
-            trim_blocks=True,
-            lstrip_blocks=True,
-        )
-        content = template.render(
-            name=name,
-            description=description,
-            command_name=command_name,
-        )
-
-        target_dir.mkdir(parents=True, exist_ok=True)
-        target_file.write_text(content, encoding="utf-8")
         console.print(
             f"[{COLOR.SUCCESS}]Successfully created skill at {target_file}"
             f"[/{COLOR.SUCCESS}]"

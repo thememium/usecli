@@ -7,12 +7,11 @@ import sys
 from pathlib import Path
 
 import typer
-from jinja2 import Template
 from rich.console import Console
 
 from usecli.cli.config.colors import COLOR
 from usecli.cli.core.base_command import BaseCommand
-from usecli.shared.config.globals import TEMPLATES_DIR
+from usecli.scaffold import ScaffoldError, make_theme
 from usecli.shared.config.manager import find_project_root, get_config, reset_config
 
 console = Console()
@@ -30,52 +29,19 @@ class MakeThemeCommand(BaseCommand):
         return "Create a new theme file"
 
     def handle(self, name: str = typer.Argument(..., help="Theme config name")) -> None:
-        clean_name = name.strip()
-        if not clean_name:
-            console.print(
-                f"[{COLOR.ERROR}]Error: Theme name cannot be empty.[/{COLOR.ERROR}]"
-            )
-            return
-
         config = get_config()
         current_root = find_project_root(Path.cwd()) or Path.cwd().resolve()
         if config.get_project_root().resolve() != current_root:
             reset_config()
             config = get_config()
 
-        project_paths = config.get_project_paths()
-        themes_dir = project_paths["themes_dir"]
-        themes_dir.mkdir(parents=True, exist_ok=True)
-
-        base_name = Path(clean_name).name
-        base_name = base_name.removesuffix(".toml")
-        if not base_name:
-            console.print(
-                f"[{COLOR.ERROR}]Error: Theme name cannot be empty.[/{COLOR.ERROR}]"
-            )
+        try:
+            target_file = make_theme(name, config=config)
+        except ScaffoldError as error:
+            console.print(f"[{COLOR.ERROR}]Error: {error}[/{COLOR.ERROR}]")
             return
 
-        target_file = themes_dir / f"{base_name}.toml"
-        if target_file.exists():
-            counter = 1
-            while True:
-                candidate = themes_dir / f"{base_name}_{counter}.toml"
-                if not candidate.exists():
-                    target_file = candidate
-                    break
-                counter += 1
-
-        templates_dir = project_paths["templates_dir"]
-        project_template_path = templates_dir / "theme.toml.j2"
-        if project_template_path.exists():
-            template_path = project_template_path
-        else:
-            template_path = TEMPLATES_DIR / "theme.toml.j2"
-
-        template = Template(template_path.read_text())
-        rendered_content = template.render()
-        target_file.write_text(rendered_content)
-
         console.print(
-            f"[{COLOR.SUCCESS}]Successfully created theme at {target_file}[/{COLOR.SUCCESS}]"
+            f"[{COLOR.SUCCESS}]Successfully created theme at "
+            f"{target_file}[/{COLOR.SUCCESS}]"
         )

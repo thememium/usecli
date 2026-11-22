@@ -7,13 +7,11 @@ import sys
 from pathlib import Path
 
 import typer
-from caseconverter import pascalcase, snakecase
-from jinja2 import Template
 from rich.console import Console
 
 from usecli.cli.config.colors import COLOR
 from usecli.cli.core.base_command import BaseCommand
-from usecli.shared.config.globals import TEMPLATES_DIR
+from usecli.scaffold import ScaffoldError, make_command
 from usecli.shared.config.manager import find_project_root, get_config, reset_config
 
 console = Console()
@@ -42,45 +40,19 @@ class MakeCommand(BaseCommand):
         Args:
             name: The name of the command to create.
         """
-        clean_name = name.replace("Command", "").replace("command", "")
-        class_name = (
-            pascalcase(clean_name.replace(":", "_").replace(" ", "_")) + "Command"
-        )
-        if ":" in clean_name or " " in clean_name:
-            command_name = clean_name
-        else:
-            command_name = snakecase(clean_name)
-        file_name = (
-            f"{snakecase(clean_name.replace(':', '_').replace(' ', '_'))}_command.py"
-        )
-
         config = get_config()
         current_root = find_project_root(Path.cwd()) or Path.cwd().resolve()
         if config.get_project_root().resolve() != current_root:
             reset_config()
             config = get_config()
-        project_paths = config.get_project_paths()
-        commands_dir = project_paths["commands_dir"]
-        commands_dir.mkdir(parents=True, exist_ok=True)
-        target_file = commands_dir / file_name
 
-        if target_file.exists():
-            console.print(
-                f"[{COLOR.ERROR}]Error: Command file {target_file} already exists.[/{COLOR.ERROR}]"
-            )
+        try:
+            target_file = make_command(name, config=config)
+        except ScaffoldError as error:
+            console.print(f"[{COLOR.ERROR}]Error: {error}[/{COLOR.ERROR}]")
             return
-        templates_dir = project_paths["templates_dir"]
-        project_template_path = templates_dir / "command.py.j2"
-        if project_template_path.exists():
-            template_path = project_template_path
-        else:
-            template_path = TEMPLATES_DIR / "command.py.j2"
-        template = Template(template_path.read_text())
-        rendered_content = template.render(
-            class_name=class_name, command_name=command_name
-        )
 
-        target_file.write_text(rendered_content)
         console.print(
-            f"[{COLOR.SUCCESS}]Successfully created {name} command at {target_file}[/{COLOR.SUCCESS}]"
+            f"[{COLOR.SUCCESS}]Successfully created {name} command at "
+            f"{target_file}[/{COLOR.SUCCESS}]"
         )
