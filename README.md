@@ -268,7 +268,7 @@ make:command Create new command (usecli only)
 make:theme   Create new theme (usecli only)
 make:skill   Create a bundled skill (usecli only)
 make:bundle  Build a standalone executable with PyInstaller (usecli only)
-skill:install Install bundled skills for coding agents
+skill:install Install bundled skills (usecli installs the usecli skill)
 ```
 
 ### Coding Agent Skills
@@ -291,19 +291,16 @@ usecli make:skill deploy-checks --description "Check deployments"
 ```
 
 `make:skill` is a framework scaffolding command, not a project-CLI command.
-The generated skill belongs to the project CLI and is independent of the
-generated `usecli` skill. Install it with the project CLI:
+The generated skill belongs to the project CLI and is installed by the project
+CLI:
 
 ```bash
 mycli skill:install --skill deploy-checks
 ```
 
-`skill:install` is available on both the project CLI and `usecli`. Run it
-from the project root. It discovers every bundled project skill and installs
-it into each coding agent's own directory, alongside the generated `usecli`
-skill file. The generated `usecli` skill is derived from the running app, so
-the installed reference always lists the live commands, options, themes, JSON
-contract, prompts, progress, configuration, and packaging.
+A project CLI exposes `skill:install` only when it has at least one bundled
+skill. It installs project skills only and does not install the generated
+`usecli` skill:
 
 ```bash
 mycli skill:install                          # project: .claude/, .agents/, .cursor/
@@ -311,12 +308,20 @@ mycli skill:install --global                 # user: ~/.claude/, ~/.agents/, ~/.
 mycli skill:install --list                   # show bundled skills and targets
 mycli skill:install --skill deploy-checks    # one project skill
 mycli skill:install --agent claude,codex     # one or more agents
-mycli skill:install --path ./skills/usecli --skill usecli
 ```
 
-`usecli skill:install` is equivalent when the project CLI is not available.
-Both commands install the same project skills; their generated `usecli` skill
-file reflects the app that ran the command.
+The framework binary always exposes `skill:install` for its own generated
+skill. The description is specific to the `usecli` skill:
+
+```bash
+usecli skill:install                         # install the usecli skill
+usecli skill:install --global                # user-level usecli skill
+usecli skill:install --list                  # show the usecli skill and targets
+```
+
+The generated `usecli` skill is derived from the running app, so the installed
+reference always lists the live commands, options, themes, JSON contract,
+prompts, progress, configuration, and packaging.
 
 Supported targets are `claude`, `opencode`, `codex`, `pi`, `prime-agent`,
 `omp`, `cursor`, and `agents`; `--agent all` selects every target. Global
