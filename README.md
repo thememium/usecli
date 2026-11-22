@@ -266,30 +266,72 @@ inspire      Random quote
 upgrade      Upgrade the application to the latest version
 make:command Create new command (usecli only)
 make:theme   Create new theme (usecli only)
+make:skill   Create a bundled skill (usecli only)
 make:bundle  Build a standalone executable with PyInstaller (usecli only)
-skill:install Install a usecli skill for coding agents
+skill:install Install bundled skills for coding agents
 ```
 
 ### Coding Agent Skills
 
-`skill:install` writes a `SKILL.md` that teaches Claude Code, Codex, Cursor,
-and other Agent Skills-compatible tools how to use usecli: the command list,
-command conventions, themes, JSON output, prompts, progress, configuration, and
-packaging. The document is generated from the running app, so project-specific
-commands and their options are included.
+Every usecli CLI can ship its own Agent Skills. A skill is a directory with a
+`SKILL.md` under `paths.skills` (default `skills` beside
+`usecli.config.toml`):
 
-```bash
-usecli skill:install                 # project: .claude/, .agents/, .cursor/
-usecli skill:install --global        # user: ~/.claude/, ~/.agents/, ~/.cursor/
-usecli skill:install -a claude-code  # one agent (repeat or comma-separate)
-usecli skill:install --path ./skills/usecli
-usecli skill:install --force         # replace an existing SKILL.md
+```
+src/mycli/
+  skills/
+    deploy-checks/
+      SKILL.md
 ```
 
-Project installs are committed with the repository; global installs follow the
-user across every project. Existing files are skipped unless `--force` is
-passed. Agents that read the open `.agents/skills` layout (Codex, Cursor) are
-covered by the `codex` target; Claude Code reads `.claude/skills`.
+Scaffold one with:
+
+```bash
+usecli make:skill deploy-checks --description "Check deployments"
+```
+
+`skill:install` discovers every bundled skill and installs it into each coding
+agent's own directory. It also generates a `usecli` skill from the running app,
+so the installed reference always lists the live commands, options, themes,
+JSON contract, prompts, progress, configuration, and packaging.
+
+```bash
+mycli skill:install                          # project: .claude/, .agents/, .cursor/
+mycli skill:install --global                 # user: ~/.claude/, ~/.agents/, ~/.cursor/
+mycli skill:install --list                   # show bundled skills and targets
+mycli skill:install --skill deploy-checks    # one skill
+mycli skill:install --agent claude,codex     # one or more agents
+mycli skill:install --path ./skills/usecli --skill usecli
+```
+
+Supported targets are `claude`, `opencode`, `codex`, `pi`, `prime-agent`,
+`omp`, `cursor`, and `agents`; `--agent all` selects every target. Global
+installs honor `CLAUDE_CONFIG_DIR`, `OPENCODE_CONFIG_DIR`, `XDG_CONFIG_HOME`,
+`CODEX_HOME`, `PI_CODING_AGENT_DIR`, `PRIME_AGENT_CODING_AGENT_DIR`, and
+`OMP_AGENT_DIR`.
+
+Installation is idempotent. Managed files carry a `<!-- usecli-skill: ... -->`
+hash marker: an exact re-run changes nothing, a new release updates its own
+files, and locally edited files are preserved. Use `--force` only when you
+intend to replace those edits.
+
+The same machinery is available from Python:
+
+```python
+from usecli.skills import Skill, install_skills
+
+install_skills(
+    [
+        Skill(
+            name="deploy-checks",
+            description="Check deployments",
+            content="---\nname: deploy-checks\ndescription: Check deployments\n---\n",
+        )
+    ],
+    agents=["claude"],
+    scope="project",
+)
+```
 
 ### Upgrades
 
