@@ -19,6 +19,7 @@ importlib.invalidate_caches()
 
 from usecli.cli.commands.init_command import InitCommand
 from usecli.shared.config.manager import ConfigManager, reset_config
+from usecli.skills import InstallResult
 
 DEFAULT_TITLE = "My CLI"
 DEFAULT_DESCRIPTION = "A custom CLI tool"
@@ -57,6 +58,7 @@ def init_command(mock_console):
         patch("usecli.cli.commands.init_command.Prompt.ask") as mock_prompt,
         patch("usecli.cli.commands.init_command.Confirm.ask") as mock_confirm,
         patch("usecli.cli.commands.init_command.terminal_menu") as mock_terminal_menu,
+        patch.object(InitCommand, "_install_usecli_skill", return_value=[]),
     ):
         mock_prompt.side_effect = lambda *args, **kwargs: kwargs.get("default", "")
         mock_confirm.side_effect = lambda *args, **kwargs: kwargs.get("default", True)
@@ -83,6 +85,7 @@ def interactive_cmd(mock_console):
         patch("usecli.cli.commands.init_command.Prompt.ask") as mock_prompt,
         patch("usecli.cli.commands.init_command.Confirm.ask") as mock_confirm,
         patch("usecli.cli.commands.init_command.terminal_menu") as mock_terminal_menu,
+        patch.object(InitCommand, "_install_usecli_skill", return_value=[]),
     ):
         mock_prompt.side_effect = lambda *args, **kwargs: kwargs.get("default", "")
         mock_confirm.side_effect = lambda *args, **kwargs: kwargs.get("default", True)
@@ -212,6 +215,7 @@ class TestInitCommandPyprojectToml:
             patch(
                 "usecli.cli.commands.init_command.terminal_menu"
             ) as mock_terminal_menu,
+            patch.object(InitCommand, "_install_usecli_skill", return_value=[]),
         ):
 
             def _prompt_side_effect(*args, **kwargs):
@@ -263,6 +267,7 @@ class TestInitCommandPyprojectToml:
             patch(
                 "usecli.cli.commands.init_command.terminal_menu"
             ) as mock_terminal_menu,
+            patch.object(InitCommand, "_install_usecli_skill", return_value=[]),
         ):
 
             def _prompt_side_effect(*args, **kwargs):
@@ -1544,6 +1549,46 @@ class TestHandleJsonMode:
             )
         assert result["config_status"] == "created"
 
+    def test_json_mode_installs_skill_when_requested(self, temp_project_dir, init_cmd):
+        self._setup(temp_project_dir)
+        skill_install = [
+            {
+                "skill": "usecli",
+                "agent": "claude",
+                "path": str(temp_project_dir / ".claude/skills/usecli/SKILL.md"),
+                "status": "installed",
+            }
+        ]
+        with (
+            patch(
+                "usecli.cli.commands.init_command.shutil.which",
+                return_value="/usr/bin/uv",
+            ),
+            patch(
+                "usecli.cli.commands.init_command.subprocess.run",
+                return_value=MagicMock(returncode=0),
+            ),
+            patch.object(
+                init_cmd, "_install_usecli_skill", return_value=skill_install
+            ) as mock_install,
+        ):
+            result = init_cmd._handle_json_mode(
+                title="My CLI",
+                description="A custom CLI tool for testing",
+                commands_dir=None,
+                templates_dir=None,
+                themes_dir=None,
+                config_path=None,
+                command_name="mycli",
+                force=True,
+                theme="default",
+                title_font="big",
+                install_skill=True,
+            )
+
+        mock_install.assert_called_once_with(temp_project_dir, force=True, quiet=True)
+        assert result["skill_install"] == skill_install
+
 
 class TestHandleInteractiveBranches:
     def test_infers_commands_dir_and_uses_project_title(
@@ -1802,6 +1847,51 @@ class TestOptionalFiglet:
         assert "show_description = false" in config_content
         assert "show_version = false" in config_content
 
+    def test_prompts_for_skill_install(self, temp_project_dir, init_command):
+        skill_install = [
+            {
+                "skill": "usecli",
+                "agent": "claude",
+                "path": ".claude/skills/usecli/SKILL.md",
+                "status": "installed",
+            }
+        ]
+        with (
+            patch.object(
+                InitCommand,
+                "_install_usecli_skill",
+                return_value=skill_install,
+            ) as mock_install,
+            patch("usecli.cli.commands.init_command.Confirm.ask", return_value=True),
+            patch("usecli.cli.commands.init_command.get_figlet", return_value=None),
+            patch("usecli.cli.commands.init_command.console"),
+        ):
+            init_command.handle("Demo", "A demo CLI", DEFAULT_COMMANDS_DIR, force=True)
+
+        mock_install.assert_called_once_with(temp_project_dir, force=True)
+
+    def test_install_skill_flag_skips_prompt(self, temp_project_dir, init_command):
+        with (
+            patch.object(InitCommand, "_install_usecli_skill") as mock_install,
+            patch(
+                "usecli.cli.commands.init_command.Confirm.ask",
+                side_effect=AssertionError("skill prompt should be skipped"),
+            ),
+            patch("usecli.cli.commands.init_command.get_figlet", return_value=None),
+            patch("usecli.cli.commands.init_command.console"),
+        ):
+            init_command.handle(
+                "Demo",
+                "A demo CLI",
+                DEFAULT_COMMANDS_DIR,
+                force=True,
+                install_skill=False,
+                show_description=False,
+                show_version=False,
+            )
+
+        mock_install.assert_not_called()
+
     def test_new_project_without_figlet_uses_plain_usecli_dependency(
         self, temp_project_dir, init_command
     ):
@@ -1818,3 +1908,89 @@ class TestOptionalFiglet:
             str(call.args[0]) for call in mock_console.print.call_args_list if call.args
         )
         assert "v0.1.0" in printed
+
+
+class TestInstallUsecliSkill:
+    def test_returns_results_and_uses_project_root(self, init_cmd, tmp_path):
+        result = InstallResult(
+            skill="usecli",
+            agent="claude",
+            path=tmp_path / "SKILL.md",
+            status="installed",
+        )
+        with patch(
+            "usecli.cli.commands.defaults.skill.install_command.install_framework_skill",
+            return_value=[result],
+        ) as mock_install:
+            data = init_cmd._install_usecli_skill(
+                tmp_path,
+                force=True,
+                quiet=True,
+            )
+
+        mock_install.assert_called_once_with(
+            init_cmd.app,
+            project_root=tmp_path,
+            agents=None,
+            scope="project",
+            force=True,
+        )
+        assert data == [
+            {
+                "skill": "usecli",
+                "agent": "claude",
+                "path": str(tmp_path / "SKILL.md"),
+                "status": "installed",
+            }
+        ]
+
+    def test_prints_results_when_not_quiet(self, init_cmd, tmp_path):
+        with (
+            patch(
+                "usecli.cli.commands.defaults.skill.install_command.install_framework_skill",
+                return_value=[],
+            ),
+            patch.object(init_cmd, "_print_skill_install") as mock_print,
+        ):
+            data = init_cmd._install_usecli_skill(tmp_path, force=False)
+
+        assert data == []
+        mock_print.assert_called_once_with([])
+
+    def test_prints_each_status(self, init_cmd, tmp_path):
+        results = [
+            {
+                "skill": "usecli",
+                "agent": "claude",
+                "path": "a",
+                "status": "installed",
+            },
+            {
+                "skill": "usecli",
+                "agent": "codex",
+                "path": "b",
+                "status": "user_modified",
+            },
+            {
+                "skill": "usecli",
+                "agent": "cursor",
+                "path": "c",
+                "status": "error: denied",
+            },
+            {
+                "skill": "usecli",
+                "agent": "agents",
+                "path": "d",
+                "status": "already_installed",
+            },
+        ]
+        with patch("usecli.cli.commands.init_command.console") as mock_console:
+            init_cmd._print_skill_install(results)
+
+        assert mock_console.print.call_count == 6
+
+    def test_print_skips_empty_results(self, init_cmd):
+        with patch("usecli.cli.commands.init_command.console") as mock_console:
+            init_cmd._print_skill_install([])
+
+        mock_console.print.assert_not_called()
