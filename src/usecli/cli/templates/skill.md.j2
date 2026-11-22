@@ -99,6 +99,7 @@ Install the project's bundled skills with the project CLI:
 {{ command_name }} skill:install
 {{ command_name }} skill:install --global
 {{ command_name }} skill:install --skill deploy-checks --agent claude,codex
+{{ command_name }} skill:install --interactive
 {{ command_name }} skill:install --list
 ```
 
@@ -115,8 +116,9 @@ usecli skill:install --list
 ```
 
 Installation is idempotent. Managed files carry a `<!-- usecli-skill: ... -->`
-hash marker, so upgraded releases update their own files while locally edited
-files are preserved. Use `--force` only when you intend to replace those edits.
+hash marker, so upgraded releases update their own files. Non-interactive
+installs preserve locally edited files unless `--force` is passed. Interactive
+installs replace local edits, matching `npx skills add`.
 
 The public Python API is available too:
 
