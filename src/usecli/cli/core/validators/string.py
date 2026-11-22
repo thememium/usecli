@@ -52,3 +52,31 @@ def validate_command_name(value: str) -> str:
         raise UsecliBadParameter(f"Invalid command name: '{value}'", param_hint="NAME")
 
     return value
+
+
+def validate_skill_name(value: str) -> str:
+    """Validate an Agent Skills name.
+
+    Skill names use lowercase letters, numbers, and hyphens, and must start
+    and end with a letter or number (the agentskills.io slug format).
+
+    Args:
+        value: The skill name to validate.
+
+    Returns:
+        The validated skill name.
+
+    Raises:
+        UsecliBadParameter: If the skill name is invalid.
+    """
+    if not value:
+        raise UsecliBadParameter("Skill name cannot be empty", param_hint="NAME")
+
+    if not re.match(r"^[a-z0-9]+(?:-[a-z0-9]+)*$", value):
+        raise UsecliBadParameter(
+            f"Invalid skill name: '{value}'. Use lowercase letters, numbers, "
+            "and hyphens.",
+            param_hint="NAME",
+        )
+
+    return value
