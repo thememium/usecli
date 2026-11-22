@@ -617,6 +617,10 @@ def _get_run_app_callback():
 
     import typer
 
+    from usecli.shared.config.manager import get_config
+
+    hide_skill_install = get_config().get_skill_install_mode() == "none"
+
     # Inject typer into module globals so annotation evaluation works
     # (required because `from __future__ import annotations` makes them strings)
     globals()["typer"] = typer
@@ -642,6 +646,7 @@ def _get_run_app_callback():
             "--install-skills",
             help="Install the usecli skill for coding agents.",
             is_eager=True,
+            hidden=hide_skill_install,
         ),
     ) -> object:
         _resolve_help()
