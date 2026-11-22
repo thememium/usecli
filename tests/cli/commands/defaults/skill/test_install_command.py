@@ -29,6 +29,7 @@ from usecli.cli.commands.defaults.skill.install_command import (
     _select_skills,
     _status_color,
     collect_skill_commands,
+    install_framework_skill,
     render_skill,
 )
 from usecli.cli.core.exceptions import UsecliBadParameter
@@ -810,3 +811,40 @@ class TestHandle:
 
         with pytest.raises(NonInteractiveError, match="unavailable in JSON mode"):
             command.handle(interactive=True)
+
+
+def test_install_framework_skill_uses_project_scope(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = typer.Typer()
+    skill = _skill("usecli")
+    seen: dict[str, object] = {}
+
+    monkeypatch.setattr(module, "_framework_skill", lambda _app: skill)
+
+    def fake_install(skills, **kwargs):
+        seen["skills"] = list(skills)
+        seen["kwargs"] = kwargs
+        return []
+
+    monkeypatch.setattr(module, "install_skills", fake_install)
+    project_root = Path("/tmp/usecli-project")
+
+    result = install_framework_skill(
+        app,
+        project_root=project_root,
+        agents=["claude"],
+        scope="global",
+        force=True,
+    )
+
+    assert result == []
+    assert seen == {
+        "skills": [skill],
+        "kwargs": {
+            "agents": ["claude"],
+            "scope": "global",
+            "project_root": project_root,
+            "force": True,
+        },
+    }

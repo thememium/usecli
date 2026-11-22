@@ -254,6 +254,15 @@ class TestHasExplicitInteractive:
 
         assert _has_explicit_interactive(cmd) is False
 
+    def test_ignores_injected_interactive_option(self):
+        cmd = click.Command(
+            "test",
+            params=[click.Option(["--interactive", "-i"], is_flag=True)],
+        )
+        vars(cmd)["_usecli_injected_interactive"] = True
+
+        assert _has_explicit_interactive(cmd) is False
+
     def test_typer_command_info(self):
         cmd = MagicMock(spec=typer.models.CommandInfo)
         with patch(
