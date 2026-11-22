@@ -469,15 +469,22 @@ def _console():
 
 
 def _is_interactive_flag_present() -> bool:
-    """Check if -i/--interactive flag is present in sys.argv.
+    """Check for a global -i/--interactive flag before the command name.
 
-    This allows the interactive flag to work regardless of position,
-    e.g., both 'usecli -i magic' and 'usecli magic -i' will work.
+    Flags placed after the command are handled by that command, which lets
+    commands such as ``skill:install`` provide their own interactive prompts.
+    ``usecli magic -i`` still reaches the same generic picker through the
+    command's injected interactive option.
 
     Returns:
-        True if -i or --interactive is found in sys.argv, False otherwise.
+        True if -i or --interactive precedes the command in sys.argv.
     """
-    return "-i" in sys.argv or "--interactive" in sys.argv
+    for argument in sys.argv[1:]:
+        if argument in {"-i", "--interactive"}:
+            return True
+        if not argument.startswith("-"):
+            return False
+    return False
 
 
 def _get_cli_help_text() -> str:
