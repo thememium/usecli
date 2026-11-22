@@ -30,6 +30,7 @@ from usecli.cli.commands.defaults.skill.install_command import (
     _status_color,
     collect_skill_commands,
     install_framework_skill,
+    install_skill_interactive,
     render_skill,
 )
 from usecli.cli.core.exceptions import UsecliBadParameter
@@ -147,8 +148,14 @@ class TestCommandMetadata:
 
 class TestDescriptionRendering:
     def test_collects_all_commands(
-        self, app: typer.Typer, command: InstallSkillCommand
+        self,
+        app: typer.Typer,
+        command: InstallSkillCommand,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
+        monkeypatch.setattr(
+            "usecli.cli.core.ui.list._skill_install_mode", lambda: "command"
+        )
         commands = {entry["name"]: entry for entry in collect_skill_commands(app)}
 
         assert "skill:install" in commands
@@ -848,3 +855,91 @@ def test_install_framework_skill_uses_project_scope(
             "force": True,
         },
     }
+
+
+class TestInteractiveInstall:
+    def test_prompts_scope_agents_and_installs(
+        self,
+        app: typer.Typer,
+        command: InstallSkillCommand,
+        project_skill: Skill,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ) -> None:
+        calls: list[tuple[str, object]] = []
+
+        def prompt_scope(global_: bool) -> bool:
+            calls.append(("scope", global_))
+            return False
+
+        def prompt_agents(agent: list[str] | None) -> list[str] | None:
+            calls.append(("agents", agent))
+            return ["claude"]
+
+        monkeypatch.setattr(module, "_prompt_scope", prompt_scope)
+        monkeypatch.setattr(module, "_prompt_agents", prompt_agents)
+
+        command.handle(agent=["claude"], skill=[project_skill.name])
+        target = tmp_path / ".claude" / "skills" / project_skill.name / "SKILL.md"
+        target.write_text("local edit", encoding="utf-8")
+
+        data = install_skill_interactive(app)
+
+        assert calls == [("scope", False), ("agents", None)]
+        assert data["scope"] == "project"
+        assert data["skills"] == [project_skill.name]
+        assert data["installed"][0]["status"] == "overwritten"
+        assert "local edit" not in target.read_text(encoding="utf-8")
+
+    def test_prompts_for_a_skill_when_several_exist(
+        self,
+        app: typer.Typer,
+        project_skill: Skill,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        second = _skill("second")
+        prompted: list[list[Skill]] = []
+
+        def prompt_skill(skills: list[Skill]) -> list[Skill]:
+            prompted.append(skills)
+            return [second]
+
+        monkeypatch.setattr(
+            module, "_select_skills", lambda app, names: [project_skill, second]
+        )
+        monkeypatch.setattr(module, "_prompt_skill", prompt_skill)
+        monkeypatch.setattr(module, "_prompt_scope", lambda global_: False)
+        monkeypatch.setattr(module, "_prompt_agents", lambda agent: ["claude"])
+
+        data = install_skill_interactive(app)
+
+        assert prompted == [[project_skill, second]]
+        assert data["skills"] == ["second"]
+
+    def test_is_unavailable_in_json_mode(
+        self,
+        app: typer.Typer,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setattr(
+            "usecli.cli.core.runtime.is_json_mode",
+            lambda: True,
+        )
+
+        with pytest.raises(NonInteractiveError, match="unavailable in JSON mode"):
+            install_skill_interactive(app)
+
+    def test_malformed_project_skills_raise_bad_parameter(
+        self,
+        app: typer.Typer,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        def fail() -> list[Skill]:
+            raise SkillError("bad skill")
+
+        monkeypatch.setattr(module, "_discover_project_skills", fail)
+        monkeypatch.setattr(module, "_prompt_scope", lambda global_: False)
+        monkeypatch.setattr(module, "_prompt_agents", lambda agent: ["claude"])
+
+        with pytest.raises(UsecliBadParameter, match="bad skill"):
+            install_skill_interactive(app)
