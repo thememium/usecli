@@ -10,10 +10,11 @@ directory (``paths.skills``, default ``skills`` next to
                 SKILL.md
 
 ``skill:install`` discovers every skill under that directory and installs it
-into each coding agent's own skills directory. Installation is idempotent and
-user edits are preserved: an installed file carries a marker with the hash of
-the content it was rendered from, so a later release can update its own files
-without touching a file the user edited.
+into each coding agent's own skills directory. Both the project CLI and the
+``usecli`` binary expose the command. Installation is idempotent and user edits
+are preserved: an installed file carries a marker with the hash of the content
+it was rendered from, so a later release can update its own files without
+touching a file the user edited.
 """
 
 from __future__ import annotations
