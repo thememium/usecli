@@ -188,6 +188,7 @@ def _ensure_cli_initialized() -> None:
 
     from usecli.cli.config.colors import COLOR
     from usecli.cli.core.base_command import BaseCommand
+    from usecli.cli.core.options import HiddenOptionsGroup
     from usecli.cli.services.command_service import CommandService
 
     # Store exceptions for error handling
@@ -214,7 +215,7 @@ def _ensure_cli_initialized() -> None:
     globals()["_TyperGroup"] = TyperGroup
 
     # Create PrefixMatchingGroup now that TyperGroup is available
-    class PrefixMatchingGroup(TyperGroup):
+    class PrefixMatchingGroup(HiddenOptionsGroup):
         """Custom Typer group that supports prefix matching for commands."""
 
         def get_command(self, ctx, cmd_name):
@@ -576,14 +577,6 @@ def _build_alias_to_primary(alias_registry: dict[str, list[str]]) -> dict[str, s
     return alias_to_primary
 
 
-def _root_option_names(param: Any) -> set[str]:
-    return {
-        opt.lstrip("-").lower()
-        for opt in getattr(param, "opts", ()) or ()
-        if opt.startswith("--")
-    }
-
-
 def _filter_hidden_root_params(command: Any) -> None:
     """Leave ``[usecli.options] hidden`` options unregistered at the root.
 
@@ -591,24 +584,9 @@ def _filter_hidden_root_params(command: Any) -> None:
     exposes its own root options, even when run inside a project whose config
     hides them. ``--help``/``-h`` is always kept.
     """
-    from usecli.cli.core.ui.title import running_framework_distribution
-    from usecli.shared.config.manager import get_config
+    from usecli.cli.core.options import filter_hidden_params, hidden_option_names
 
-    if running_framework_distribution() is not None:
-        return
-
-    hidden = set(get_config().get_hidden_options())
-    if not hidden:
-        return
-    params = getattr(command, "params", None)
-    if not params:
-        return
-    command.params = [
-        param
-        for param in params
-        if "--help" in (getattr(param, "opts", ()) or ())
-        or not (_root_option_names(param) & hidden)
-    ]
+    filter_hidden_params(command, hidden_option_names())
 
 
 # PrefixMatchingGroup is created lazily by _ensure_cli_initialized()
