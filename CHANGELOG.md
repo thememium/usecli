@@ -1,6 +1,22 @@
 # Changelog
 
 
+## v0.2.10
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.2.9...v0.2.10)
+
+### 🚀 Enhancements
+
+- **usecli:** Add skill documentation for usecli ([1c4d0e4](https://github.com/thememium/usecli/commit/1c4d0e4))
+
+### 📖 Documentation
+
+- Update skill.md.j2 to reflect new theming and usecli imports ([73fe171](https://github.com/thememium/usecli/commit/73fe171))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.2.9
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.2.8...v0.2.9)
