@@ -24,7 +24,6 @@ from usecli.cli.commands.defaults.skill.install_command import (
     _print_results,
     _project_root,
     _prompt_agents,
-    _prompt_force,
     _prompt_scope,
     _prompt_skill,
     _select_skills,
@@ -495,14 +494,6 @@ class TestInteractivePrompts:
 
         assert _prompt_skill([first, second], single=True) == [first, second]
 
-    def test_force_is_kept_when_set(self) -> None:
-        assert _prompt_force(True) is True
-
-    def test_force_asks_when_not_set(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr(module.Confirm, "ask", lambda *args, **kwargs: True)
-
-        assert _prompt_force(False) is True
-
 
 class TestHandle:
     def test_project_install(
@@ -727,14 +718,9 @@ class TestHandle:
             calls.append(("skills", single))
             return [project_skill]
 
-        def prompt_force(force: bool) -> bool:
-            calls.append(("force", force))
-            return True
-
         monkeypatch.setattr(module, "_prompt_scope", prompt_scope)
         monkeypatch.setattr(module, "_prompt_agents", prompt_agents)
         monkeypatch.setattr(module, "_prompt_skill", prompt_skill)
-        monkeypatch.setattr(module, "_prompt_force", prompt_force)
         monkeypatch.setattr(Path, "home", lambda: tmp_path / "home")
 
         data = command.handle(interactive=True)
@@ -745,7 +731,6 @@ class TestHandle:
             ("scope", False),
             ("agents", None),
             ("skills", False),
-            ("force", False),
         ]
         assert (
             tmp_path / "home" / ".claude" / "skills" / "project-skill" / "SKILL.md"
@@ -768,13 +753,32 @@ class TestHandle:
             "_prompt_skill",
             lambda skills, *, single=False: [project_skill],
         )
-        monkeypatch.setattr(module, "_prompt_force", lambda force: False)
 
         target = tmp_path / "custom"
         data = command.handle(interactive=True, path=target)
 
         assert data["scope"] == "custom"
         assert (target / "SKILL.md").exists()
+
+    def test_interactive_install_overwrites_local_edits(
+        self,
+        command: InstallSkillCommand,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ) -> None:
+        command.handle(agent=["claude"], skill=["project-skill"])
+        target = tmp_path / ".claude" / "skills" / "project-skill" / "SKILL.md"
+        target.write_text("local edit", encoding="utf-8")
+        monkeypatch.setattr(module, "_prompt_scope", lambda global_: False)
+
+        data = command.handle(
+            interactive=True,
+            agent=["claude"],
+            skill=["project-skill"],
+        )
+
+        assert data["installed"][0]["status"] == "overwritten"
+        assert "local edit" not in target.read_text(encoding="utf-8")
 
     def test_interactive_list_skips_prompts(
         self,
@@ -788,7 +792,6 @@ class TestHandle:
         monkeypatch.setattr(module, "_prompt_scope", fail)
         monkeypatch.setattr(module, "_prompt_agents", fail)
         monkeypatch.setattr(module, "_prompt_skill", fail)
-        monkeypatch.setattr(module, "_prompt_force", fail)
 
         data = command.handle(interactive=True, list_=True, agent=["claude"])
 
