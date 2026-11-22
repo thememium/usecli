@@ -75,6 +75,55 @@ def handle(
     ...
 ```
 
+## Bundle a skill with this CLI
+
+A project can ship its own Agent Skills. Put each skill in its own directory
+under `paths.skills` (default `skills` beside `usecli.config.toml`):
+
+```text
+skills/
+  deploy-checks/
+    SKILL.md
+```
+
+Scaffold one with:
+
+```sh
+{{ command_name }} make:skill deploy-checks --description "Check deployments"
+```
+
+Then install every bundled skill into the project's and user's agent
+directories:
+
+```sh
+{{ command_name }} skill:install
+{{ command_name }} skill:install --global
+{{ command_name }} skill:install --skill deploy-checks --agent claude,codex
+{{ command_name }} skill:install --list
+```
+
+Installation is idempotent. Managed files carry a `<!-- usecli-skill: ... -->`
+hash marker, so upgraded releases update their own files while locally edited
+files are preserved. Use `--force` only when you intend to replace those edits.
+
+The public Python API is available too:
+
+```python
+from usecli.skills import Skill, install_skills
+
+install_skills(
+    [
+        Skill(
+            name="deploy-checks",
+            description="Check deployments",
+            content="---\nname: deploy-checks\ndescription: Check deployments\n---\n",
+        )
+    ],
+    agents=["claude"],
+    scope="project",
+)
+```
+
 ## Themes
 
 Themes are TOML files. Create one with:
