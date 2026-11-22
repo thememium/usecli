@@ -40,7 +40,7 @@ def test_custom_help_command_invoke_removes_interactive_before_super():
     ctx = MagicMock()
     ctx.params = {"interactive": False, "other_param": "value"}
 
-    with patch("usecli.cli.core.base_command.TyperCommand.invoke") as mock_super:
+    with patch("usecli.cli.core.options.HiddenOptionsCommand.invoke") as mock_super:
         cmd.invoke(ctx)
 
     assert "interactive" not in ctx.params

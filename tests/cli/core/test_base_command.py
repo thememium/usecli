@@ -58,7 +58,9 @@ class TestCustomHelpCommandInit:
 
     def test_init_calls_parent_init(self):
         """Test __init__ calls parent TyperCommand.__init__."""
-        with patch("usecli.cli.core.base_command.TyperCommand.__init__") as mock_parent:
+        with patch(
+            "usecli.cli.core.options.HiddenOptionsCommand.__init__"
+        ) as mock_parent:
             mock_parent.return_value = None
             CustomHelpCommand(name="test")
             mock_parent.assert_called_once()

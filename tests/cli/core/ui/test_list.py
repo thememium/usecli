@@ -14,9 +14,8 @@ from unittest.mock import Mock, patch
 import click
 
 from usecli.cli.config.colors import COLOR
+from usecli.cli.core.options import hidden_option_names, is_hidden_option
 from usecli.cli.core.ui.list import (
-    _hidden_root_options,
-    _is_hidden_root_option,
     collect_commands_data,
     list_commands,
     list_group_commands,
@@ -32,25 +31,25 @@ class TestIsHiddenRootOption:
         param = Mock()
         param.opts = ["--help", "-h"]
 
-        assert _is_hidden_root_option(param, {"help"}) is False
+        assert is_hidden_option(param, {"help"}) is False
 
     def test_matches_a_hidden_long_option(self):
         param = Mock()
         param.opts = ["--version", "-v"]
 
-        assert _is_hidden_root_option(param, {"version"}) is True
+        assert is_hidden_option(param, {"version"}) is True
 
     def test_non_hidden_option_does_not_match(self):
         param = Mock()
         param.opts = ["--version", "-v"]
 
-        assert _is_hidden_root_option(param, {"interactive"}) is False
+        assert is_hidden_option(param, {"interactive"}) is False
 
 
 class TestHiddenRootOptions:
     def test_framework_binary_ignores_project_hidden_options(self, monkeypatch):
         monkeypatch.setattr(
-            "usecli.cli.core.ui.list.running_framework_distribution",
+            "usecli.cli.core.ui.title.running_framework_distribution",
             lambda: object(),
         )
         monkeypatch.setattr(
@@ -58,7 +57,7 @@ class TestHiddenRootOptions:
             Mock(side_effect=AssertionError("config must not be read")),
         )
 
-        assert _hidden_root_options() == set()
+        assert hidden_option_names() == set()
 
 
 class TestListCommands:
@@ -175,7 +174,7 @@ class TestListCommands:
         self, mock_get_command, mock_console, mock_print_title, monkeypatch
     ):
         monkeypatch.setattr(
-            "usecli.cli.core.ui.list._hidden_root_options",
+            "usecli.cli.core.ui.list.hidden_option_names",
             lambda: {"version", "help"},
         )
 
@@ -210,7 +209,7 @@ class TestListCommands:
         self, mock_get_command, mock_console, monkeypatch
     ):
         monkeypatch.setattr(
-            "usecli.cli.core.ui.list._hidden_root_options",
+            "usecli.cli.core.ui.list.hidden_option_names",
             lambda: {"interactive", "json"},
         )
 
@@ -240,7 +239,7 @@ class TestListCommands:
         self, mock_get_command, monkeypatch
     ):
         monkeypatch.setattr(
-            "usecli.cli.core.ui.list._hidden_root_options", lambda: {"version"}
+            "usecli.cli.core.ui.list.hidden_option_names", lambda: {"version"}
         )
 
         version_param = Mock()
@@ -1387,6 +1386,46 @@ class TestListGroupCommandsColonAndNested:
         print_calls = [str(c) for c in mock_console.print.call_args_list]
         combined = "\n".join(print_calls)
         assert "--debug" in combined
+
+    @patch("usecli.cli.core.ui.list.console")
+    @patch("usecli.cli.core.ui.list.typer.main.get_command")
+    def test_skips_hidden_params_in_options(
+        self, mock_get_command, mock_console, monkeypatch
+    ):
+        """Hidden universal options are omitted from group help."""
+        monkeypatch.setattr(
+            "usecli.cli.core.ui.list.hidden_option_names",
+            lambda: {"interactive", "json"},
+        )
+
+        group_app = self._make_group_app()
+        cmd = Mock()
+        cmd.name = "show"
+        cmd.callback = Mock(__name__="show")
+        cmd.help = "Show item"
+        group_app.registered_commands = [cmd]
+
+        interactive = Mock()
+        interactive.opts = ["--interactive", "-i"]
+        interactive.help = "Run in interactive mode."
+        json_param = Mock()
+        json_param.opts = ["--json"]
+        json_param.help = "Emit one machine-readable JSON document."
+        verbose = Mock()
+        verbose.opts = ["--verbose", "-v"]
+        verbose.help = "Verbose output"
+
+        click_group = Mock()
+        click_group.params = [interactive, json_param, verbose]
+        mock_get_command.return_value = click_group
+
+        list_group_commands(group_app, group_name="spec")
+
+        print_calls = [str(c) for c in mock_console.print.call_args_list]
+        combined = "\n".join(print_calls)
+        assert "--interactive" not in combined
+        assert "--json" not in combined
+        assert "--verbose" in combined
 
     @patch("usecli.cli.core.ui.list.console")
     @patch("usecli.cli.core.ui.list.typer.main.get_command")
