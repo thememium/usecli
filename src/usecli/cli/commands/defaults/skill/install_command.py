@@ -1,4 +1,4 @@
-"""Install a usecli skill for AI coding agents."""
+"""Install bundled usecli skills for AI coding agents."""
 
 from __future__ import annotations
 
@@ -16,62 +16,40 @@ from usecli.cli.core.exceptions import UsecliBadParameter
 from usecli.cli.core.ui.list import collect_commands_data
 from usecli.cli.core.ui.title import get_script_command_name
 from usecli.shared.config.globals import TEMPLATES_DIR
-from usecli.shared.config.manager import find_project_root
+from usecli.shared.config.manager import find_project_root, get_config, reset_config
+from usecli.skills import (
+    AGENT_TARGETS,
+    InstallResult,
+    Skill,
+    SkillError,
+    discover_skills,
+    install_skill,
+    install_skills,
+    resolve_agents,
+    select_skills,
+)
 
 console = Console()
 
-SKILL_NAME = "usecli"
-SKILL_FILENAME = "SKILL.md"
+FRAMEWORK_SKILL_NAME = "usecli"
+FRAMEWORK_SKILL_DESCRIPTION = (
+    "Build, extend, and operate usecli-based Python CLIs. Use when a repository "
+    "depends on usecli, contains a usecli.config.toml, or the user asks to add, "
+    "change, or debug usecli commands, themes, JSON output, or packaging."
+)
 
-# AgentSkills standard locations. Claude Code only reads its own directory;
-# Codex and Cursor both read `.agents/skills`, and Cursor also reads
-# `.cursor/skills`. Copying the same SKILL.md to all three is intentional:
-# agents cannot consume files they do not scan.
-AGENT_TARGETS: dict[str, str] = {
-    "claude-code": ".claude/skills/{name}",
-    "codex": ".agents/skills/{name}",
-    "cursor": ".cursor/skills/{name}",
+_STATUS_COLORS = {
+    "installed": COLOR.SUCCESS,
+    "updated": COLOR.SUCCESS,
+    "adopted": COLOR.SUCCESS,
+    "already_installed": COLOR.FOREGROUND_MUTED,
+    "user_modified": COLOR.WARNING,
+    "overwritten": COLOR.WARNING,
 }
-AGENT_ALIASES = {"claude": "claude-code", "agents": "codex"}
-DEFAULT_AGENTS = tuple(AGENT_TARGETS)
-
-
-def _parse_agents(agents: list[str] | None) -> list[str]:
-    """Expand ``--agent`` values, including ``all`` and comma-separated names."""
-    if not agents:
-        return list(DEFAULT_AGENTS)
-
-    selected: list[str] = []
-    for raw in agents:
-        for part in raw.split(","):
-            name = part.strip().lower()
-            if not name:
-                continue
-            if name == "all":
-                selected.extend(DEFAULT_AGENTS)
-                continue
-            name = AGENT_ALIASES.get(name, name)
-            if name not in AGENT_TARGETS:
-                choices = ", ".join(["all", *AGENT_TARGETS])
-                raise UsecliBadParameter(
-                    f"Unknown agent {name!r}. Choose one of: {choices}"
-                )
-            selected.append(name)
-
-    if not selected:
-        raise UsecliBadParameter("At least one agent is required")
-
-    return list(dict.fromkeys(selected))
 
 
 def _project_root() -> Path:
     return find_project_root(Path.cwd()) or Path.cwd().resolve()
-
-
-def _target_dir(agent: str, *, global_: bool, project_root: Path) -> Path:
-    template = AGENT_TARGETS[agent]
-    base = Path.home() if global_ else project_root
-    return base / template.format(name=SKILL_NAME)
 
 
 def _framework_version() -> str:
@@ -176,7 +154,7 @@ def collect_skill_commands(app: typer.Typer) -> list[dict[str, Any]]:
 
 
 def render_skill(app: typer.Typer, *, command_name: str) -> str:
-    """Render the skill document for the current app and project."""
+    """Render the framework skill for the current app and project."""
     template = Template(
         (TEMPLATES_DIR / "skill.md.j2").read_text(encoding="utf-8"),
         trim_blocks=True,
@@ -189,29 +167,123 @@ def render_skill(app: typer.Typer, *, command_name: str) -> str:
     )
 
 
-def write_skill(target_file: Path, content: str, *, force: bool) -> str:
-    """Write one skill file, returning ``created``/``updated``/``skipped``/``unchanged``."""
-    if target_file.exists():
-        if target_file.read_text(encoding="utf-8") == content:
-            return "unchanged"
-        if not force:
-            return "skipped"
-        target_file.write_text(content, encoding="utf-8")
-        return "updated"
+def _framework_skill(app: typer.Typer) -> Skill:
+    command_name = get_script_command_name(default="usecli") or "usecli"
+    return Skill(
+        name=FRAMEWORK_SKILL_NAME,
+        description=FRAMEWORK_SKILL_DESCRIPTION,
+        content=render_skill(app, command_name=command_name),
+    )
 
-    target_file.parent.mkdir(parents=True, exist_ok=True)
-    target_file.write_text(content, encoding="utf-8")
-    return "created"
+
+def _discover_project_skills() -> list[Skill]:
+    config = get_config()
+    current_root = _project_root()
+    if config.get_project_root().resolve() != current_root:
+        reset_config()
+        config = get_config()
+    return discover_skills(config.get_project_skills_dir())
+
+
+def _select_skills(app: typer.Typer, names: list[str] | None) -> list[Skill]:
+    project_skills = _discover_project_skills()
+    has_framework_override = any(
+        skill.name == FRAMEWORK_SKILL_NAME for skill in project_skills
+    )
+    available = (
+        project_skills
+        if has_framework_override
+        else [*project_skills, _framework_skill(app)]
+    )
+    return select_skills(available, names)
+
+
+def _status_color(status: str) -> str:
+    if status.startswith("error:"):
+        return COLOR.ERROR
+    return _STATUS_COLORS.get(status, COLOR.FOREGROUND)
+
+
+def _list_data(
+    skills: list[Skill],
+    agents: list[str],
+    *,
+    scope: str,
+    project_root: Path,
+) -> dict[str, Any]:
+    return {
+        "scope": scope,
+        "skills": [
+            {
+                "name": skill.name,
+                "description": skill.description,
+                "source": skill.source,
+            }
+            for skill in skills
+        ],
+        "agents": [
+            {
+                "name": agent,
+                "path": str(
+                    AGENT_TARGETS[agent].base(
+                        scope,
+                        project_root=project_root,
+                    )
+                    / "skills"
+                ),
+            }
+            for agent in agents
+        ],
+    }
+
+
+def _print_list(data: dict[str, Any]) -> None:
+    console.print()
+    console.print(f"[bold {COLOR.PRIMARY}]Bundled skills[/bold {COLOR.PRIMARY}]")
+    for skill in data["skills"]:
+        console.print(
+            f"  [{COLOR.COMMAND}]{skill['name']}[/{COLOR.COMMAND}]  "
+            f"{skill['description']}"
+        )
+    console.print()
+    console.print(f"[bold {COLOR.PRIMARY}]Agent targets[/bold {COLOR.PRIMARY}]")
+    for agent in data["agents"]:
+        console.print(f"  {agent['name']:<12} {agent['path']}")
+    console.print()
+
+
+def _print_results(data: dict[str, Any]) -> None:
+    console.print()
+    for result in data["installed"]:
+        console.print(
+            f"  [{_status_color(result['status'])}]{result['status']:<16}"
+            f"[/{_status_color(result['status'])}] "
+            f"{result['skill']} [{COLOR.FOREGROUND_MUTED}]->[/] "
+            f"{result['agent']} {result['path']}"
+        )
+
+    if any(result["status"] == "user_modified" for result in data["installed"]):
+        console.print()
+        console.print(
+            f"[{COLOR.WARNING}]Some skills were left untouched because they "
+            f"were edited locally. Re-run with --force to overwrite them."
+            f"[/{COLOR.WARNING}]"
+        )
+    if data["errors"]:
+        console.print()
+        for error in data["errors"]:
+            console.print(f"[{COLOR.ERROR}]{error}[/{COLOR.ERROR}]")
+    console.print()
 
 
 class InstallSkillCommand(BaseCommand):
-    """Install a usecli skill for AI coding agents."""
+    """Install bundled skills for AI coding agents."""
 
     def signature(self) -> str:
         return "skill:install"
 
     def description(self) -> str:
-        return "Install a usecli skill for coding agents"
+        return "Install bundled skills for coding agents"
 
     def handle(
         self,
@@ -229,16 +301,24 @@ class InstallSkillCommand(BaseCommand):
                 "--agent",
                 "-a",
                 help=(
-                    "Agent target: all, claude-code, codex, or cursor. "
-                    "Repeat or comma-separate for multiple agents."
+                    "Agent target: all, claude, codex, cursor, opencode, pi, "
+                    "prime-agent, omp, or agents. Repeat or comma-separate."
                 ),
+            ),
+        ] = None,
+        skill: Annotated[
+            list[str] | None,
+            typer.Option(
+                "--skill",
+                "-s",
+                help="Install only these skills. Repeat or comma-separate.",
             ),
         ] = None,
         path: Annotated[
             Path | None,
             typer.Option(
                 "--path",
-                help="Install into this exact skill directory instead of an agent directory.",
+                help="Install one selected skill into this exact directory.",
             ),
         ] = None,
         force: Annotated[
@@ -246,7 +326,15 @@ class InstallSkillCommand(BaseCommand):
             typer.Option(
                 "--force",
                 "-f",
-                help="Overwrite an existing SKILL.md with different content.",
+                help="Overwrite skills that have local edits.",
+            ),
+        ] = False,
+        list_: Annotated[
+            bool,
+            typer.Option(
+                "--list",
+                "-l",
+                help="List bundled skills and agent targets without installing.",
             ),
         ] = False,
     ) -> dict[str, Any]:
@@ -256,59 +344,82 @@ class InstallSkillCommand(BaseCommand):
             raise UsecliBadParameter("--path and --agent cannot be used together")
 
         project_root = _project_root()
-        command_name = get_script_command_name(default="usecli") or "usecli"
+        scope = "global" if global_ else "project"
+
+        try:
+            skills = _select_skills(self.app, skill)
+            agents = resolve_agents(agent)
+        except SkillError as error:
+            raise UsecliBadParameter(str(error)) from error
+
+        if path is not None and not skill:
+            matches = [entry for entry in skills if entry.name == path.name]
+            if len(matches) == 1:
+                skills = matches
+
+        if list_:
+            data = _list_data(
+                skills,
+                agents,
+                scope=scope,
+                project_root=project_root,
+            )
+            from usecli.cli.core.runtime import is_json_mode
+
+            if not is_json_mode():
+                _print_list(data)
+            return data
 
         if path is not None:
+            if len(skills) != 1:
+                raise UsecliBadParameter(
+                    "--path requires exactly one skill; use --skill to choose one"
+                )
             scope = "custom"
-            targets = [("custom", path.expanduser().resolve())]
-        else:
-            scope = "global" if global_ else "project"
-            targets = [
-                (name, _target_dir(name, global_=global_, project_root=project_root))
-                for name in _parse_agents(agent)
+            target = path.expanduser().resolve() / "SKILL.md"
+            try:
+                status = install_skill(skills[0], target, force=force)
+            except OSError as error:
+                status = f"error: {error}"
+            results = [
+                InstallResult(
+                    skill=skills[0].name,
+                    agent="custom",
+                    path=target,
+                    status=status,
+                )
             ]
-
-        content = render_skill(self.app, command_name=command_name)
-        installed: list[dict[str, str]] = []
-        for name, directory in targets:
-            target_file = directory / SKILL_FILENAME
-            status = write_skill(target_file, content, force=force)
-            installed.append(
-                {"agent": name, "path": str(target_file), "status": status}
+        else:
+            results = install_skills(
+                skills,
+                agents=agents,
+                scope=scope,
+                project_root=project_root,
+                force=force,
             )
 
+        errors = [
+            f"{result.skill} -> {result.agent}: {result.status}"
+            for result in results
+            if result.status.startswith("error:")
+        ]
         data: dict[str, Any] = {
-            "skill": SKILL_NAME,
-            "command_name": command_name,
             "scope": scope,
-            "installed": installed,
+            "skills": [skill.name for skill in skills],
+            "installed": [
+                {
+                    "skill": result.skill,
+                    "agent": result.agent,
+                    "path": str(result.path),
+                    "status": result.status,
+                }
+                for result in results
+            ],
+            "errors": errors,
         }
 
         from usecli.cli.core.runtime import is_json_mode
 
-        if is_json_mode():
-            return data
-
-        console.print()
-        for result in installed:
-            color = {
-                "created": COLOR.SUCCESS,
-                "updated": COLOR.SUCCESS,
-                "unchanged": COLOR.FOREGROUND_MUTED,
-                "skipped": COLOR.WARNING,
-            }[result["status"]]
-            console.print(
-                f"[{color}]{result['status'].capitalize()}[/{color}] {result['path']}"
-            )
-        console.print()
-        console.print(
-            f"[bold {COLOR.PRIMARY}]usecli skill installed for {scope} scope[/bold {COLOR.PRIMARY}]"
-        )
-        if any(result["status"] == "skipped" for result in installed):
-            console.print(
-                f"[{COLOR.WARNING}]Existing skill files were left untouched. "
-                f"Re-run with --force to overwrite them.[/{COLOR.WARNING}]"
-            )
-        console.print()
-
+        if not is_json_mode():
+            _print_results(data)
         return data
