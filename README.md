@@ -68,8 +68,9 @@ usecli init
 ```
 
 `init` asks whether to install the generated `usecli` skill for coding agents.
-Pass `--install-skill` to install it without the prompt, or
-`--no-install-skill` to skip it.
+The prompt defaults to yes; after confirming, choose the install scope and
+agent targets. Pass `--install-skill` to skip the yes/no prompt, or
+`--no-install-skill` to skip installation.
 
 ### ASCII-art titles (optional)
 

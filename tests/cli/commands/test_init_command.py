@@ -59,6 +59,14 @@ def init_command(mock_console):
         patch("usecli.cli.commands.init_command.Confirm.ask") as mock_confirm,
         patch("usecli.cli.commands.init_command.terminal_menu") as mock_terminal_menu,
         patch.object(InitCommand, "_install_usecli_skill", return_value=[]),
+        patch(
+            "usecli.cli.commands.defaults.skill.install_command._prompt_scope",
+            return_value=False,
+        ),
+        patch(
+            "usecli.cli.commands.defaults.skill.install_command._prompt_agents",
+            return_value=["claude"],
+        ),
     ):
         mock_prompt.side_effect = lambda *args, **kwargs: kwargs.get("default", "")
         mock_confirm.side_effect = lambda *args, **kwargs: kwargs.get("default", True)
@@ -86,6 +94,14 @@ def interactive_cmd(mock_console):
         patch("usecli.cli.commands.init_command.Confirm.ask") as mock_confirm,
         patch("usecli.cli.commands.init_command.terminal_menu") as mock_terminal_menu,
         patch.object(InitCommand, "_install_usecli_skill", return_value=[]),
+        patch(
+            "usecli.cli.commands.defaults.skill.install_command._prompt_scope",
+            return_value=False,
+        ),
+        patch(
+            "usecli.cli.commands.defaults.skill.install_command._prompt_agents",
+            return_value=["claude"],
+        ),
     ):
         mock_prompt.side_effect = lambda *args, **kwargs: kwargs.get("default", "")
         mock_confirm.side_effect = lambda *args, **kwargs: kwargs.get("default", True)
@@ -216,6 +232,14 @@ class TestInitCommandPyprojectToml:
                 "usecli.cli.commands.init_command.terminal_menu"
             ) as mock_terminal_menu,
             patch.object(InitCommand, "_install_usecli_skill", return_value=[]),
+            patch(
+                "usecli.cli.commands.defaults.skill.install_command._prompt_scope",
+                return_value=False,
+            ),
+            patch(
+                "usecli.cli.commands.defaults.skill.install_command._prompt_agents",
+                return_value=["claude"],
+            ),
         ):
 
             def _prompt_side_effect(*args, **kwargs):
@@ -268,6 +292,14 @@ class TestInitCommandPyprojectToml:
                 "usecli.cli.commands.init_command.terminal_menu"
             ) as mock_terminal_menu,
             patch.object(InitCommand, "_install_usecli_skill", return_value=[]),
+            patch(
+                "usecli.cli.commands.defaults.skill.install_command._prompt_scope",
+                return_value=False,
+            ),
+            patch(
+                "usecli.cli.commands.defaults.skill.install_command._prompt_agents",
+                return_value=["claude"],
+            ),
         ):
 
             def _prompt_side_effect(*args, **kwargs):
@@ -1862,13 +1894,35 @@ class TestOptionalFiglet:
                 "_install_usecli_skill",
                 return_value=skill_install,
             ) as mock_install,
-            patch("usecli.cli.commands.init_command.Confirm.ask", return_value=True),
+            patch(
+                "usecli.cli.commands.init_command.Confirm.ask",
+                return_value=True,
+            ) as mock_confirm,
             patch("usecli.cli.commands.init_command.get_figlet", return_value=None),
             patch("usecli.cli.commands.init_command.console"),
+            patch(
+                "usecli.cli.commands.defaults.skill.install_command._prompt_scope",
+                return_value=True,
+            ),
+            patch(
+                "usecli.cli.commands.defaults.skill.install_command._prompt_agents",
+                return_value=["claude", "codex"],
+            ),
         ):
             init_command.handle("Demo", "A demo CLI", DEFAULT_COMMANDS_DIR, force=True)
 
-        mock_install.assert_called_once_with(temp_project_dir, force=True)
+        skill_prompt = next(
+            call
+            for call in mock_confirm.call_args_list
+            if "Install the usecli skill" in str(call.args[0])
+        )
+        assert skill_prompt.kwargs["default"] is True
+        mock_install.assert_called_once_with(
+            temp_project_dir,
+            force=True,
+            scope="global",
+            agents=["claude", "codex"],
+        )
 
     def test_install_skill_flag_skips_prompt(self, temp_project_dir, init_command):
         with (

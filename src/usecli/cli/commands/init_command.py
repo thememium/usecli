@@ -1352,10 +1352,22 @@ include = ["{root_package}*"]
         if install_skill is None:
             install_skill = Confirm.ask(
                 f"[bold {COLOR.SECONDARY}]Install the usecli skill for coding agents?[/bold {COLOR.SECONDARY}]",
-                default=False,
+                default=True,
             )
         if install_skill:
-            skill_install = self._install_usecli_skill(project_root, force=force)
+            from usecli.cli.commands.defaults.skill.install_command import (
+                _prompt_agents,
+                _prompt_scope,
+            )
+
+            skill_global = _prompt_scope(False)
+            skill_agents = _prompt_agents(None)
+            skill_install = self._install_usecli_skill(
+                project_root,
+                force=force,
+                scope="global" if skill_global else "project",
+                agents=skill_agents,
+            )
 
         # Show summary
         summary_command = (
