@@ -240,6 +240,24 @@ def _framework_skill(app: typer.Typer) -> Skill:
     )
 
 
+def install_framework_skill(
+    app: typer.Typer,
+    *,
+    project_root: Path | None = None,
+    agents: list[str] | str | None = None,
+    scope: str = "project",
+    force: bool = False,
+) -> list[InstallResult]:
+    """Install the generated ``usecli`` skill for coding agents."""
+    return install_skills(
+        [_framework_skill(app)],
+        agents=agents,
+        scope=scope,
+        project_root=project_root,
+        force=force,
+    )
+
+
 def _discover_project_skills() -> list[Skill]:
     config = get_config()
     current_root = _project_root()

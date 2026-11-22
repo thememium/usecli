@@ -156,6 +156,8 @@ def _has_explicit_interactive(
 
     if click_command is None:
         return False
+    if getattr(click_command, "_usecli_injected_interactive", False) is True:
+        return False
     params = getattr(click_command, "params", None)
     if not isinstance(params, list | tuple):
         return False
