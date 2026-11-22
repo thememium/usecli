@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import os
-import sys
 from pathlib import Path
 from typing import Annotated
 
@@ -27,10 +25,6 @@ def _frontmatter_description(value: str) -> str:
 
 class MakeSkillCommand(BaseCommand):
     """Scaffold a skill that ships with this CLI."""
-
-    def visible(self) -> bool:
-        command_name = os.path.basename(sys.argv[0]) if sys.argv else ""
-        return command_name == "usecli"
 
     def signature(self) -> str:
         return "make:skill"
