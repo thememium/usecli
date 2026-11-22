@@ -940,10 +940,15 @@ class ConfigManager:
         """How the root help exposes skill installation.
 
         ``"option"`` registers/renders ``--install-skills``; ``"command"``
-        renders the ``skill:install`` command instead.
+        renders the ``skill:install`` command instead; ``"none"`` hides both
+        so a project can provide its own installer.
         """
         value = self.get("commands.skill_install", "option")
-        if isinstance(value, str) and value.strip().lower() in {"option", "command"}:
+        if isinstance(value, str) and value.strip().lower() in {
+            "option",
+            "command",
+            "none",
+        }:
             return value.strip().lower()
         return "option"
 

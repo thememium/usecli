@@ -30,12 +30,12 @@ from usecli.cli.commands.defaults.skill.install_command import (
     _status_color,
     collect_skill_commands,
     install_framework_skill,
-    install_skill_interactive,
+    prompt_skill_install,
     render_skill,
 )
 from usecli.cli.core.exceptions import UsecliBadParameter
 from usecli.cli.core.runtime import NonInteractiveError
-from usecli.skills import DEFAULT_AGENTS, Skill, SkillError
+from usecli.skills import AGENT_TARGETS, DEFAULT_AGENTS, Skill, SkillError
 
 
 def _skill(name: str = "demo", *, body: str = "# Demo\n") -> Skill:
@@ -134,6 +134,16 @@ class TestCommandMetadata:
         monkeypatch.setattr(module, "_is_framework_binary", lambda: True)
 
         assert command.visible() is True
+
+    def test_visible_is_false_when_skill_install_is_disabled(
+        self, command: InstallSkillCommand, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        config = MagicMock()
+        config.get_skill_install_mode.return_value = "none"
+        monkeypatch.setattr(module, "get_config", lambda: config)
+        monkeypatch.setattr(module, "_is_framework_binary", lambda: True)
+
+        assert command.visible() is False
 
     def test_visible_when_a_project_skill_is_malformed(
         self, command: InstallSkillCommand, monkeypatch: pytest.MonkeyPatch
@@ -442,6 +452,55 @@ class TestInteractivePrompts:
 
         assert _prompt_agents(None) == list(DEFAULT_AGENTS)
         assert "using claude, codex, cursor" in capsys.readouterr().out
+
+    def test_agent_choices_limit_the_menu(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        seen: list[list[str]] = []
+
+        def multi_select(options: list[str], *, title: str) -> list[str]:
+            seen.append(options)
+            return ["codex"]
+
+        monkeypatch.setattr(module.Menu, "multi_select", multi_select)
+
+        assert _prompt_agents(None, choices=["codex", "cursor"]) == ["codex"]
+        assert seen == [["codex", "cursor"]]
+
+    def test_single_agent_choice_skips_the_menu(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            module.Menu,
+            "multi_select",
+            lambda *args, **kwargs: pytest.fail("menu should not be shown"),
+        )
+
+        assert _prompt_agents(None, choices=["codex"]) == ["codex"]
+
+    def test_agent_choice_fallback_stays_within_choices(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        monkeypatch.setattr(module.Menu, "multi_select", lambda options, title: [])
+
+        assert _prompt_agents(None, choices=["pi", "omp"]) == ["pi", "omp"]
+        assert "using pi, omp" in capsys.readouterr().out
+
+    def test_unknown_agent_choices_fall_back_to_all_targets(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        seen: list[list[str]] = []
+
+        def multi_select(options: list[str], *, title: str) -> list[str]:
+            seen.append(options)
+            return ["claude"]
+
+        monkeypatch.setattr(module.Menu, "multi_select", multi_select)
+
+        assert _prompt_agents(None, choices=["not-an-agent"]) == ["claude"]
+        assert seen == [list(AGENT_TARGETS)]
 
     def test_skill_prompt_is_skipped_for_one_skill(
         self, monkeypatch: pytest.MonkeyPatch, project_skill: Skill
@@ -883,13 +942,34 @@ class TestInteractiveInstall:
         target = tmp_path / ".claude" / "skills" / project_skill.name / "SKILL.md"
         target.write_text("local edit", encoding="utf-8")
 
-        data = install_skill_interactive(app)
+        data = prompt_skill_install(app)
 
         assert calls == [("scope", False), ("agents", None)]
         assert data["scope"] == "project"
         assert data["skills"] == [project_skill.name]
         assert data["installed"][0]["status"] == "overwritten"
         assert "local edit" not in target.read_text(encoding="utf-8")
+
+    def test_app_defaults_to_the_running_cli(
+        self,
+        app: typer.Typer,
+        project_skill: Skill,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ) -> None:
+        import usecli
+
+        monkeypatch.setitem(usecli.__dict__, "app", app)
+        monkeypatch.setattr(module, "_prompt_scope", lambda global_: False)
+        monkeypatch.setattr(module, "_prompt_agents", lambda agent: ["claude"])
+
+        data = prompt_skill_install(
+            show_skills=False,
+            print_results=False,
+            project_root=tmp_path,
+        )
+
+        assert data["skills"] == [project_skill.name]
 
     def test_prompts_for_a_skill_when_several_exist(
         self,
@@ -900,7 +980,7 @@ class TestInteractiveInstall:
         second = _skill("second")
         prompted: list[list[Skill]] = []
 
-        def prompt_skill(skills: list[Skill]) -> list[Skill]:
+        def prompt_skill(skills: list[Skill], *, single: bool = False) -> list[Skill]:
             prompted.append(skills)
             return [second]
 
@@ -911,7 +991,7 @@ class TestInteractiveInstall:
         monkeypatch.setattr(module, "_prompt_scope", lambda global_: False)
         monkeypatch.setattr(module, "_prompt_agents", lambda agent: ["claude"])
 
-        data = install_skill_interactive(app)
+        data = prompt_skill_install(app)
 
         assert prompted == [[project_skill, second]]
         assert data["skills"] == ["second"]
@@ -927,7 +1007,7 @@ class TestInteractiveInstall:
         )
 
         with pytest.raises(NonInteractiveError, match="unavailable in JSON mode"):
-            install_skill_interactive(app)
+            prompt_skill_install(app)
 
     def test_malformed_project_skills_raise_bad_parameter(
         self,
@@ -942,4 +1022,142 @@ class TestInteractiveInstall:
         monkeypatch.setattr(module, "_prompt_agents", lambda agent: ["claude"])
 
         with pytest.raises(UsecliBadParameter, match="bad skill"):
-            install_skill_interactive(app)
+            prompt_skill_install(app)
+
+    def test_uses_a_skill_folder(
+        self,
+        app: typer.Typer,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ) -> None:
+        skills_dir = tmp_path / "custom-skills"
+        skill_dir = skills_dir / "custom"
+        skill_dir.mkdir(parents=True)
+        (skill_dir / "SKILL.md").write_text(
+            "---\nname: custom\ndescription: Custom skill\n---\n\n# Custom\n",
+            encoding="utf-8",
+        )
+        monkeypatch.setattr(module, "_prompt_scope", lambda global_: False)
+        monkeypatch.setattr(module, "_prompt_agents", lambda agent: ["claude"])
+
+        data = prompt_skill_install(
+            app,
+            skills_dir=skills_dir,
+            show_skills=False,
+            print_results=False,
+        )
+
+        assert data["skills"] == ["custom"]
+        assert (tmp_path / ".claude" / "skills" / "custom" / "SKILL.md").exists()
+
+    def test_uses_explicit_skills_and_skips_the_scope_prompt(
+        self,
+        app: typer.Typer,
+        project_skill: Skill,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ) -> None:
+        monkeypatch.setattr(
+            module,
+            "_prompt_scope",
+            lambda *args, **kwargs: pytest.fail("scope prompt should be skipped"),
+        )
+        monkeypatch.setattr(Path, "home", lambda: tmp_path / "home")
+
+        data = prompt_skill_install(
+            app,
+            skills=[project_skill],
+            scope="global",
+            show_agents=False,
+            show_skills=False,
+            print_results=False,
+            project_root=tmp_path,
+        )
+
+        assert data["scope"] == "global"
+        assert data["skills"] == [project_skill.name]
+        assert (
+            tmp_path / "home" / ".claude" / "skills" / project_skill.name / "SKILL.md"
+        ).exists()
+
+    def test_agent_choices_are_passed_to_the_prompt(
+        self,
+        app: typer.Typer,
+        project_skill: Skill,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ) -> None:
+        offered: list[list[str]] = []
+
+        def prompt_agents(
+            agent: list[str] | None, *, choices: list[str] | None = None
+        ) -> list[str] | None:
+            offered.append(list(choices or []))
+            return ["codex"]
+
+        monkeypatch.setattr(module, "_prompt_scope", lambda global_: False)
+        monkeypatch.setattr(module, "_prompt_agents", prompt_agents)
+
+        data = prompt_skill_install(
+            app,
+            skills=[project_skill],
+            agents=["codex", "cursor"],
+            show_skills=False,
+            print_results=False,
+            project_root=tmp_path,
+        )
+
+        assert offered == [["codex", "cursor"]]
+        assert data["installed"][0]["agent"] == "codex"
+
+    def test_disabled_prompts_use_their_defaults(
+        self,
+        app: typer.Typer,
+        project_skill: Skill,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ) -> None:
+        def fail(*args: object, **kwargs: object) -> None:
+            pytest.fail("disabled prompts should not run")
+
+        monkeypatch.setattr(module, "_prompt_scope", fail)
+        monkeypatch.setattr(module, "_prompt_agents", fail)
+        monkeypatch.setattr(module, "_prompt_skill", fail)
+
+        data = prompt_skill_install(
+            app,
+            skills=[project_skill],
+            show_scope=False,
+            show_agents=False,
+            show_skills=False,
+            print_results=False,
+            project_root=tmp_path,
+        )
+
+        assert data["scope"] == "project"
+        assert {entry["agent"] for entry in data["installed"]} == set(DEFAULT_AGENTS)
+
+    def test_print_results_can_be_disabled(
+        self,
+        app: typer.Typer,
+        project_skill: Skill,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+        tmp_path: Path,
+    ) -> None:
+        monkeypatch.setattr(module, "_prompt_scope", lambda global_: False)
+        monkeypatch.setattr(module, "_prompt_agents", lambda agent: ["claude"])
+
+        prompt_skill_install(
+            app,
+            skills=[project_skill],
+            show_skills=False,
+            print_results=False,
+            project_root=tmp_path,
+        )
+
+        assert capsys.readouterr().out == ""
+
+    def test_invalid_scope_raises_bad_parameter(self, app: typer.Typer) -> None:
+        with pytest.raises(UsecliBadParameter, match="scope must be"):
+            prompt_skill_install(app, scope="everywhere")

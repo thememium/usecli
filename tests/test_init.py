@@ -57,6 +57,17 @@ class TestLazyExports:
 
         assert ProgressBar is not None
 
+    def test_lazy_import_prompt_skill_install(self):
+        from usecli import prompt_skill_install
+
+        assert prompt_skill_install.__module__.endswith("install_command")
+
+    def test_dir_includes_lazy_exports(self):
+        names = dir(usecli)
+
+        assert "prompt_skill_install" in names
+        assert "Menu" in names
+
     def test_getattr_raises_for_unknown(self):
         import usecli
 
@@ -801,7 +812,7 @@ class TestRunAppBranches:
         ctx = MagicMock()
         with (
             patch(
-                "usecli.cli.commands.defaults.skill.install_command.install_skill_interactive",
+                "usecli.cli.commands.defaults.skill.install_command.prompt_skill_install",
                 return_value={},
             ) as mock_install,
             pytest.raises(usecli.typer.Exit),

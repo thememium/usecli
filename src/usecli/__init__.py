@@ -20,6 +20,9 @@ if TYPE_CHECKING:
 
     import typer
 
+    from usecli.cli.commands.defaults.skill.install_command import (
+        prompt_skill_install as prompt_skill_install,
+    )
     from usecli.cli.config.colors import COLOR
     from usecli.cli.config.colors import COLOR as theme
     from usecli.cli.core.base_command import BaseCommand
@@ -108,6 +111,10 @@ _LAZY_EXPORTS = {
     "box": ("usecli.ui", "box"),
     "pyinstaller": ("usecli.bundler", "pyinstaller"),
     "run": ("usecli.entry", "run"),
+    "prompt_skill_install": (
+        "usecli.cli.commands.defaults.skill.install_command",
+        "prompt_skill_install",
+    ),
 }
 
 _RICH_EXPORTS = frozenset(RICH_EXPORT_NAMES)
@@ -115,6 +122,11 @@ _RICH_EXPORTS = frozenset(RICH_EXPORT_NAMES)
 # `print` must not be cached in this module's globals: the CLI code below calls
 # the builtin, and a cached rich.print would silently replace it.
 _UNCACHED_RICH_EXPORTS = frozenset({"print"})
+
+
+def __dir__() -> list[str]:
+    """Include lazy exports so autocomplete and ``dir()`` see them."""
+    return sorted({*globals(), *__all__})
 
 
 def __getattr__(name: str) -> Any:
@@ -455,6 +467,7 @@ __all__ = [
     "colors",
     "console",
     "main",
+    "prompt_skill_install",
     "pyinstaller",
     "run",
     "theme",
@@ -612,6 +625,10 @@ def _get_run_app_callback():
 
     import typer
 
+    from usecli.shared.config.manager import get_config
+
+    hide_skill_install = get_config().get_skill_install_mode() == "none"
+
     # Inject typer into module globals so annotation evaluation works
     # (required because `from __future__ import annotations` makes them strings)
     globals()["typer"] = typer
@@ -637,6 +654,7 @@ def _get_run_app_callback():
             "--install-skills",
             help="Install the usecli skill for coding agents.",
             is_eager=True,
+            hidden=hide_skill_install,
         ),
     ) -> object:
         _resolve_help()
@@ -665,10 +683,10 @@ def _get_run_app_callback():
 
         if install_skills is True:
             from usecli.cli.commands.defaults.skill.install_command import (
-                install_skill_interactive,
+                prompt_skill_install,
             )
 
-            install_skill_interactive(_get_app())
+            prompt_skill_install()
             raise typer.Exit()
 
         interactive_requested = interactive or _is_interactive_flag_present()

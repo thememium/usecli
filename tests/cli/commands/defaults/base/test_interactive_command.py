@@ -708,6 +708,38 @@ class TestRunInteractive:
 
         assert [command["name"] for command in captured] == ["about"]
 
+    def test_none_mode_hides_skill_install_command(self):
+        app = MagicMock()
+        app.registered_commands = [
+            _cmd("about", "About"),
+            _cmd("skill:install", "Install skills"),
+        ]
+        captured: list[dict[str, object]] = []
+        config = MagicMock()
+        config.get_skill_install_mode.return_value = "none"
+
+        def select(commands, *, title):
+            captured.extend(commands)
+            return None, False
+
+        with (
+            patch(
+                "usecli.cli.commands.defaults.base.internal.interactive_command._select_command",
+                side_effect=select,
+            ),
+            patch(
+                "usecli.shared.config.manager.get_config",
+                return_value=config,
+            ),
+            patch(
+                "usecli.cli.commands.defaults.base.internal.interactive_command.typer.main.get_command",
+                return_value=MagicMock(spec=click.Group, commands={}),
+            ),
+        ):
+            run_interactive(app)
+
+        assert [command["name"] for command in captured] == ["about"]
+
     @patch(
         "usecli.cli.commands.defaults.base.internal.interactive_command._select_command",
         return_value=("test", False),

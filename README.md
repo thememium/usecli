@@ -279,7 +279,8 @@ By default, `--install-skills` appears in the root options and runs the
 interactive installer, but only when the CLI has bundled skills (the `usecli`
 framework binary always has its generated skill). Set
 `[usecli.commands] skill_install = "command"` to show `skill:install` under a
-`skill:` section instead.
+`skill:` section instead, or `"none"` to hide both the option and the command
+so the project can provide its own installer.
 
 ### Coding Agent Skills
 
@@ -321,6 +322,10 @@ mycli skill:install --skill deploy-checks    # one project skill
 mycli skill:install --agent claude,codex     # one or more agents
 mycli skill:install --interactive             # choose scope, skills, and agents
 ```
+
+Set `[usecli.commands] skill_install = "none"` to hide `--install-skills` and
+`skill:install` entirely. The built-in command is not registered, so a project
+can ship its own installer without the framework surfaces competing with it.
 
 The framework binary installs its own generated skill. The default option is
 interactive; the command form exposes the full flag set:
@@ -364,6 +369,28 @@ install_skills(
     scope="project",
 )
 ```
+
+To run the same interactive installer from your own code, call
+`prompt_skill_install`. It accepts a skill folder or explicit skill templates,
+limits the agent choices, and lets you enable or skip each prompt:
+
+```python
+from usecli import prompt_skill_install
+
+prompt_skill_install(
+    skills_dir="src/mycli/skills",  # or skills=[Skill(...)]
+    agents=["claude", "codex"],  # agent choices shown in the menu
+    show_scope=True,  # offer project vs. global
+    show_agents=True,  # offer the agent menu
+    show_skills=True,  # offer the skill menu when >1
+)
+```
+
+`app` is optional: omit it to use the running CLI's Typer app. Pass
+`app=other_app` only when installing another app's skills. Set `scope="global"`
+to skip the scope prompt, or pass `show_scope=False`, `show_agents=False`,
+`show_skills=False`, and `print_results=False` to disable individual steps and
+output.
 
 ### Upgrades
 

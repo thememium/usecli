@@ -36,6 +36,7 @@ show_description = false
 hidden = []
 # How to expose skill installation: "option" shows --install-skills in the
 # root options; "command" shows skill:install under a `skill:` section.
+# "none" hides both so you can provide your own installer.
 skill_install = "option"
 
 [usecli.upgrade]
