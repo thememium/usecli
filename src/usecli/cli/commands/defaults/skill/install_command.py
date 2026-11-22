@@ -384,7 +384,7 @@ def _build_install_data(
 
 
 def prompt_skill_install(
-    app: typer.Typer,
+    app: typer.Typer | None = None,
     *,
     skills: Iterable[Skill] | None = None,
     skills_dir: str | Path | None = None,
@@ -400,8 +400,35 @@ def prompt_skill_install(
 ) -> dict[str, Any]:
     """Prompt for install options, then install skills for coding agents.
 
+    ``app`` is optional. When omitted, the running CLI's Typer app is used, so
+    most callers only need ``prompt_skill_install()``.
+
+    Example:
+        .. code-block:: python
+
+            from usecli import prompt_skill_install
+
+            # Prompt for scope, agents, and skills using this CLI's skills.
+            prompt_skill_install()
+
+            # Limit the agent menu and install from a specific folder.
+            prompt_skill_install(
+                skills_dir="src/mycli/skills",
+                agents=["claude", "codex"],
+            )
+
+            # Skip every prompt and install for one agent.
+            prompt_skill_install(
+                skills=[Skill(name="deploy", description="Deploy checks", content=...)],
+                agents=["claude"],
+                show_scope=False,
+                show_agents=False,
+                show_skills=False,
+            )
+
     Args:
-        app: The Typer application whose skills should be installed.
+        app: The Typer application whose skills should be installed. Defaults
+            to the running CLI's app.
         skills: Explicit skill templates to install. Skips discovery.
         skills_dir: Directory to discover skills from. Ignored when ``skills``
             is given; defaults to the CLI's configured skills.
@@ -424,6 +451,11 @@ def prompt_skill_install(
 
     if is_json_mode():
         raise NonInteractiveError("Interactive mode is unavailable in JSON mode")
+
+    if app is None:
+        import usecli
+
+        app = usecli.app
 
     if scope is not None and scope not in {"project", "global"}:
         raise UsecliBadParameter("scope must be 'project' or 'global'")
