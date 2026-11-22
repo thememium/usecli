@@ -279,7 +279,8 @@ By default, `--install-skills` appears in the root options and runs the
 interactive installer, but only when the CLI has bundled skills (the `usecli`
 framework binary always has its generated skill). Set
 `[usecli.commands] skill_install = "command"` to show `skill:install` under a
-`skill:` section instead.
+`skill:` section instead, or `"none"` to hide both the option and the command
+so the project can provide its own installer.
 
 ### Coding Agent Skills
 
@@ -321,6 +322,10 @@ mycli skill:install --skill deploy-checks    # one project skill
 mycli skill:install --agent claude,codex     # one or more agents
 mycli skill:install --interactive             # choose scope, skills, and agents
 ```
+
+Set `[usecli.commands] skill_install = "none"` to hide `--install-skills` and
+`skill:install` entirely. The built-in command is not registered, so a project
+can ship its own installer without the framework surfaces competing with it.
 
 The framework binary installs its own generated skill. The default option is
 interactive; the command form exposes the full flag set:
