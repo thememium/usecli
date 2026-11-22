@@ -137,8 +137,7 @@ class CommandService:
                 continue
 
             if skip_usecli_only and (
-                path.name == "init_command.py"
-                or (path.parent.name == "make" and path.name != "make_skill_command.py")
+                path.name == "init_command.py" or path.parent.name == "make"
             ):
                 continue
 
