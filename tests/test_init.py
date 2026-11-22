@@ -796,6 +796,27 @@ class TestRunAppBranches:
         printed = console.print.call_args_list[0].args[0]
         assert "MyApp 1.2.3" in printed
 
+    def test_install_skills_branch(self):
+        usecli._ensure_cli_initialized()
+        ctx = MagicMock()
+        with (
+            patch(
+                "usecli.cli.commands.defaults.skill.install_command.install_skill_interactive",
+                return_value={},
+            ) as mock_install,
+            pytest.raises(usecli.typer.Exit),
+        ):
+            usecli.run_app(
+                ctx=ctx,
+                version=None,
+                help=False,
+                interactive=False,
+                json_output=False,
+                install_skills=True,
+            )
+
+        mock_install.assert_called_once()
+
     def test_prefix_filter_from_ctx_obj(self):
         usecli._ensure_cli_initialized()
         ctx = MagicMock()

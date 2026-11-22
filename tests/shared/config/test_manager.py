@@ -84,8 +84,26 @@ class TestConfigManagerDefaults:
         assert manager.get("banner.top_space") is True
         assert manager.get("banner.bottom_space") is True
         assert manager.get("commands.hidden") == []
+        assert manager.get("commands.skill_install") == "option"
+        assert manager.get_skill_install_mode() == "option"
         assert manager.get("environment") == "prod"
         assert manager.get("command_name") == "usecli"
+
+    def test_reads_skill_install_mode(self, temp_project_dir):
+        config_file = temp_project_dir / "usecli.config.toml"
+        config_file.write_text('[usecli.commands]\nskill_install = "command"\n')
+
+        manager = ConfigManager()
+
+        assert manager.get_skill_install_mode() == "command"
+
+    def test_invalid_skill_install_mode_falls_back_to_option(self, temp_project_dir):
+        config_file = temp_project_dir / "usecli.config.toml"
+        config_file.write_text('[usecli.commands]\nskill_install = "wat"\n')
+
+        manager = ConfigManager()
+
+        assert manager.get_skill_install_mode() == "option"
 
     def test_default_environment_methods(self, temp_project_dir):
         manager = ConfigManager(
