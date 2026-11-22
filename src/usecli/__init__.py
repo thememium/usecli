@@ -686,7 +686,7 @@ def _get_run_app_callback():
                 prompt_skill_install,
             )
 
-            prompt_skill_install(_get_app())
+            prompt_skill_install()
             raise typer.Exit()
 
         interactive_requested = interactive or _is_interactive_flag_present()
