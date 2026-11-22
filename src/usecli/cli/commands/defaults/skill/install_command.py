@@ -17,10 +17,12 @@ from usecli.cli.core.base_command import BaseCommand
 from usecli.cli.core.exceptions import UsecliBadParameter
 from usecli.cli.core.ui.list import collect_commands_data
 from usecli.cli.core.ui.title import get_script_command_name
+from usecli.menu import Menu
 from usecli.shared.config.globals import TEMPLATES_DIR
 from usecli.shared.config.manager import find_project_root, get_config, reset_config
 from usecli.skills import (
     AGENT_TARGETS,
+    DEFAULT_AGENTS,
     InstallResult,
     Skill,
     SkillError,
@@ -30,6 +32,7 @@ from usecli.skills import (
     resolve_agents,
     select_skills,
 )
+from usecli.ui import Confirm
 
 console = Console()
 
@@ -57,6 +60,70 @@ def _is_framework_binary() -> bool:
 
 def _project_root() -> Path:
     return find_project_root(Path.cwd()) or Path.cwd().resolve()
+
+
+def _prompt_scope(global_: bool) -> bool:
+    """Ask whether to install globally when the flag was omitted."""
+    if global_:
+        return True
+    return Confirm.ask(
+        "Install for every project instead of just this one?",
+        default=False,
+    )
+
+
+def _prompt_agents(agent: list[str] | None) -> list[str] | None:
+    """Ask which agent targets should receive the skills."""
+    if agent is not None:
+        return agent
+
+    selected = Menu.multi_select(
+        list(AGENT_TARGETS),
+        title="Select agents to install the skills for",
+    )
+    if selected:
+        return selected
+
+    console.print(
+        f"[{COLOR.FOREGROUND_MUTED}]No agents selected; using "
+        f"{', '.join(DEFAULT_AGENTS)}.[/]"
+    )
+    return list(DEFAULT_AGENTS)
+
+
+def _prompt_skill(skills: list[Skill], *, single: bool = False) -> list[Skill]:
+    """Ask which bundled skills to install."""
+    if len(skills) <= 1:
+        return skills
+
+    by_label = {f"{skill.name} — {skill.description}": skill for skill in skills}
+    labels = list(by_label)
+
+    if single:
+        selected = Menu.select(labels, title="Select a skill to install")
+        return [by_label[selected]] if selected else skills
+
+    selected_labels = Menu.multi_select(
+        labels,
+        title="Select skills to install",
+    )
+    if not selected_labels:
+        console.print(
+            f"[{COLOR.FOREGROUND_MUTED}]No skills selected; using all "
+            f"{len(skills)} bundled skills.[/]"
+        )
+        return skills
+    return [by_label[label] for label in selected_labels]
+
+
+def _prompt_force(force: bool) -> bool:
+    """Ask whether locally edited skills should be overwritten."""
+    if force:
+        return True
+    return Confirm.ask(
+        "Overwrite skills that have local edits?",
+        default=False,
+    )
 
 
 def _framework_version() -> str:
@@ -343,6 +410,14 @@ class InstallSkillCommand(BaseCommand):
                 help="Overwrite skills that have local edits.",
             ),
         ] = False,
+        interactive: Annotated[
+            bool,
+            typer.Option(
+                "--interactive",
+                "-i",
+                help="Prompt for the install scope, skills, and agents.",
+            ),
+        ] = False,
         list_: Annotated[
             bool,
             typer.Option(
@@ -360,11 +435,28 @@ class InstallSkillCommand(BaseCommand):
         project_root = _project_root()
         scope = "global" if global_ else "project"
 
+        if interactive and not list_:
+            from usecli.cli.core.runtime import NonInteractiveError, is_json_mode
+
+            if is_json_mode():
+                raise NonInteractiveError(
+                    "Interactive mode is unavailable in JSON mode"
+                )
+            if path is None:
+                global_ = _prompt_scope(global_)
+                scope = "global" if global_ else "project"
+                agent = _prompt_agents(agent)
+
         try:
             skills = _select_skills(self.app, skill)
             agents = resolve_agents(agent)
         except SkillError as error:
             raise UsecliBadParameter(str(error)) from error
+
+        if interactive and not list_:
+            if skill is None:
+                skills = _prompt_skill(skills, single=path is not None)
+            force = _prompt_force(force)
 
         if path is not None and not skill:
             matches = [entry for entry in skills if entry.name == path.name]
