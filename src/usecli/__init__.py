@@ -108,6 +108,10 @@ _LAZY_EXPORTS = {
     "box": ("usecli.ui", "box"),
     "pyinstaller": ("usecli.bundler", "pyinstaller"),
     "run": ("usecli.entry", "run"),
+    "prompt_skill_install": (
+        "usecli.cli.commands.defaults.skill.install_command",
+        "prompt_skill_install",
+    ),
 }
 
 _RICH_EXPORTS = frozenset(RICH_EXPORT_NAMES)
@@ -455,6 +459,7 @@ __all__ = [
     "colors",
     "console",
     "main",
+    "prompt_skill_install",
     "pyinstaller",
     "run",
     "theme",
@@ -665,10 +670,10 @@ def _get_run_app_callback():
 
         if install_skills is True:
             from usecli.cli.commands.defaults.skill.install_command import (
-                install_skill_interactive,
+                prompt_skill_install,
             )
 
-            install_skill_interactive(_get_app())
+            prompt_skill_install(_get_app())
             raise typer.Exit()
 
         interactive_requested = interactive or _is_interactive_flag_present()
