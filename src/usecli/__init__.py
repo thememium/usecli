@@ -81,6 +81,13 @@ if TYPE_CHECKING:
         reconfigure,
         track,
     )
+    from usecli.scaffold import ScaffoldError as ScaffoldError
+    from usecli.scaffold import make_command as make_command
+    from usecli.scaffold import make_skill as make_skill
+    from usecli.scaffold import make_theme as make_theme
+    from usecli.scaffold import prompt_make_command as prompt_make_command
+    from usecli.scaffold import prompt_make_skill as prompt_make_skill
+    from usecli.scaffold import prompt_make_theme as prompt_make_theme
     from usecli.ui import Confirm, Console, Panel, Prompt, Table, Text, box
 
     # `print` must stay the builtin at runtime; this types only the re-export.
@@ -115,6 +122,13 @@ _LAZY_EXPORTS = {
         "usecli.cli.commands.defaults.skill.install_command",
         "prompt_skill_install",
     ),
+    "ScaffoldError": ("usecli.scaffold", "ScaffoldError"),
+    "make_command": ("usecli.scaffold", "make_command"),
+    "make_skill": ("usecli.scaffold", "make_skill"),
+    "make_theme": ("usecli.scaffold", "make_theme"),
+    "prompt_make_command": ("usecli.scaffold", "prompt_make_command"),
+    "prompt_make_skill": ("usecli.scaffold", "prompt_make_skill"),
+    "prompt_make_theme": ("usecli.scaffold", "prompt_make_theme"),
 }
 
 _RICH_EXPORTS = frozenset(RICH_EXPORT_NAMES)
@@ -460,6 +474,7 @@ __all__ = [
     "Panel",
     "ProgressBar",
     "Prompt",
+    "ScaffoldError",
     "Spinner",
     "Table",
     "Text",
@@ -467,6 +482,12 @@ __all__ = [
     "colors",
     "console",
     "main",
+    "make_command",
+    "make_skill",
+    "make_theme",
+    "prompt_make_command",
+    "prompt_make_skill",
+    "prompt_make_theme",
     "prompt_skill_install",
     "pyinstaller",
     "run",
