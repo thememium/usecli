@@ -38,6 +38,9 @@ show_description = {{ show_description | default(true) | lower }}
 # for example ["inspire"]. The `usecli` framework binary always exposes
 # its own built-in commands.
 hidden = []
+# How to expose skill installation: "option" shows --install-skills in the
+# root options; "command" shows skill:install under a `skill:` section.
+skill_install = "option"
 
 [usecli.upgrade]
 enabled = {{ upgrade_enabled | default(true) | lower }}

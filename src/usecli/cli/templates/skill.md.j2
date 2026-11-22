@@ -93,7 +93,14 @@ Scaffold one with:
 usecli make:skill deploy-checks --description "Check deployments"
 ```
 
-Install the project's bundled skills with the project CLI:
+Install the project's bundled skills with the project CLI. The default config
+shows an interactive root option:
+
+```sh
+{{ command_name }} --install-skills
+```
+
+Set `[usecli.commands] skill_install = "command"` to use the command form:
 
 ```sh
 {{ command_name }} skill:install
@@ -103,13 +110,15 @@ Install the project's bundled skills with the project CLI:
 {{ command_name }} skill:install --list
 ```
 
-A project CLI exposes `skill:install` only when it has at least one bundled
+A project CLI exposes the installer only when it has at least one bundled
 skill. The project CLI installs project skills only; it never installs the
 generated `usecli` skill.
 
-The framework binary installs the generated `usecli` skill:
+The framework binary installs the generated `usecli` skill. The default option
+is interactive; the command form exposes the full flag set:
 
 ```sh
+usecli --install-skills
 usecli skill:install
 usecli skill:install --global
 usecli skill:install --list
