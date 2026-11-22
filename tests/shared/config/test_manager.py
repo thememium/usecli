@@ -97,6 +97,14 @@ class TestConfigManagerDefaults:
 
         assert manager.get_skill_install_mode() == "command"
 
+    def test_reads_none_skill_install_mode(self, temp_project_dir):
+        config_file = temp_project_dir / "usecli.config.toml"
+        config_file.write_text('[usecli.commands]\nskill_install = "none"\n')
+
+        manager = ConfigManager()
+
+        assert manager.get_skill_install_mode() == "none"
+
     def test_invalid_skill_install_mode_falls_back_to_option(self, temp_project_dir):
         config_file = temp_project_dir / "usecli.config.toml"
         config_file.write_text('[usecli.commands]\nskill_install = "wat"\n')
