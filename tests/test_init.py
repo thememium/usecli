@@ -801,7 +801,7 @@ class TestRunAppBranches:
         ctx = MagicMock()
         with (
             patch(
-                "usecli.cli.commands.defaults.skill.install_command.install_skill_interactive",
+                "usecli.cli.commands.defaults.skill.install_command.prompt_skill_install",
                 return_value={},
             ) as mock_install,
             pytest.raises(usecli.typer.Exit),
