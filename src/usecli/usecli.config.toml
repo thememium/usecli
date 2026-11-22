@@ -31,6 +31,12 @@ bottom_space = true
 show_version = false
 show_description = false
 
+[usecli.options]
+# Built-in root options to leave unregistered for this project's CLI, for
+# example ["interactive", "json", "install-skills"]. The help option
+# (--help, -h) is always available.
+hidden = []
+
 [usecli.commands]
 # Built-in commands to leave unregistered, for example ["inspire"].
 hidden = []

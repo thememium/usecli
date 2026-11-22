@@ -268,6 +268,7 @@ def _ensure_cli_initialized() -> None:
             windows_expand_args=True,
             **extra,
         ):
+            _filter_hidden_root_params(self)
             cli_args = list(args) if args is not None else sys.argv[1:]
             option_args = (
                 cli_args[: cli_args.index("--")] if "--" in cli_args else cli_args
@@ -573,6 +574,35 @@ def _build_alias_to_primary(alias_registry: dict[str, list[str]]) -> dict[str, s
         for alias in aliases:
             alias_to_primary[alias] = primary
     return alias_to_primary
+
+
+def _root_option_names(param: Any) -> set[str]:
+    return {
+        opt.lstrip("-").lower()
+        for opt in getattr(param, "opts", ()) or ()
+        if opt.startswith("--")
+    }
+
+
+def _filter_hidden_root_params(command: Any) -> None:
+    """Leave ``[usecli.options] hidden`` options unregistered at the root.
+
+    ``--help``/``-h`` is always kept, even if the config lists it.
+    """
+    from usecli.shared.config.manager import get_config
+
+    hidden = set(get_config().get_hidden_options())
+    if not hidden:
+        return
+    params = getattr(command, "params", None)
+    if not params:
+        return
+    command.params = [
+        param
+        for param in params
+        if "--help" in (getattr(param, "opts", ()) or ())
+        or not (_root_option_names(param) & hidden)
+    ]
 
 
 # PrefixMatchingGroup is created lazily by _ensure_cli_initialized()
