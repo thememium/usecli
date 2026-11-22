@@ -15,6 +15,7 @@ from usecli.cli.core.ui.title import (
     get_project_name,
     get_script_command_name,
     print_title,
+    running_framework_distribution,
 )
 
 console = Console()
@@ -43,6 +44,9 @@ def _is_skill_install_option(param: Any) -> bool:
 
 def _hidden_root_options() -> set[str]:
     """Return root option names the project config leaves unregistered."""
+    if running_framework_distribution() is not None:
+        return set()
+
     from usecli.shared.config.manager import get_config
 
     return set(get_config().get_hidden_options())
