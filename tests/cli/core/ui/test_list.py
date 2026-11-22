@@ -586,6 +586,9 @@ class TestListCommands:
         monkeypatch.setattr(
             "usecli.cli.core.ui.list._skill_install_mode", lambda: "option"
         )
+        monkeypatch.setattr(
+            "usecli.cli.core.ui.list._skill_install_available", lambda: True
+        )
 
         command = Mock()
         command.name = "skill:install"
@@ -612,6 +615,39 @@ class TestListCommands:
     @patch("usecli.cli.core.ui.list.print_title")
     @patch("usecli.cli.core.ui.list.console")
     @patch("usecli.cli.core.ui.list.typer.main.get_command")
+    def test_list_commands_hides_skill_option_without_bundled_skills(
+        self,
+        mock_get_command,
+        mock_console,
+        mock_print_title,
+        monkeypatch,
+    ):
+        monkeypatch.setattr(
+            "usecli.cli.core.ui.list._skill_install_mode", lambda: "option"
+        )
+        monkeypatch.setattr(
+            "usecli.cli.core.ui.list._skill_install_available", lambda: False
+        )
+
+        install_param = Mock()
+        install_param.opts = ["--install-skills"]
+        install_param.help = "Install the usecli skill for coding agents."
+
+        click_group = Mock()
+        click_group.params = [install_param]
+        mock_get_command.return_value = click_group
+
+        app = Mock()
+        app.registered_commands = []
+
+        list_commands(app)
+
+        output = "\n".join(str(c) for c in mock_console.print.call_args_list)
+        assert "--install-skills" not in output
+
+    @patch("usecli.cli.core.ui.list.print_title")
+    @patch("usecli.cli.core.ui.list.console")
+    @patch("usecli.cli.core.ui.list.typer.main.get_command")
     def test_list_commands_command_mode_hides_skill_option(
         self,
         mock_get_command,
@@ -621,6 +657,9 @@ class TestListCommands:
     ):
         monkeypatch.setattr(
             "usecli.cli.core.ui.list._skill_install_mode", lambda: "command"
+        )
+        monkeypatch.setattr(
+            "usecli.cli.core.ui.list._skill_install_available", lambda: True
         )
 
         command = Mock()
