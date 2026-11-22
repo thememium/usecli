@@ -142,13 +142,12 @@ class TestCommandService:
 
         mock_import.assert_called_once_with(install_file)
 
-    def test_load_from_dir_keeps_make_skill_for_downstream(self, tmp_path):
+    def test_load_from_dir_skips_make_skill_for_downstream(self, tmp_path):
         make_dir = tmp_path / "make"
         make_dir.mkdir()
-        skill_file = make_dir / "make_skill_command.py"
-        skill_file.write_text("class MakeSkillCommand: pass")
         for name in (
             "make_command.py",
+            "make_skill_command.py",
             "make_theme_command.py",
             "make_bundle_command.py",
         ):
@@ -161,7 +160,7 @@ class TestCommandService:
         with patch.object(service, "_import_file") as mock_import_file:
             service._load_from_dir(tmp_path)
 
-        mock_import_file.assert_called_once_with(skill_file)
+        mock_import_file.assert_not_called()
 
     @patch("usecli.shared.config.manager._find_distribution_for_console_script")
     @patch("usecli.cli.core.ui.title.get_script_command_name")
