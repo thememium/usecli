@@ -35,7 +35,7 @@ from usecli.cli.commands.defaults.skill.install_command import (
 )
 from usecli.cli.core.exceptions import UsecliBadParameter
 from usecli.cli.core.runtime import NonInteractiveError
-from usecli.skills import DEFAULT_AGENTS, Skill, SkillError
+from usecli.skills import AGENT_TARGETS, DEFAULT_AGENTS, Skill, SkillError
 
 
 def _skill(name: str = "demo", *, body: str = "# Demo\n") -> Skill:
@@ -477,6 +477,20 @@ class TestInteractivePrompts:
 
         assert _prompt_agents(None, choices=["pi", "omp"]) == ["pi", "omp"]
         assert "using pi, omp" in capsys.readouterr().out
+
+    def test_unknown_agent_choices_fall_back_to_all_targets(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        seen: list[list[str]] = []
+
+        def multi_select(options: list[str], *, title: str) -> list[str]:
+            seen.append(options)
+            return ["claude"]
+
+        monkeypatch.setattr(module.Menu, "multi_select", multi_select)
+
+        assert _prompt_agents(None, choices=["not-an-agent"]) == ["claude"]
+        assert seen == [list(AGENT_TARGETS)]
 
     def test_skill_prompt_is_skipped_for_one_skill(
         self, monkeypatch: pytest.MonkeyPatch, project_skill: Skill

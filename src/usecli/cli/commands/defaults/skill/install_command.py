@@ -448,8 +448,6 @@ def prompt_skill_install(
             )
         else:
             selected_agents = candidates if agents is not None else list(DEFAULT_AGENTS)
-        if selected_agents is None:
-            selected_agents = candidates
 
         if skills is not None:
             available = list(skills)
