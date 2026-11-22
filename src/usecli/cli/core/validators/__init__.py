@@ -13,7 +13,11 @@ from usecli.cli.core.validators.path import (
     validate_file_exists,
     validate_path_exists,
 )
-from usecli.cli.core.validators.string import validate_command_name, validate_not_empty
+from usecli.cli.core.validators.string import (
+    validate_command_name,
+    validate_not_empty,
+    validate_skill_name,
+)
 
 __all__ = [
     "validate_command_name",
@@ -24,5 +28,6 @@ __all__ = [
     "validate_path_exists",
     "validate_port",
     "validate_positive_int",
+    "validate_skill_name",
     "validate_url",
 ]
