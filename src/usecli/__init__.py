@@ -20,6 +20,9 @@ if TYPE_CHECKING:
 
     import typer
 
+    from usecli.cli.commands.defaults.skill.install_command import (
+        prompt_skill_install as prompt_skill_install,
+    )
     from usecli.cli.config.colors import COLOR
     from usecli.cli.config.colors import COLOR as theme
     from usecli.cli.core.base_command import BaseCommand
@@ -119,6 +122,11 @@ _RICH_EXPORTS = frozenset(RICH_EXPORT_NAMES)
 # `print` must not be cached in this module's globals: the CLI code below calls
 # the builtin, and a cached rich.print would silently replace it.
 _UNCACHED_RICH_EXPORTS = frozenset({"print"})
+
+
+def __dir__() -> list[str]:
+    """Include lazy exports so autocomplete and ``dir()`` see them."""
+    return sorted({*globals(), *__all__})
 
 
 def __getattr__(name: str) -> Any:
