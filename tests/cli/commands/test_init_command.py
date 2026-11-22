@@ -140,6 +140,23 @@ class TestInitCommandDirectoryCreation:
         assert (templates_path / "command.py.j2").exists()
         assert (themes_path / "default.toml").exists()
 
+    def test_creates_custom_skills_directory(self, temp_project_dir, init_command):
+        skills_path = temp_project_dir / "my_skills"
+
+        init_command.handle(
+            DEFAULT_TITLE,
+            DEFAULT_DESCRIPTION,
+            DEFAULT_COMMANDS_DIR,
+            force=True,
+            skills_dir="my_skills",
+        )
+
+        config = (temp_project_dir / "cli" / "usecli.config.toml").read_text()
+
+        assert skills_path.exists()
+        assert skills_path.is_dir()
+        assert 'skills = "../my_skills"' in config
+
     def test_handles_existing_commands_directory(self, temp_project_dir, init_command):
         commands_dir = temp_project_dir / "cli" / "commands"
         commands_dir.mkdir(parents=True)
@@ -147,6 +164,8 @@ class TestInitCommandDirectoryCreation:
         templates_dir.mkdir(parents=True)
         themes_dir = temp_project_dir / "cli" / "themes"
         themes_dir.mkdir(parents=True)
+        skills_dir = temp_project_dir / "cli" / "skills"
+        skills_dir.mkdir(parents=True)
 
         init_command.handle(
             DEFAULT_TITLE, DEFAULT_DESCRIPTION, DEFAULT_COMMANDS_DIR, force=True
@@ -156,6 +175,7 @@ class TestInitCommandDirectoryCreation:
         assert (commands_dir / "__init__.py").exists()
         assert templates_dir.exists()
         assert themes_dir.exists()
+        assert skills_dir.exists()
 
 
 class TestInitCommandPyprojectToml:
@@ -959,6 +979,18 @@ class TestInitCommandPathHelpers:
     def test_derive_themes_dir_simple(self, init_cmd):
         result = init_cmd._derive_themes_dir("commands")
         assert result == "themes"
+
+    def test_derive_skills_dir_relative(self, init_cmd):
+        result = init_cmd._derive_skills_dir("cli/commands")
+        assert result == "cli/skills"
+
+    def test_derive_skills_dir_absolute(self, init_cmd):
+        result = init_cmd._derive_skills_dir("/absolute/cli/commands")
+        assert "skills" in result
+
+    def test_derive_skills_dir_simple(self, init_cmd):
+        result = init_cmd._derive_skills_dir("commands")
+        assert result == "skills"
 
     def test_infer_commands_dir_with_src(self, init_cmd, tmp_path):
         src_dir = tmp_path / "src" / "mypackage"
