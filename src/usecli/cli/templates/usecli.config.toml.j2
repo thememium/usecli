@@ -13,7 +13,7 @@ templates = "{{ templates_dir | default('cli/templates') }}"
 # writes new themes.
 themes = ["{{ themes_dir | default('cli/themes') }}"]
 # Bundled Agent Skills; each subdirectory contains a SKILL.md.
-skills = "skills"
+skills = "{{ skills_dir | default('cli/skills') }}"
 
 [usecli.theme]
 # Theme TOML file to load, by name or path.
