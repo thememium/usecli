@@ -1368,6 +1368,38 @@ class TestGetProjectPaths:
 
 
 # ---------------------------------------------------------------------------
+# get_project_skills_dir
+# ---------------------------------------------------------------------------
+
+
+class TestGetProjectSkillsDir:
+    def test_defaults_to_skills_beside_the_config(self, tmp_path):
+        config = tmp_path / "usecli.config.toml"
+        config.write_text("[usecli]\n")
+        manager = ConfigManager(usecli_config_path=config, start_dir=tmp_path)
+
+        assert manager.get_project_skills_dir() == (tmp_path / "skills").resolve()
+
+    def test_relative_path_resolves_beside_the_config(self, tmp_path):
+        config = tmp_path / "package" / "usecli.config.toml"
+        config.parent.mkdir()
+        config.write_text('[usecli.paths]\nskills = "agent-skills"\n')
+        manager = ConfigManager(usecli_config_path=config, start_dir=tmp_path)
+
+        assert (
+            manager.get_project_skills_dir()
+            == (tmp_path / "package" / "agent-skills").resolve()
+        )
+
+    def test_absolute_path_is_preserved(self, tmp_path):
+        config = tmp_path / "usecli.config.toml"
+        config.write_text('[usecli.paths]\nskills = "/tmp/project-skills"\n')
+        manager = ConfigManager(usecli_config_path=config, start_dir=tmp_path)
+
+        assert manager.get_project_skills_dir() == Path("/tmp/project-skills")
+
+
+# ---------------------------------------------------------------------------
 # is_usecli_direct_dependency
 # ---------------------------------------------------------------------------
 
