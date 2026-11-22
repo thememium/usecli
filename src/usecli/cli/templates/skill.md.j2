@@ -14,10 +14,10 @@ description: Build, extend, and operate usecli-based Python CLIs. Use when a rep
 - `BaseCommand` subclasses discovered automatically from the configured commands directory.
 - Typer/Click options and arguments with Rich-formatted help.
 - Automatic `--help`, `--json`, and `--interactive` support on every command.
-- Prefix matching for command names (`{{ command_name }} ma:sk` runs `make:skill`).
+- Prefix matching for command names (`usecli ma:sk` runs `make:skill`).
 - Themed Rich output, prompts, menus, spinners, progress bars, and JSON output.
 - Project scaffolding with the `usecli` binary (`init`, `make:command`,
-  `make:theme`, and `make:bundle`).
+  `make:theme`, `make:skill`, and `make:bundle`).
 
 ## Command conventions
 
@@ -90,7 +90,7 @@ skills/
 Scaffold one with:
 
 ```sh
-{{ command_name }} make:skill deploy-checks --description "Check deployments"
+usecli make:skill deploy-checks --description "Check deployments"
 ```
 
 Then install every bundled skill into the project's and user's agent
