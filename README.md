@@ -275,6 +275,16 @@ make:skill   Create a bundled skill (usecli only)
 make:bundle  Build a standalone executable with PyInstaller (usecli only)
 ```
 
+Root options live in `[usecli.options]`. Leave options your CLI does not need
+unregistered by listing their long names:
+
+```toml
+[usecli.options]
+hidden = ["interactive", "json", "install-skills"]
+```
+
+`--help`/`-h` can never be hidden.
+
 By default, `--install-skills` appears in the root options and runs the
 interactive installer, but only when the CLI has bundled skills (the `usecli`
 framework binary always has its generated skill). Set
