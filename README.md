@@ -267,7 +267,29 @@ upgrade      Upgrade the application to the latest version
 make:command Create new command (usecli only)
 make:theme   Create new theme (usecli only)
 make:bundle  Build a standalone executable with PyInstaller (usecli only)
+skill:install Install a usecli skill for coding agents
 ```
+
+### Coding Agent Skills
+
+`skill:install` writes a `SKILL.md` that teaches Claude Code, Codex, Cursor,
+and other Agent Skills-compatible tools how to use usecli: the command list,
+command conventions, themes, JSON output, prompts, progress, configuration, and
+packaging. The document is generated from the running app, so project-specific
+commands and their options are included.
+
+```bash
+usecli skill:install                 # project: .claude/, .agents/, .cursor/
+usecli skill:install --global        # user: ~/.claude/, ~/.agents/, ~/.cursor/
+usecli skill:install -a claude-code  # one agent (repeat or comma-separate)
+usecli skill:install --path ./skills/usecli
+usecli skill:install --force         # replace an existing SKILL.md
+```
+
+Project installs are committed with the repository; global installs follow the
+user across every project. Existing files are skipped unless `--force` is
+passed. Agents that read the open `.agents/skills` layout (Codex, Cursor) are
+covered by the `codex` target; Claude Code reads `.claude/skills`.
 
 ### Upgrades
 
