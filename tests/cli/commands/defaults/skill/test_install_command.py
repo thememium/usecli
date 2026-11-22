@@ -29,7 +29,7 @@ from usecli.cli.commands.defaults.skill.install_command import (
     render_skill,
 )
 from usecli.cli.core.exceptions import UsecliBadParameter
-from usecli.skills import Skill
+from usecli.skills import Skill, SkillError
 
 
 def _skill(name: str = "demo", *, body: str = "# Demo\n") -> Skill:
@@ -105,6 +105,39 @@ class TestCommandMetadata:
 
     def test_description(self, command: InstallSkillCommand) -> None:
         assert command.description() == "Install bundled skills for coding agents"
+
+    def test_description_for_the_framework_binary(
+        self, command: InstallSkillCommand, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(module, "_is_framework_binary", lambda: True)
+
+        assert command.description() == "Install the usecli skill for coding agents"
+
+    def test_visible_only_when_project_has_skills(
+        self, command: InstallSkillCommand, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(module, "_discover_project_skills", list)
+        assert command.visible() is False
+
+        monkeypatch.setattr(module, "_discover_project_skills", lambda: [_skill()])
+        assert command.visible() is True
+
+    def test_visible_for_the_framework_binary(
+        self, command: InstallSkillCommand, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(module, "_is_framework_binary", lambda: True)
+
+        assert command.visible() is True
+
+    def test_visible_when_a_project_skill_is_malformed(
+        self, command: InstallSkillCommand, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        def malformed() -> list[Skill]:
+            raise SkillError("bad skill")
+
+        monkeypatch.setattr(module, "_discover_project_skills", malformed)
+
+        assert command.visible() is True
 
 
 class TestDescriptionRendering:
@@ -246,13 +279,20 @@ class TestDiscovery:
         assert _discover_project_skills() == [project_skill]
         reset.assert_called_once()
 
-    def test_project_skill_can_override_the_framework_skill(
-        self, monkeypatch: pytest.MonkeyPatch, app: typer.Typer
+    def test_project_selector_uses_project_skills_only(
+        self, app: typer.Typer, project_skill: Skill
     ) -> None:
-        override = _skill(FRAMEWORK_SKILL_NAME)
-        monkeypatch.setattr(module, "_discover_project_skills", lambda: [override])
+        assert _select_skills(app, None) == [project_skill]
 
-        assert _select_skills(app, None) == [override]
+    def test_framework_selector_uses_the_usecli_skill_only(
+        self,
+        app: typer.Typer,
+        monkeypatch: pytest.MonkeyPatch,
+        framework_skill: Skill,
+    ) -> None:
+        monkeypatch.setattr(module, "_is_framework_binary", lambda: True)
+
+        assert _select_skills(app, None) == [framework_skill]
 
     def test_select_skills_filters(
         self, app: typer.Typer, project_skill: Skill
@@ -346,10 +386,25 @@ class TestHandle:
         data = command.handle(agent=["claude"])
 
         assert data["scope"] == "project"
-        assert data["skills"] == ["project-skill", "usecli"]
-        assert len(data["installed"]) == 2
+        assert data["skills"] == ["project-skill"]
+        assert len(data["installed"]) == 1
         assert (tmp_path / ".claude" / "skills" / "project-skill" / "SKILL.md").exists()
+        assert not (tmp_path / ".claude" / "skills" / "usecli").exists()
+
+    def test_framework_install_uses_only_the_usecli_skill(
+        self,
+        command: InstallSkillCommand,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
+    ) -> None:
+        monkeypatch.setattr(module, "_is_framework_binary", lambda: True)
+
+        data = command.handle(agent=["claude"])
+
+        assert data["scope"] == "project"
+        assert data["skills"] == ["usecli"]
         assert (tmp_path / ".claude" / "skills" / "usecli" / "SKILL.md").exists()
+        assert not (tmp_path / ".claude" / "skills" / "project-skill").exists()
 
     def test_skill_filter(self, command: InstallSkillCommand, tmp_path: Path) -> None:
         data = command.handle(agent=["claude"], skill=["project-skill"])
@@ -373,20 +428,29 @@ class TestHandle:
         ).exists()
 
     def test_path_requires_exactly_one_skill(
-        self, command: InstallSkillCommand, tmp_path: Path
+        self,
+        command: InstallSkillCommand,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: Path,
     ) -> None:
+        monkeypatch.setattr(
+            module,
+            "_discover_project_skills",
+            lambda: [_skill("project-skill"), _skill("second-skill")],
+        )
+
         with pytest.raises(UsecliBadParameter, match="exactly one skill"):
             command.handle(path=tmp_path / "custom", agent=[])
 
     def test_path_infers_skill_from_directory_name(
         self, command: InstallSkillCommand, tmp_path: Path
     ) -> None:
-        target = tmp_path / "usecli"
+        target = tmp_path / "project-skill"
 
         data = command.handle(path=target)
 
         assert data["scope"] == "custom"
-        assert data["skills"] == ["usecli"]
+        assert data["skills"] == ["project-skill"]
         assert (target / "SKILL.md").exists()
 
     def test_path_with_selected_skill(

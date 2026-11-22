@@ -101,6 +101,7 @@ class TestInitCommandDirectoryCreation:
         commands_dir = temp_project_dir / "cli" / "commands"
         templates_dir = temp_project_dir / "cli" / "templates"
         themes_dir = temp_project_dir / "cli" / "themes"
+        skills_dir = temp_project_dir / "cli" / "skills"
         cli_dir = temp_project_dir / "cli"
         assert not commands_dir.exists()
 
@@ -114,6 +115,8 @@ class TestInitCommandDirectoryCreation:
         assert templates_dir.is_dir()
         assert themes_dir.exists()
         assert themes_dir.is_dir()
+        assert skills_dir.exists()
+        assert skills_dir.is_dir()
         assert (cli_dir / "__init__.py").exists()
         assert (commands_dir / "__init__.py").exists()
         assert (templates_dir / "command.py.j2").exists()
