@@ -283,8 +283,10 @@ unregistered by listing their long names:
 hidden = ["interactive", "json", "install-skills"]
 ```
 
-`--help`/`-h` can never be hidden, and project configs never affect the
-`usecli` framework binary.
+`interactive` and `json` apply to every command and command group; the other
+names (`version`, `install-skills`, `show-completion`, `install-completion`)
+only affect the root CLI. `--help`/`-h` can never be hidden, and the `usecli`
+framework binary ignores `options.hidden`.
 
 By default, `--install-skills` appears in the root options and runs the
 interactive installer, but only when the CLI has bundled skills (the `usecli`
