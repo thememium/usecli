@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+import sys
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import Annotated, Any
@@ -46,6 +48,11 @@ _STATUS_COLORS = {
     "user_modified": COLOR.WARNING,
     "overwritten": COLOR.WARNING,
 }
+
+
+def _is_framework_binary() -> bool:
+    """Whether the running console script is the usecli framework binary."""
+    return os.path.basename(sys.argv[0]) == "usecli"
 
 
 def _project_root() -> Path:
@@ -186,15 +193,10 @@ def _discover_project_skills() -> list[Skill]:
 
 
 def _select_skills(app: typer.Typer, names: list[str] | None) -> list[Skill]:
-    project_skills = _discover_project_skills()
-    has_framework_override = any(
-        skill.name == FRAMEWORK_SKILL_NAME for skill in project_skills
-    )
-    available = (
-        project_skills
-        if has_framework_override
-        else [*project_skills, _framework_skill(app)]
-    )
+    if _is_framework_binary():
+        available = [_framework_skill(app)]
+    else:
+        available = _discover_project_skills()
     return select_skills(available, names)
 
 
@@ -279,10 +281,22 @@ def _print_results(data: dict[str, Any]) -> None:
 class InstallSkillCommand(BaseCommand):
     """Install bundled skills for AI coding agents."""
 
+    def visible(self) -> bool:
+        if _is_framework_binary():
+            return True
+        try:
+            return bool(_discover_project_skills())
+        except SkillError:
+            # Keep the command visible so running it reports the malformed
+            # skill instead of silently hiding the only installation entry.
+            return True
+
     def signature(self) -> str:
         return "skill:install"
 
     def description(self) -> str:
+        if _is_framework_binary():
+            return "Install the usecli skill for coding agents"
         return "Install bundled skills for coding agents"
 
     def handle(
