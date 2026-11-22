@@ -125,7 +125,7 @@ class InitCommand(BaseCommand):
             should_overwrite = Confirm.ask(
                 f"[{COLOR.WARNING}]usecli.config.toml already exists at {config_path}.[/{COLOR.WARNING}]\n"
                 "Overwrite it with the new settings from this init run?",
-                default=False,
+                default=True,
             )
             if not should_overwrite:
                 return "skipped"
@@ -1288,7 +1288,7 @@ include = ["{root_package}*"]
             default_config_path = config_root / USECLI_CONFIG_TOML
         config_location = Prompt.ask(
             f"[bold {COLOR.SECONDARY}]Config file location[/bold {COLOR.SECONDARY}]"
-            " (path or directory)",
+            " (path or directory; empty = default)",
             default=str(default_config_path),
         )
         resolved_config_path = self._resolve_config_path(config_location, project_root)

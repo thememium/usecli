@@ -224,6 +224,7 @@ class TestInitCommandPyprojectToml:
         monkeypatch.syspath_prepend(str(venv_site))
 
         config_default: dict[str, str | None] = {"value": None}
+        config_prompt: dict[str, str] = {"text": ""}
 
         with (
             patch("usecli.cli.commands.init_command.Prompt.ask") as mock_prompt,
@@ -245,6 +246,7 @@ class TestInitCommandPyprojectToml:
             def _prompt_side_effect(*args, **kwargs):
                 if args and "Config file location" in args[0]:
                     config_default["value"] = kwargs.get("default", "")
+                    config_prompt["text"] = args[0]
                 return kwargs.get("default", "")
 
             mock_prompt.side_effect = _prompt_side_effect
@@ -266,6 +268,7 @@ class TestInitCommandPyprojectToml:
         assert config_default["value"] == str(
             _config_path(temp_project_dir, DEFAULT_COMMANDS_DIR)
         )
+        assert "empty = default" in config_prompt["text"]
 
     def test_uses_parent_pyproject_from_subdir(self, temp_project_dir, init_command):
         pyproject = temp_project_dir / "pyproject.toml"
@@ -1087,11 +1090,14 @@ class TestInitCommandConfigHelpers:
     def test_write_usecli_config_updates_existing(self, init_cmd, tmp_path):
         config_path = tmp_path / "usecli.config.toml"
         config_path.write_text("old content")
-        with patch("usecli.cli.commands.init_command.Confirm.ask", return_value=True):
+        with patch(
+            "usecli.cli.commands.init_command.Confirm.ask", return_value=True
+        ) as mock_confirm:
             result = init_cmd._write_usecli_config(
                 config_path, "[usecli]\ntitle = 'test'", force=False
             )
         assert result == "updated"
+        assert mock_confirm.call_args.kwargs["default"] is True
 
     def test_write_usecli_config_force_overwrites(self, init_cmd, tmp_path):
         config_path = tmp_path / "usecli.config.toml"
