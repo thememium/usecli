@@ -359,7 +359,7 @@ class ConfigManager:
             "top_space": True,
             "bottom_space": True,
         },
-        "commands": {"hidden": []},
+        "commands": {"hidden": [], "skill_install": "option"},
         "environment": "prod",
         # The built-in `upgrade` command reads [usecli.upgrade]. `source`
         # overrides install-source detection: "auto" (packaging metadata),
@@ -935,6 +935,17 @@ class ConfigManager:
                 return default
             value = value[k]
         return value
+
+    def get_skill_install_mode(self) -> str:
+        """How the root help exposes skill installation.
+
+        ``"option"`` registers/renders ``--install-skills``; ``"command"``
+        renders the ``skill:install`` command instead.
+        """
+        value = self.get("commands.skill_install", "option")
+        if isinstance(value, str) and value.strip().lower() in {"option", "command"}:
+            return value.strip().lower()
+        return "option"
 
     def get_all(self) -> dict[str, Any]:
         """Get the complete merged configuration."""
