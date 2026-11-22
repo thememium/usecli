@@ -173,6 +173,8 @@ class TestDescriptionRendering:
         assert "--loud, -l" in content
         assert "### `spec show`" in content
         assert "mycli spec show --help" in content
+        assert "mycli skill:install" in content
+        assert "usecli skill:install" in content
 
     def test_framework_version_fallback(self, monkeypatch: pytest.MonkeyPatch) -> None:
         def missing(_name: str) -> str:
@@ -191,7 +193,7 @@ class TestDescriptionRendering:
 
         assert skill.name == FRAMEWORK_SKILL_NAME
         assert "name: usecli" in skill.content
-        assert "skill:install" in skill.content
+        assert "usecli skill:install" in skill.content
 
 
 class TestDiscovery:
