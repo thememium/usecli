@@ -1,6 +1,52 @@
 # Changelog
 
 
+## v0.2.11
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.2.10...v0.2.11)
+
+### 🚀 Enhancements
+
+- **usecli:** Add scaffolding utilities for commands, themes, and skills ([344eca4](https://github.com/thememium/usecli/commit/344eca4))
+- **usecli:** Expose scaffold utilities in package API ([442d691](https://github.com/thememium/usecli/commit/442d691))
+- **cli:** Add support for hidden root options ([255ff6c](https://github.com/thememium/usecli/commit/255ff6c))
+- **config:** Add hidden options support ([368e5c3](https://github.com/thememium/usecli/commit/368e5c3))
+- **usecli:** Hide root options specified in config ([999a571](https://github.com/thememium/usecli/commit/999a571))
+- **cli:** Add hidden option handling to usecli framework ([7b0d28b](https://github.com/thememium/usecli/commit/7b0d28b))
+
+### 💅 Refactors
+
+- **make:** Delegate scaffolding logic to scaffold module ([330e3c7](https://github.com/thememium/usecli/commit/330e3c7))
+- **list:** Skip hidden root options when running under framework distribution ([3feb70e](https://github.com/thememium/usecli/commit/3feb70e))
+- Skip hidden root options filtering when framework binary runs ([ece429c](https://github.com/thememium/usecli/commit/ece429c))
+- **cli:** Use HiddenOptionsGroup/Command for custom help output ([b153099](https://github.com/thememium/usecli/commit/b153099))
+- **list:** Simplify hidden option handling ([2bab2a5](https://github.com/thememium/usecli/commit/2bab2a5))
+- **usecli:** Move hidden option handling to core.options ([912a4df](https://github.com/thememium/usecli/commit/912a4df))
+- **core:** Centralize hidden options handling ([18c4607](https://github.com/thememium/usecli/commit/18c4607))
+
+### 📖 Documentation
+
+- Add python examples for usecli scaffolding API in skill template ([744ecc9](https://github.com/thememium/usecli/commit/744ecc9))
+- **README:** Add Python scaffolding usage examples ([06d0d5e](https://github.com/thememium/usecli/commit/06d0d5e))
+- **usecli:** Standardize function stub syntax in SKILL.md files ([343314b](https://github.com/thememium/usecli/commit/343314b))
+- **README:** Add root options section and hidden option example ([4ea2fa3](https://github.com/thememium/usecli/commit/4ea2fa3))
+- **usecli:** Clarify root options comment ([9a43674](https://github.com/thememium/usecli/commit/9a43674))
+- Clarify --help visibility and config effect on usecli binary ([6858ef1](https://github.com/thememium/usecli/commit/6858ef1))
+- **usecli:** Clarify option visibility in templates ([0ca00ea](https://github.com/thememium/usecli/commit/0ca00ea))
+- **usecli.config:** Clarify comments on root option visibility ([26b3798](https://github.com/thememium/usecli/commit/26b3798))
+- Clarify command visibility rules in README ([fc77afb](https://github.com/thememium/usecli/commit/fc77afb))
+
+### ✅ Tests
+
+- **cli:** Update make‑skill command tests for new scaffold import ([ca0b4d1](https://github.com/thememium/usecli/commit/ca0b4d1))
+- Add comprehensive tests for scaffold API ([439fce5](https://github.com/thememium/usecli/commit/439fce5))
+- **cli:** Add hidden root option handling tests ([97d7d81](https://github.com/thememium/usecli/commit/97d7d81))
+- **cli:** Add tests for hidden root options handling ([0fd7c32](https://github.com/thememium/usecli/commit/0fd7c32))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.2.10
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.2.9...v0.2.10)
