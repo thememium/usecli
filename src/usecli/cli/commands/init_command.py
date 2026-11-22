@@ -106,7 +106,7 @@ class InitCommand(BaseCommand):
         root_package = parts[0]
         package_data_block = (
             "[tool.setuptools.package-data]\n"
-            f'{root_package} = ["**/*.toml", "**/*.j2"]\n\n'
+            f'{root_package} = ["**/*.toml", "**/*.j2", "**/*.md"]\n\n'
         )
 
         content = content.rstrip() + f"\n\n{package_data_block}"
@@ -593,7 +593,7 @@ where = ["."]
 include = ["{root_package}*"]
 
 [tool.setuptools.package-data]
-{root_package} = ["**/*.toml", "**/*.j2"]
+{root_package} = ["**/*.toml", "**/*.j2", "**/*.md"]
 '''
 
         pyproject_path.write_text(pyproject_content)
