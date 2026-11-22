@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import sys
+from collections.abc import Iterable
 from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 from typing import Annotated, Any
@@ -84,23 +85,38 @@ def _prompt_scope(global_: bool) -> bool:
     return choice == "Global"
 
 
-def _prompt_agents(agent: list[str] | None) -> list[str] | None:
-    """Ask which agent targets should receive the skills."""
+def _prompt_agents(
+    agent: list[str] | None,
+    *,
+    choices: list[str] | None = None,
+) -> list[str] | None:
+    """Ask which agent targets should receive the skills.
+
+    ``choices`` limits the menu to a caller-provided subset; when omitted every
+    agent target is offered.
+    """
     if agent is not None:
         return agent
 
+    candidates = list(choices) if choices is not None else list(AGENT_TARGETS)
+    candidates = [name for name in candidates if name in AGENT_TARGETS]
+    if not candidates:
+        candidates = list(AGENT_TARGETS)
+    if len(candidates) == 1:
+        return candidates
+
     selected = Menu.multi_select(
-        list(AGENT_TARGETS),
+        candidates,
         title="Select agents to install the skills for",
     )
     if selected:
         return selected
 
+    fallback = [name for name in DEFAULT_AGENTS if name in candidates] or candidates
     console.print(
-        f"[{COLOR.FOREGROUND_MUTED}]No agents selected; using "
-        f"{', '.join(DEFAULT_AGENTS)}.[/]"
+        f"[{COLOR.FOREGROUND_MUTED}]No agents selected; using {', '.join(fallback)}.[/]"
     )
-    return list(DEFAULT_AGENTS)
+    return fallback
 
 
 def _prompt_skill(skills: list[Skill], *, single: bool = False) -> list[Skill]:
@@ -367,34 +383,96 @@ def _build_install_data(
     }
 
 
-def install_skill_interactive(app: typer.Typer) -> dict[str, Any]:
-    """Prompt for scope, agents, and skills, then install them."""
+def prompt_skill_install(
+    app: typer.Typer,
+    *,
+    skills: Iterable[Skill] | None = None,
+    skills_dir: str | Path | None = None,
+    agents: list[str] | None = None,
+    project_root: str | Path | None = None,
+    scope: str | None = None,
+    show_scope: bool = True,
+    show_agents: bool = True,
+    show_skills: bool = True,
+    single: bool = False,
+    force: bool = True,
+    print_results: bool = True,
+) -> dict[str, Any]:
+    """Prompt for install options, then install skills for coding agents.
+
+    Args:
+        app: The Typer application whose skills should be installed.
+        skills: Explicit skill templates to install. Skips discovery.
+        skills_dir: Directory to discover skills from. Ignored when ``skills``
+            is given; defaults to the CLI's configured skills.
+        agents: Agent targets to offer. ``None`` offers every target.
+        project_root: Project root for project-scoped installs.
+        scope: ``"project"`` or ``"global"``. Skips the scope prompt when set.
+        show_scope: Offer the project/global choice.
+        show_agents: Offer the agent multi-select. When disabled, ``agents``
+            is installed as-is.
+        show_skills: Offer the skill multi-select when more than one is
+            available.
+        single: Use single-select for the skill prompt.
+        force: Overwrite skills that have local edits.
+        print_results: Print the per-agent install results.
+
+    Returns:
+        The same JSON-ready payload as the ``skill:install`` command.
+    """
     from usecli.cli.core.runtime import NonInteractiveError, is_json_mode
 
     if is_json_mode():
         raise NonInteractiveError("Interactive mode is unavailable in JSON mode")
 
-    project_root = _project_root()
-    global_ = _prompt_scope(False)
-    scope = "global" if global_ else "project"
-    agents = _prompt_agents(None)
+    if scope is not None and scope not in {"project", "global"}:
+        raise UsecliBadParameter("scope must be 'project' or 'global'")
+
+    root = Path(project_root) if project_root is not None else _project_root()
+
+    if scope is not None:
+        global_ = scope == "global"
+    elif show_scope:
+        global_ = _prompt_scope(False)
+    else:
+        global_ = False
+    selected_scope = "global" if global_ else "project"
 
     try:
-        skills = _select_skills(app, None)
-        if len(skills) > 1:
-            skills = _prompt_skill(skills)
+        candidates = list(AGENT_TARGETS) if agents is None else resolve_agents(agents)
+        if show_agents:
+            selected_agents = (
+                _prompt_agents(None)
+                if agents is None
+                else _prompt_agents(None, choices=candidates)
+            )
+        else:
+            selected_agents = candidates if agents is not None else list(DEFAULT_AGENTS)
+        if selected_agents is None:
+            selected_agents = candidates
+
+        if skills is not None:
+            available = list(skills)
+        elif skills_dir is not None:
+            available = discover_skills(skills_dir)
+        else:
+            available = _select_skills(app, None)
     except SkillError as error:
         raise UsecliBadParameter(str(error)) from error
 
+    if show_skills:
+        available = _prompt_skill(available, single=single)
+
     results = install_skills(
-        skills,
-        agents=agents,
-        scope=scope,
-        project_root=project_root,
-        force=True,
+        available,
+        agents=selected_agents,
+        scope=selected_scope,
+        project_root=root,
+        force=force,
     )
-    data = _build_install_data(skills, results, scope)
-    _print_results(data)
+    data = _build_install_data(available, results, selected_scope)
+    if print_results:
+        _print_results(data)
     return data
 
 
@@ -512,10 +590,6 @@ class InstallSkillCommand(BaseCommand):
                 raise NonInteractiveError(
                     "Interactive mode is unavailable in JSON mode"
                 )
-            if path is None:
-                global_ = _prompt_scope(global_)
-                scope = "global" if global_ else "project"
-                agent = _prompt_agents(agent)
 
         try:
             skills = _select_skills(self.app, skill)
@@ -524,8 +598,20 @@ class InstallSkillCommand(BaseCommand):
             raise UsecliBadParameter(str(error)) from error
 
         if interactive and not list_:
+            if path is None:
+                return prompt_skill_install(
+                    self.app,
+                    skills=skills,
+                    agents=agent,
+                    project_root=project_root,
+                    scope="global" if global_ else None,
+                    show_scope=not global_,
+                    show_agents=agent is None,
+                    show_skills=skill is None,
+                    force=True,
+                )
             if skill is None:
-                skills = _prompt_skill(skills, single=path is not None)
+                skills = _prompt_skill(skills, single=True)
             # Match `npx skills add`: an explicit interactive install replaces
             # any existing managed copy instead of asking a second question.
             force = True
