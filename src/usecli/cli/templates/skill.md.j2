@@ -93,9 +93,7 @@ Scaffold one with:
 usecli make:skill deploy-checks --description "Check deployments"
 ```
 
-Then install every bundled skill into the project's and user's agent
-directories. Both the project CLI and `usecli` expose `skill:install`; each
-installs the same project skills plus the generated `usecli` skill file:
+Install the project's bundled skills with the project CLI:
 
 ```sh
 {{ command_name }} skill:install
@@ -104,7 +102,17 @@ installs the same project skills plus the generated `usecli` skill file:
 {{ command_name }} skill:install --list
 ```
 
-`usecli skill:install` is equivalent when the project CLI is not available.
+A project CLI exposes `skill:install` only when it has at least one bundled
+skill. The project CLI installs project skills only; it never installs the
+generated `usecli` skill.
+
+The framework binary installs the generated `usecli` skill:
+
+```sh
+usecli skill:install
+usecli skill:install --global
+usecli skill:install --list
+```
 
 Installation is idempotent. Managed files carry a `<!-- usecli-skill: ... -->`
 hash marker, so upgraded releases update their own files while locally edited
