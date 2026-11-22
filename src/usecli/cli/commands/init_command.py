@@ -362,6 +362,57 @@ class InitCommand(BaseCommand):
                 f"[{COLOR.WARNING}]Failed to install with pip. Run 'pip install -e .'[/{COLOR.WARNING}]"
             )
 
+    def _install_usecli_skill(
+        self,
+        project_root: Path,
+        *,
+        force: bool,
+        scope: str = "project",
+        agents: list[str] | None = None,
+        quiet: bool = False,
+    ) -> list[dict[str, str]]:
+        from usecli.cli.commands.defaults.skill.install_command import (
+            install_framework_skill,
+        )
+
+        results = install_framework_skill(
+            self.app,
+            project_root=project_root,
+            agents=agents,
+            scope=scope,
+            force=force,
+        )
+        data = [
+            {
+                "skill": result.skill,
+                "agent": result.agent,
+                "path": str(result.path),
+                "status": result.status,
+            }
+            for result in results
+        ]
+        if not quiet:
+            self._print_skill_install(data)
+        return data
+
+    def _print_skill_install(self, results: list[dict[str, str]]) -> None:
+        if not results:
+            return
+        console.print()
+        for result in results:
+            status = result["status"]
+            if status.startswith("error:"):
+                color = COLOR.ERROR
+            elif status in {"installed", "updated", "adopted", "already_installed"}:
+                color = COLOR.SUCCESS
+            else:
+                color = COLOR.WARNING
+            console.print(
+                f"  [{color}]{status}[/{color}] "
+                f"{result['skill']} -> {result['agent']} {result['path']}"
+            )
+        console.print()
+
     def _get_project_name_from_pyproject(self, pyproject_path: Path) -> str | None:
         if not pyproject_path.exists():
             return None
@@ -625,6 +676,7 @@ include = ["{root_package}*"]
         show_description: bool | None = None,
         show_version: bool | None = None,
         skills_dir: str | None = None,
+        install_skill: bool | None = None,
     ) -> dict[str, object]:
         from usecli.cli.core.runtime import NonInteractiveError
 
@@ -785,6 +837,13 @@ include = ["{root_package}*"]
         usecli_config_status = self._write_usecli_config(
             resolved_config_path, config_content, force=True
         )
+        skill_install: list[dict[str, str]] = []
+        if install_skill:
+            skill_install = self._install_usecli_skill(
+                project_root,
+                force=force,
+                quiet=True,
+            )
 
         return {
             "command_name": command_name,
@@ -803,6 +862,7 @@ include = ["{root_package}*"]
             "config_path": str(resolved_config_path),
             "scripts_status": scripts_status,
             "config_status": usecli_config_status,
+            "skill_install": skill_install,
         }
 
     def handle(
@@ -878,6 +938,21 @@ include = ["{root_package}*"]
                 ),
             ),
         ] = None,
+        install_skill: Annotated[
+            bool | None,
+            typer.Option(
+                "--install-skill/--no-install-skill",
+                help="Install the usecli skill for coding agents",
+            ),
+        ] = None,
+        interactive: Annotated[
+            bool,
+            typer.Option(
+                "--interactive",
+                "-i",
+                help="Run in interactive mode.",
+            ),
+        ] = False,
     ) -> dict[str, object] | None:
         from usecli.cli.core.runtime import is_json_mode
 
@@ -898,6 +973,7 @@ include = ["{root_package}*"]
                 title_extra_bottom_space=title_extra_bottom_space,
                 show_description=show_description,
                 show_version=show_version,
+                install_skill=install_skill,
             )
 
         cwd = Path.cwd()
@@ -1272,6 +1348,15 @@ include = ["{root_package}*"]
                 f"[{COLOR.WARNING}]Skipped updating {USECLI_CONFIG_TOML}.[/{COLOR.WARNING}]"
             )
 
+        skill_install: list[dict[str, str]] = []
+        if install_skill is None:
+            install_skill = Confirm.ask(
+                f"[bold {COLOR.SECONDARY}]Install the usecli skill for coding agents?[/bold {COLOR.SECONDARY}]",
+                default=False,
+            )
+        if install_skill:
+            skill_install = self._install_usecli_skill(project_root, force=force)
+
         # Show summary
         summary_command = (
             command_name
@@ -1286,13 +1371,14 @@ include = ["{root_package}*"]
             )
         else:
             command_summary = "Create new commands after adding a [project.scripts] entry for usecli:main."
+        skill_summary = "\nCoding agent skill: installed" if skill_install else ""
         console.print(
             Panel.fit(
                 f"[bold {COLOR.PRIMARY}]usecli initialized![/bold {COLOR.PRIMARY}]\n\n"
                 f"Title: {title}\n"
                 f"Description: {description}\n"
                 f"Commands Directory: {commands_dir}\n"
-                f"{command_summary}",
+                f"{command_summary}{skill_summary}",
                 title="usecli Init",
                 border_style=COLOR.PANEL_PRIMARY,
             )
