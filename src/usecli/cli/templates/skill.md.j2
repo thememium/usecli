@@ -245,6 +245,8 @@ Return data from `handle()` instead of printing JSON. Do not write to stdout in 
 - `paths.commands` points at the command package (default `cli/commands`).
 - `paths.templates` points at scaffolding templates (default `cli/templates`).
 - `paths.themes` points at theme directories (default `cli/themes`).
+- `options.hidden` leaves root options unregistered (for example
+  `["interactive", "json"]`); `--help`/`-h` is always kept.
 - `pyproject.toml` exposes the project command through `[project.scripts]`.
 
 Initialize a project with:

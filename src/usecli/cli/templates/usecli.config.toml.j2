@@ -33,6 +33,12 @@ bottom_space = {{ title_extra_bottom_space | default(true) | lower }}
 show_version = {{ show_version | default(true) | lower }}
 show_description = {{ show_description | default(true) | lower }}
 
+[usecli.options]
+# Built-in root options to leave unregistered for this project's CLI, for
+# example ["interactive", "json", "install-skills"]. The help option
+# (--help, -h) is always available.
+hidden = []
+
 [usecli.commands]
 # Built-in commands to leave unregistered for this project's CLI,
 # for example ["inspire"]. The `usecli` framework binary always exposes

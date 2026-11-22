@@ -41,6 +41,27 @@ def _is_skill_install_option(param: Any) -> bool:
     return "--install-skills" in getattr(param, "opts", ())
 
 
+def _hidden_root_options() -> set[str]:
+    """Return root option names the project config leaves unregistered."""
+    from usecli.shared.config.manager import get_config
+
+    return set(get_config().get_hidden_options())
+
+
+def _is_hidden_root_option(param: Any, hidden: set[str]) -> bool:
+    """Whether *param* matches a hidden root option name.
+
+    ``--help``/``-h`` is never hidden.
+    """
+    if not hidden:
+        return False
+    opts = getattr(param, "opts", ()) or ()
+    if "--help" in opts:
+        return False
+    names = {opt.lstrip("-").lower() for opt in opts if opt.startswith("--")}
+    return bool(names & hidden)
+
+
 def _is_click_group(obj: object) -> bool:
     """Check if an object is a Click group (has subcommands).
 
@@ -138,6 +159,7 @@ def collect_commands_data(
     if skill_install_mode != "command":
         commands = [c for c in commands if c["name"] != "skill:install"]
     option_flags = []
+    hidden_options = _hidden_root_options()
     display_params = _order_completion_params(click_group.params or [])
     has_skill_option = any(_is_skill_install_option(p) for p in display_params)
     show_skill_option = (
@@ -149,6 +171,8 @@ def collect_commands_data(
         for param in display_params:
             flags = ", ".join(param.opts)
             if "--help" in flags:
+                continue
+            if _is_hidden_root_option(param, hidden_options):
                 continue
             if _is_skill_install_option(param) and not show_skill_option:
                 continue
@@ -229,6 +253,7 @@ def list_commands(app: typer.Typer, prefix_filter: str | None = None) -> Command
     command_name = get_script_command_name(default="usecli")
 
     help_flags = "--help, -h"
+    hidden_options = _hidden_root_options()
     all_display_names = [cmd["display_name"] for cmd in commands] + [
         entry["display_name"] for entry in group_entries
     ]
@@ -238,11 +263,16 @@ def list_commands(app: typer.Typer, prefix_filter: str | None = None) -> Command
     if prefix_filter:
         interactive_flags = "--interactive, -i"
         json_flags = "--json"
-        filtered_labels = (
-            [cmd["display_name"] for cmd in commands]
-            + [entry["display_name"] for entry in group_entries]
-            + [help_flags, interactive_flags, json_flags]
-        )
+        show_interactive = "interactive" not in hidden_options
+        show_json = "json" not in hidden_options
+        filtered_labels = [cmd["display_name"] for cmd in commands] + [
+            entry["display_name"] for entry in group_entries
+        ]
+        filtered_labels.append(help_flags)
+        if show_interactive:
+            filtered_labels.append(interactive_flags)
+        if show_json:
+            filtered_labels.append(json_flags)
         longest_label_length = max((len(label) for label in filtered_labels), default=0)
         console.print()
         console.print(f"[bold {COLOR.SECONDARY}]Usage:[/bold {COLOR.SECONDARY}]")
@@ -264,16 +294,20 @@ def list_commands(app: typer.Typer, prefix_filter: str | None = None) -> Command
         console.print(
             f"  [{COLOR.OPTION}]{help_flags}[/{COLOR.OPTION}]{help_padding}Show this message and exit."
         )
-        interactive_padding = " " * (
-            longest_label_length - len(interactive_flags) + SPACER_LENGTH
-        )
-        console.print(
-            f"  [{COLOR.OPTION}]{interactive_flags}[/{COLOR.OPTION}]{interactive_padding}Run in interactive mode."
-        )
-        json_padding = " " * (longest_label_length - len(json_flags) + SPACER_LENGTH)
-        console.print(
-            f"  [{COLOR.OPTION}]{json_flags}[/{COLOR.OPTION}]{json_padding}Emit one machine-readable JSON document."
-        )
+        if show_interactive:
+            interactive_padding = " " * (
+                longest_label_length - len(interactive_flags) + SPACER_LENGTH
+            )
+            console.print(
+                f"  [{COLOR.OPTION}]{interactive_flags}[/{COLOR.OPTION}]{interactive_padding}Run in interactive mode."
+            )
+        if show_json:
+            json_padding = " " * (
+                longest_label_length - len(json_flags) + SPACER_LENGTH
+            )
+            console.print(
+                f"  [{COLOR.OPTION}]{json_flags}[/{COLOR.OPTION}]{json_padding}Emit one machine-readable JSON document."
+            )
         console.print()
     else:
         console.print(f"[bold {COLOR.SECONDARY}]Usage:[/bold {COLOR.SECONDARY}]")
@@ -302,6 +336,8 @@ def list_commands(app: typer.Typer, prefix_filter: str | None = None) -> Command
             for param in display_params:
                 flags = ", ".join(param.opts)
                 if "--help" in flags:
+                    continue
+                if _is_hidden_root_option(param, hidden_options):
                     continue
                 if _is_skill_install_option(param) and not show_skill_option:
                     continue
