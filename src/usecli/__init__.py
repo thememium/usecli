@@ -587,9 +587,15 @@ def _root_option_names(param: Any) -> set[str]:
 def _filter_hidden_root_params(command: Any) -> None:
     """Leave ``[usecli.options] hidden`` options unregistered at the root.
 
-    ``--help``/``-h`` is always kept, even if the config lists it.
+    Hiding is a project-CLI concern: the ``usecli`` framework binary always
+    exposes its own root options, even when run inside a project whose config
+    hides them. ``--help``/``-h`` is always kept.
     """
+    from usecli.cli.core.ui.title import running_framework_distribution
     from usecli.shared.config.manager import get_config
+
+    if running_framework_distribution() is not None:
+        return
 
     hidden = set(get_config().get_hidden_options())
     if not hidden:
