@@ -382,7 +382,7 @@ class TestInitCommandPyprojectToml:
     def test_adds_setuptools_package_data_for_existing_pyproject(
         self, temp_project_dir, init_command
     ):
-        """usecli.config.toml, and the .j2/.toml files init also scaffolds,
+        """usecli.config.toml, and the .j2/.toml/.md files init also scaffolds,
         are not .py files - setuptools drops them from a built wheel unless
         package-data says otherwise. Without this, an installed (non-editable)
         copy of a scaffolded project has no config for command discovery to
@@ -401,7 +401,7 @@ class TestInitCommandPyprojectToml:
 
         content = pyproject.read_text()
         assert "[tool.setuptools.package-data]" in content
-        assert 'cli = ["**/*.toml", "**/*.j2"]' in content
+        assert 'cli = ["**/*.toml", "**/*.j2", "**/*.md"]' in content
 
     def test_skips_package_data_when_already_declared(
         self, temp_project_dir, init_command
@@ -808,7 +808,7 @@ class TestInitCommandIntegration:
         assert "[project.scripts]" in content
         assert "[build-system]" in content
         assert "[tool.setuptools.package-data]" in content
-        assert 'cli = ["**/*.toml", "**/*.j2"]' in content
+        assert 'cli = ["**/*.toml", "**/*.j2", "**/*.md"]' in content
 
         config_path = _config_path(temp_project_dir, DEFAULT_COMMANDS_DIR)
         assert config_path.exists()
