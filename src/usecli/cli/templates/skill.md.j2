@@ -12,10 +12,10 @@ description: Build, extend, and operate usecli-based Python CLIs. Use when a rep
 ## What usecli provides
 
 - `BaseCommand` subclasses discovered automatically from the configured commands directory.
-- Typer/Click options and arguments with Rich-formatted help.
+- Themed help for commands, arguments, and options.
 - Automatic `--help`, `--json`, and `--interactive` support on every command.
 - Prefix matching for command names (`usecli ma:sk` runs `make:skill`).
-- Themed Rich output, prompts, menus, spinners, progress bars, and JSON output.
+- Themed console output, prompts, menus, spinners, progress bars, and JSON output.
 - Project scaffolding with the `usecli` binary (`init`, `make:command`,
   `make:theme`, `make:skill`, and `make:bundle`).
 
@@ -61,17 +61,19 @@ class HelloCommand(BaseCommand):
         return {"greeting": greeting}
 ```
 
-Arguments and options can also be written with Typer annotations:
+Arguments and options can also be written with `typing.Annotated`, importing
+`Argument` and `Option` from `usecli`:
 
 ```python
 from typing import Annotated
-import typer
+
+from usecli import Argument, Option
 
 
 def handle(
     self,
-    name: Annotated[str, typer.Argument(help="Who to greet")],
-    loud: Annotated[bool, typer.Option("--loud", "-l", help="Uppercase")] = False,
+    name: Annotated[str, Argument(help="Who to greet")],
+    loud: Annotated[bool, Option("--loud", "-l", help="Uppercase")] = False,
 ) -> None:
     ...
 ```
@@ -155,7 +157,7 @@ Themes are TOML files. Create one with:
 usecli make:theme dusk
 ```
 
-Theme files live in the project's `paths.themes` directory. Reference colors through `usecli.theme` (`COLOR`) instead of hard-coding Rich styles:
+Theme files live in the project's `paths.themes` directory. Reference colors through `usecli.theme` (`COLOR`) instead of hard-coding style strings:
 
 ```python
 from usecli import console, theme
