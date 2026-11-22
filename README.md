@@ -266,7 +266,7 @@ inspire      Random quote
 upgrade      Upgrade the application to the latest version
 make:command Create new command (usecli only)
 make:theme   Create new theme (usecli only)
-make:skill   Create a bundled skill
+make:skill   Create a bundled skill (usecli only)
 make:bundle  Build a standalone executable with PyInstaller (usecli only)
 skill:install Install bundled skills for coding agents
 ```
@@ -284,14 +284,19 @@ src/mycli/
       SKILL.md
 ```
 
-Scaffold one with your own CLI:
+Scaffold one from the project with the `usecli` framework binary:
 
 ```bash
-mycli make:skill deploy-checks --description "Check deployments"
+usecli make:skill deploy-checks --description "Check deployments"
 ```
 
-`usecli make:skill` works too when run inside the project; the generated skill
-belongs to the project CLI and is independent of the generated `usecli` skill.
+`make:skill` is a framework scaffolding command, not a project-CLI command.
+The generated skill belongs to the project CLI and is independent of the
+generated `usecli` skill. Install it with the project CLI:
+
+```bash
+mycli skill:install --skill deploy-checks
+```
 
 `skill:install` is available on both the project CLI and `usecli`. Run it
 from the project root. It discovers every bundled project skill and installs
