@@ -687,6 +687,45 @@ class TestListCommands:
     @patch("usecli.cli.core.ui.list.print_title")
     @patch("usecli.cli.core.ui.list.console")
     @patch("usecli.cli.core.ui.list.typer.main.get_command")
+    def test_list_commands_none_mode_hides_skill_command_and_option(
+        self,
+        mock_get_command,
+        mock_console,
+        mock_print_title,
+        monkeypatch,
+    ):
+        monkeypatch.setattr(
+            "usecli.cli.core.ui.list._skill_install_mode", lambda: "none"
+        )
+        monkeypatch.setattr(
+            "usecli.cli.core.ui.list._skill_install_available", lambda: True
+        )
+
+        command = Mock()
+        command.name = "skill:install"
+        command.callback = Mock(__name__="install")
+        command.help = "Install skills"
+
+        install_param = Mock()
+        install_param.opts = ["--install-skills"]
+        install_param.help = "Install the usecli skill for coding agents."
+
+        click_group = Mock()
+        click_group.params = [install_param]
+        mock_get_command.return_value = click_group
+
+        app = Mock()
+        app.registered_commands = [command]
+
+        list_commands(app)
+
+        output = "\n".join(str(c) for c in mock_console.print.call_args_list)
+        assert "--install-skills" not in output
+        assert "skill:install" not in output
+
+    @patch("usecli.cli.core.ui.list.print_title")
+    @patch("usecli.cli.core.ui.list.console")
+    @patch("usecli.cli.core.ui.list.typer.main.get_command")
     def test_list_commands_handles_missing_command_name(
         self, mock_get_command, mock_console, mock_print_title
     ):

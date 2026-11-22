@@ -135,6 +135,16 @@ class TestCommandMetadata:
 
         assert command.visible() is True
 
+    def test_visible_is_false_when_skill_install_is_disabled(
+        self, command: InstallSkillCommand, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        config = MagicMock()
+        config.get_skill_install_mode.return_value = "none"
+        monkeypatch.setattr(module, "get_config", lambda: config)
+        monkeypatch.setattr(module, "_is_framework_binary", lambda: True)
+
+        assert command.visible() is False
+
     def test_visible_when_a_project_skill_is_malformed(
         self, command: InstallSkillCommand, monkeypatch: pytest.MonkeyPatch
     ) -> None:
