@@ -273,8 +273,13 @@ make:command Create new command (usecli only)
 make:theme   Create new theme (usecli only)
 make:skill   Create a bundled skill (usecli only)
 make:bundle  Build a standalone executable with PyInstaller (usecli only)
-skill:install Install bundled skills (usecli installs the usecli skill)
 ```
+
+By default, `--install-skills` appears in the root options and runs the
+interactive installer, but only when the CLI has bundled skills (the `usecli`
+framework binary always has its generated skill). Set
+`[usecli.commands] skill_install = "command"` to show `skill:install` under a
+`skill:` section instead.
 
 ### Coding Agent Skills
 
@@ -297,15 +302,16 @@ usecli make:skill deploy-checks --description "Check deployments"
 
 `make:skill` is a framework scaffolding command, not a project-CLI command.
 The generated skill belongs to the project CLI and is installed by the project
-CLI:
+CLI. With the default config, the root option runs interactively:
 
 ```bash
-mycli skill:install --skill deploy-checks
+mycli --install-skills
 ```
 
-A project CLI exposes `skill:install` only when it has at least one bundled
+A project CLI exposes the installer only when it has at least one bundled
 skill. It installs project skills only and does not install the generated
-`usecli` skill:
+`usecli` skill. Set `[usecli.commands] skill_install = "command"` to use the
+non-interactive command form:
 
 ```bash
 mycli skill:install                          # project: .claude/, .agents/, .cursor/
@@ -316,10 +322,11 @@ mycli skill:install --agent claude,codex     # one or more agents
 mycli skill:install --interactive             # choose scope, skills, and agents
 ```
 
-The framework binary always exposes `skill:install` for its own generated
-skill. The description is specific to the `usecli` skill:
+The framework binary installs its own generated skill. The default option is
+interactive; the command form exposes the full flag set:
 
 ```bash
+usecli --install-skills                      # prompt for scope and agents
 usecli skill:install                         # install the usecli skill
 usecli skill:install --global                # user-level usecli skill
 usecli skill:install --list                  # show the usecli skill and targets

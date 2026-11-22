@@ -632,6 +632,12 @@ def _get_run_app_callback():
             help="Emit one machine-readable JSON document.",
             is_eager=True,
         ),
+        install_skills: bool = typer.Option(
+            False,
+            "--install-skills",
+            help="Install the usecli skill for coding agents.",
+            is_eager=True,
+        ),
     ) -> object:
         _resolve_help()
 
@@ -655,6 +661,14 @@ def _get_run_app_callback():
             _console().print(
                 f"[bold {globals()['theme'].SECONDARY}]{get_project_name()} {service.version}[/bold {globals()['theme'].SECONDARY}] [{globals()['theme'].INFO}]({command_path})[/{globals()['theme'].INFO}]"
             )
+            raise typer.Exit()
+
+        if install_skills is True:
+            from usecli.cli.commands.defaults.skill.install_command import (
+                install_skill_interactive,
+            )
+
+            install_skill_interactive(_get_app())
             raise typer.Exit()
 
         interactive_requested = interactive or _is_interactive_flag_present()

@@ -431,6 +431,11 @@ def run_interactive(
         help_text = command.help or ""
         commands.append({"name": name, "help": help_text, "command": command})
 
+    from usecli.shared.config.manager import get_config
+
+    if get_config().get_skill_install_mode() == "option":
+        commands = [c for c in commands if c["name"] != "skill:install"]
+
     if not commands:
         ErrorHandler.display_error("No commands available")
         raise typer.Exit(code=1)

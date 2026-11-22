@@ -1726,6 +1726,18 @@ class TestUpgradeConfigSection:
         assert 'source = "auto"' in content
         assert "# url = " in content
 
+    def test_generated_config_ships_skill_install_mode(
+        self, temp_project_dir, init_command
+    ):
+        init_command.handle(
+            "Test CLI", "Test description", DEFAULT_COMMANDS_DIR, force=True
+        )
+
+        config_path = _config_path(temp_project_dir, DEFAULT_COMMANDS_DIR)
+        content = config_path.read_text()
+        assert "[usecli.commands]" in content
+        assert 'skill_install = "option"' in content
+
     def test_upgrade_section_round_trips_through_config_manager(
         self, temp_project_dir, init_command, monkeypatch
     ):
