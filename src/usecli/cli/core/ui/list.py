@@ -29,6 +29,14 @@ def _skill_install_mode() -> str:
     return get_config().get_skill_install_mode()
 
 
+def _skill_install_available() -> bool:
+    from usecli.cli.commands.defaults.skill.install_command import (
+        skill_install_available,
+    )
+
+    return skill_install_available()
+
+
 def _is_skill_install_option(param: Any) -> bool:
     return "--install-skills" in getattr(param, "opts", ())
 
@@ -129,15 +137,20 @@ def collect_commands_data(
     skill_install_mode = _skill_install_mode()
     if skill_install_mode == "option":
         commands = [c for c in commands if c["name"] != "skill:install"]
-
     option_flags = []
     display_params = _order_completion_params(click_group.params or [])
+    has_skill_option = any(_is_skill_install_option(p) for p in display_params)
+    show_skill_option = (
+        has_skill_option
+        and skill_install_mode == "option"
+        and _skill_install_available()
+    )
     if display_params:
         for param in display_params:
             flags = ", ".join(param.opts)
             if "--help" in flags:
                 continue
-            if skill_install_mode == "command" and _is_skill_install_option(param):
+            if _is_skill_install_option(param) and not show_skill_option:
                 continue
             option_flags.append(flags)
 
@@ -279,13 +292,18 @@ def list_commands(app: typer.Typer, prefix_filter: str | None = None) -> Command
         display_params = _order_completion_params(
             typer.main.get_command(app).params or []
         )
-        skill_install_mode = _skill_install_mode()
+        has_skill_option = any(_is_skill_install_option(p) for p in display_params)
+        show_skill_option = (
+            has_skill_option
+            and _skill_install_mode() == "option"
+            and _skill_install_available()
+        )
         if display_params:
             for param in display_params:
                 flags = ", ".join(param.opts)
                 if "--help" in flags:
                     continue
-                if skill_install_mode == "command" and _is_skill_install_option(param):
+                if _is_skill_install_option(param) and not show_skill_option:
                     continue
                 description = _get_option_description(param)
                 padding = " " * (longest_label_length - len(flags) + SPACER_LENGTH)

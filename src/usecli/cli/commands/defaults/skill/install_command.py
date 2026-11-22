@@ -57,6 +57,18 @@ def _is_framework_binary() -> bool:
     return os.path.basename(sys.argv[0]) == "usecli"
 
 
+def skill_install_available() -> bool:
+    """Whether this CLI has a skill installer to expose."""
+    if _is_framework_binary():
+        return True
+    try:
+        return bool(_discover_project_skills())
+    except SkillError:
+        # Keep the command visible so running it reports the malformed skill
+        # instead of silently hiding the only installation entry.
+        return True
+
+
 def _project_root() -> Path:
     return find_project_root(Path.cwd()) or Path.cwd().resolve()
 
@@ -414,14 +426,7 @@ class InstallSkillCommand(BaseCommand):
     """Install bundled skills for AI coding agents."""
 
     def visible(self) -> bool:
-        if _is_framework_binary():
-            return True
-        try:
-            return bool(_discover_project_skills())
-        except SkillError:
-            # Keep the command visible so running it reports the malformed
-            # skill instead of silently hiding the only installation entry.
-            return True
+        return skill_install_available()
 
     def signature(self) -> str:
         return "skill:install"
