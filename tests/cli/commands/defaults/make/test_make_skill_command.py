@@ -7,11 +7,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from usecli.cli.commands.defaults.make.make_skill_command import (
-    MakeSkillCommand,
-    _frontmatter_description,
-)
+from usecli.cli.commands.defaults.make.make_skill_command import MakeSkillCommand
 from usecli.cli.core.exceptions import UsecliBadParameter
+from usecli.scaffold import _frontmatter_description
 from usecli.shared.config.manager import reset_config
 
 
@@ -58,6 +56,7 @@ class TestMakeSkillHandle:
         config = MagicMock()
         config.get_project_root.return_value = tmp_path
         config.get_project_skills_dir.return_value = tmp_path / "skills"
+        config.get_project_templates_dir.return_value = tmp_path / "templates"
         config.get.return_value = command_name
         return config
 
