@@ -135,7 +135,7 @@ def collect_commands_data(
                 )
 
     skill_install_mode = _skill_install_mode()
-    if skill_install_mode == "option":
+    if skill_install_mode != "command":
         commands = [c for c in commands if c["name"] != "skill:install"]
     option_flags = []
     display_params = _order_completion_params(click_group.params or [])

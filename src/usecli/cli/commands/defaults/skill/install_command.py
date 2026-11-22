@@ -502,6 +502,8 @@ class InstallSkillCommand(BaseCommand):
     """Install bundled skills for AI coding agents."""
 
     def visible(self) -> bool:
+        if get_config().get_skill_install_mode() == "none":
+            return False
         return skill_install_available()
 
     def signature(self) -> str:

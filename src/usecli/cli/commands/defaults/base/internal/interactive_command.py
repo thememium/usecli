@@ -433,7 +433,7 @@ def run_interactive(
 
     from usecli.shared.config.manager import get_config
 
-    if get_config().get_skill_install_mode() == "option":
+    if get_config().get_skill_install_mode() != "command":
         commands = [c for c in commands if c["name"] != "skill:install"]
 
     if not commands:
