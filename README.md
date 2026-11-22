@@ -308,6 +308,7 @@ mycli skill:install --global                 # user: ~/.claude/, ~/.agents/, ~/.
 mycli skill:install --list                   # show bundled skills and targets
 mycli skill:install --skill deploy-checks    # one project skill
 mycli skill:install --agent claude,codex     # one or more agents
+mycli skill:install --interactive             # choose scope, skills, and agents
 ```
 
 The framework binary always exposes `skill:install` for its own generated
@@ -330,9 +331,9 @@ installs honor `CLAUDE_CONFIG_DIR`, `OPENCODE_CONFIG_DIR`, `XDG_CONFIG_HOME`,
 `OMP_AGENT_DIR`.
 
 Installation is idempotent. Managed files carry a `<!-- usecli-skill: ... -->`
-hash marker: an exact re-run changes nothing, a new release updates its own
-files, and locally edited files are preserved. Use `--force` only when you
-intend to replace those edits.
+hash marker: an exact re-run changes nothing, and a new release updates its own
+files. Non-interactive installs preserve locally edited files unless `--force`
+is passed. Interactive installs replace local edits, matching `npx skills add`.
 
 The same machinery is available from Python:
 
