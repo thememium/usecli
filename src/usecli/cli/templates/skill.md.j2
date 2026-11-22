@@ -14,9 +14,10 @@ description: Build, extend, and operate usecli-based Python CLIs. Use when a rep
 - `BaseCommand` subclasses discovered automatically from the configured commands directory.
 - Typer/Click options and arguments with Rich-formatted help.
 - Automatic `--help`, `--json`, and `--interactive` support on every command.
-- Prefix matching for command names (`{{ command_name }} ma:co` runs `make:command`).
+- Prefix matching for command names (`{{ command_name }} ma:sk` runs `make:skill`).
 - Themed Rich output, prompts, menus, spinners, progress bars, and JSON output.
-- Project scaffolding with `init`, `make:command`, `make:theme`, and `make:bundle`.
+- Project scaffolding with the `usecli` binary (`init`, `make:command`,
+  `make:theme`, and `make:bundle`).
 
 ## Command conventions
 
@@ -30,7 +31,7 @@ description: Build, extend, and operate usecli-based Python CLIs. Use when a rep
 ## Add a command
 
 ```sh
-{{ command_name }} make:command hello
+usecli make:command hello
 ```
 
 This creates a command module in the project's commands directory. A minimal handwritten command looks like this:
@@ -93,7 +94,8 @@ Scaffold one with:
 ```
 
 Then install every bundled skill into the project's and user's agent
-directories:
+directories. Both the project CLI and `usecli` expose `skill:install`; each
+installs the same project skills plus the generated `usecli` skill file:
 
 ```sh
 {{ command_name }} skill:install
@@ -101,6 +103,8 @@ directories:
 {{ command_name }} skill:install --skill deploy-checks --agent claude,codex
 {{ command_name }} skill:install --list
 ```
+
+`usecli skill:install` is equivalent when the project CLI is not available.
 
 Installation is idempotent. Managed files carry a `<!-- usecli-skill: ... -->`
 hash marker, so upgraded releases update their own files while locally edited
@@ -129,7 +133,7 @@ install_skills(
 Themes are TOML files. Create one with:
 
 ```sh
-{{ command_name }} make:theme dusk
+usecli make:theme dusk
 ```
 
 Theme files live in the project's `paths.themes` directory. Reference colors through `usecli.theme` (`COLOR`) instead of hard-coding Rich styles:
@@ -201,7 +205,7 @@ Return data from `handle()` instead of printing JSON. Do not write to stdout in 
 Initialize a project with:
 
 ```sh
-{{ command_name }} init
+usecli init
 ```
 
 ## Packaging
@@ -209,8 +213,8 @@ Initialize a project with:
 Build a standalone executable with the optional PyInstaller extra:
 
 ```sh
-{{ command_name }} make:bundle --mode onefile -y
-{{ command_name }} make:bundle --mode onedir --zip -y
+usecli make:bundle --mode onefile -y
+usecli make:bundle --mode onedir --zip -y
 ```
 
 The bundle embeds `usecli.config.toml`, commands, templates, and themes. Keep resource paths relative to the project config so they resolve in both source and frozen modes.
