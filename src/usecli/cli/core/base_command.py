@@ -12,10 +12,11 @@ import typer
 from click.exceptions import Exit
 from typer._click.core import Context as ClickContext
 from typer._click.formatting import HelpFormatter
-from typer.core import TyperArgument, TyperCommand, TyperOption
+from typer.core import TyperArgument, TyperOption
 
 from usecli.cli.config.colors import COLOR
 from usecli.cli.core._typer_compat import make_option
+from usecli.cli.core.options import HiddenOptionsCommand, HiddenOptionsGroup
 
 
 class _LazyConsole:
@@ -77,6 +78,7 @@ class NestedCommandRegistry:
                 invoke_without_command=True,
                 no_args_is_help=False,
                 add_completion=False,
+                cls=HiddenOptionsGroup,
             )
             self._groups[group_name] = group_app
             self._group_commands[group_name] = []
@@ -192,7 +194,7 @@ class NestedCommandRegistry:
         )
 
 
-class CustomHelpCommand(TyperCommand):
+class CustomHelpCommand(HiddenOptionsCommand):
     """Custom help command with Rich-styled output."""
 
     def __init__(self, *args: Any, **kwargs: Any) -> None:
