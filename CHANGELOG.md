@@ -1,6 +1,24 @@
 # Changelog
 
 
+## v0.2.9
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.2.8...v0.2.9)
+
+### 🚀 Enhancements
+
+- Skill installer and creator ([#19](https://github.com/thememium/usecli/pull/19))
+- Skills options vs command ([#20](https://github.com/thememium/usecli/pull/20))
+- Public api prompt install ([#21](https://github.com/thememium/usecli/pull/21))
+
+### 💅 Refactors
+
+- **poe:** Split dev task into dev-interactive and standard dev ([513415d](https://github.com/thememium/usecli/commit/513415d))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.2.8
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.2.7...v0.2.8)
