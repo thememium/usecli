@@ -149,6 +149,30 @@ install_skills(
 )
 ```
 
+The scaffolding commands are also available from Python. Each function returns
+the path it wrote, honors `usecli.config.toml` paths and project templates, and
+raises `ScaffoldError` for invalid names or existing targets:
+
+```python
+from usecli import make_command, make_skill, make_theme
+
+make_command("hello")
+make_theme("dusk")
+make_skill("deploy-checks", description="Check deployments")
+```
+
+Pass `commands_dir`, `themes_dir`, `skills_dir`, `templates_dir`, or
+`project_root` to write somewhere else, and `force=True` to overwrite. Use the
+`prompt_make_*` variants to ask for missing values interactively:
+
+```python
+from usecli import prompt_make_command, prompt_make_skill, prompt_make_theme
+
+prompt_make_command()
+prompt_make_theme()
+prompt_make_skill()
+```
+
 ## Themes
 
 Themes are TOML files. Create one with:
