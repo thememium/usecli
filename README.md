@@ -365,6 +365,27 @@ install_skills(
 )
 ```
 
+To run the same interactive installer from your own code, call
+`prompt_skill_install`. It accepts a skill folder or explicit skill templates,
+limits the agent choices, and lets you enable or skip each prompt:
+
+```python
+from usecli import prompt_skill_install
+
+prompt_skill_install(
+    app,
+    skills_dir="src/mycli/skills",  # or skills=[Skill(...)]
+    agents=["claude", "codex"],  # agent choices shown in the menu
+    show_scope=True,  # offer project vs. global
+    show_agents=True,  # offer the agent menu
+    show_skills=True,  # offer the skill menu when >1
+)
+```
+
+Set `scope="global"` to skip the scope prompt, or pass `show_scope=False`,
+`show_agents=False`, `show_skills=False`, and `print_results=False` to disable
+individual steps and output.
+
 ### Upgrades
 
 Every CLI built on usecli ships `upgrade`, which detects how the running
