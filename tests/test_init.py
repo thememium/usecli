@@ -551,6 +551,50 @@ def _json_main(group, exc):
 # ---------------------------------------------------------------------------
 
 
+class TestFilterHiddenRootParams:
+    def test_removes_hidden_options_but_keeps_help(self):
+        version = MagicMock()
+        version.opts = ["--version", "-v"]
+        help_param = MagicMock()
+        help_param.opts = ["--help", "-h"]
+        interactive = MagicMock()
+        interactive.opts = ["--interactive", "-i"]
+
+        command = MagicMock()
+        command.params = [version, help_param, interactive]
+        config = MagicMock()
+        config.get_hidden_options.return_value = ["version", "interactive", "help"]
+
+        with patch("usecli.shared.config.manager.get_config", return_value=config):
+            usecli._filter_hidden_root_params(command)
+
+        assert command.params == [help_param]
+
+    def test_leaves_params_when_nothing_is_hidden(self):
+        version = MagicMock()
+        version.opts = ["--version", "-v"]
+        command = MagicMock()
+        command.params = [version]
+        config = MagicMock()
+        config.get_hidden_options.return_value = []
+
+        with patch("usecli.shared.config.manager.get_config", return_value=config):
+            usecli._filter_hidden_root_params(command)
+
+        assert command.params == [version]
+
+    def test_ignores_a_command_without_params(self):
+        command = MagicMock()
+        command.params = []
+        config = MagicMock()
+        config.get_hidden_options.return_value = ["version"]
+
+        with patch("usecli.shared.config.manager.get_config", return_value=config):
+            usecli._filter_hidden_root_params(command)
+
+        assert command.params == []
+
+
 class TestGetattrRunApp:
     def test_run_app_lazy_getattr_path(self):
         usecli._ensure_cli_initialized()

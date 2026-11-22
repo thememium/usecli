@@ -15,6 +15,7 @@ import click
 
 from usecli.cli.config.colors import COLOR
 from usecli.cli.core.ui.list import (
+    _is_hidden_root_option,
     collect_commands_data,
     list_commands,
     list_group_commands,
@@ -23,6 +24,26 @@ from usecli.cli.core.ui.list import (
 # =============================================================================
 # list_commands() Tests
 # =============================================================================
+
+
+class TestIsHiddenRootOption:
+    def test_help_option_is_never_hidden(self):
+        param = Mock()
+        param.opts = ["--help", "-h"]
+
+        assert _is_hidden_root_option(param, {"help"}) is False
+
+    def test_matches_a_hidden_long_option(self):
+        param = Mock()
+        param.opts = ["--version", "-v"]
+
+        assert _is_hidden_root_option(param, {"version"}) is True
+
+    def test_non_hidden_option_does_not_match(self):
+        param = Mock()
+        param.opts = ["--version", "-v"]
+
+        assert _is_hidden_root_option(param, {"interactive"}) is False
 
 
 class TestListCommands:
@@ -131,6 +152,97 @@ class TestListCommands:
         command_description_index = command_plain.index("Run the tool")
 
         assert option_description_index == command_description_index
+
+    @patch("usecli.cli.core.ui.list.print_title")
+    @patch("usecli.cli.core.ui.list.console")
+    @patch("usecli.cli.core.ui.list.typer.main.get_command")
+    def test_list_commands_hides_configured_root_options(
+        self, mock_get_command, mock_console, mock_print_title, monkeypatch
+    ):
+        monkeypatch.setattr(
+            "usecli.cli.core.ui.list._hidden_root_options",
+            lambda: {"version", "help"},
+        )
+
+        help_param = Mock()
+        help_param.opts = ["--help", "-h"]
+        version_param = Mock()
+        version_param.opts = ["--version", "-v"]
+        version_param.help = "Show the version and exit."
+        verbose_param = Mock()
+        verbose_param.opts = ["--verbose"]
+        verbose_param.help = "Verbose output"
+
+        app = Mock()
+        app.registered_commands = []
+
+        click_group = Mock()
+        click_group.params = [help_param, version_param, verbose_param]
+        mock_get_command.return_value = click_group
+
+        list_commands(app)
+
+        print_calls = [str(call) for call in mock_console.print.call_args_list]
+        combined_output = "\n".join(print_calls)
+
+        assert "--version" not in combined_output
+        assert "--help" in combined_output
+        assert "--verbose" in combined_output
+
+    @patch("usecli.cli.core.ui.list.console")
+    @patch("usecli.cli.core.ui.list.typer.main.get_command")
+    def test_list_commands_prefix_filter_respects_hidden_root_options(
+        self, mock_get_command, mock_console, monkeypatch
+    ):
+        monkeypatch.setattr(
+            "usecli.cli.core.ui.list._hidden_root_options",
+            lambda: {"interactive", "json"},
+        )
+
+        command = Mock()
+        command.name = "make:command"
+        command.callback = Mock(__name__="make_command")
+        command.help = "Create new command"
+
+        app = Mock()
+        app.registered_commands = [command]
+
+        click_group = Mock()
+        click_group.params = []
+        mock_get_command.return_value = click_group
+
+        list_commands(app, prefix_filter="make")
+
+        print_calls = [str(call) for call in mock_console.print.call_args_list]
+        combined_output = "\n".join(print_calls)
+
+        assert "--help" in combined_output
+        assert "--interactive" not in combined_output
+        assert "--json" not in combined_output
+
+    @patch("usecli.cli.core.ui.list.typer.main.get_command")
+    def test_collect_commands_data_filters_hidden_root_options(
+        self, mock_get_command, monkeypatch
+    ):
+        monkeypatch.setattr(
+            "usecli.cli.core.ui.list._hidden_root_options", lambda: {"version"}
+        )
+
+        version_param = Mock()
+        version_param.opts = ["--version", "-v"]
+        verbose_param = Mock()
+        verbose_param.opts = ["--verbose"]
+
+        app = Mock()
+        app.registered_commands = []
+
+        click_group = Mock()
+        click_group.params = [version_param, verbose_param]
+        mock_get_command.return_value = click_group
+
+        data = collect_commands_data(app)
+
+        assert data["options"] == ["--verbose"]
 
     @patch("usecli.cli.core.ui.list.print_title")
     @patch("usecli.cli.core.ui.list.console")

@@ -85,6 +85,8 @@ class TestConfigManagerDefaults:
         assert manager.get("banner.bottom_space") is True
         assert manager.get("commands.hidden") == []
         assert manager.get("commands.skill_install") == "option"
+        assert manager.get("options.hidden") == []
+        assert manager.get_hidden_options() == []
         assert manager.get_skill_install_mode() == "option"
         assert manager.get("environment") == "prod"
         assert manager.get("command_name") == "usecli"
@@ -112,6 +114,24 @@ class TestConfigManagerDefaults:
         manager = ConfigManager()
 
         assert manager.get_skill_install_mode() == "option"
+
+    def test_hidden_options_normalizes_names_and_protects_help(self, temp_project_dir):
+        config_file = temp_project_dir / "usecli.config.toml"
+        config_file.write_text(
+            '[usecli.options]\nhidden = ["--Version", "help", "h", "json", "json"]\n'
+        )
+
+        manager = ConfigManager()
+
+        assert manager.get_hidden_options() == ["version", "json"]
+
+    def test_hidden_options_accepts_a_single_name(self, temp_project_dir):
+        config_file = temp_project_dir / "usecli.config.toml"
+        config_file.write_text('[usecli.options]\nhidden = "interactive"\n')
+
+        manager = ConfigManager()
+
+        assert manager.get_hidden_options() == ["interactive"]
 
     def test_default_environment_methods(self, temp_project_dir):
         manager = ConfigManager(
