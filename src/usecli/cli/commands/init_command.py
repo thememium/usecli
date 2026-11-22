@@ -729,6 +729,8 @@ include = ["{root_package}*"]
                 resolved_config_path = config_root / USECLI_CONFIG_TOML
 
         config_dir = resolved_config_path.parent
+        skills_path = config_dir / "skills"
+        skills_path.mkdir(parents=True, exist_ok=True)
         config_commands_dir = os.path.relpath(commands_path, start=config_dir)
         config_templates_dir = os.path.relpath(templates_path, start=config_dir)
         config_themes_dir = os.path.relpath(themes_path, start=config_dir)
@@ -770,6 +772,7 @@ include = ["{root_package}*"]
             "commands_dir": commands_dir,
             "templates_dir": templates_dir,
             "themes_dir": themes_dir,
+            "skills_dir": str(skills_path),
             "theme": theme,
             "title_font": title_font,
             "title_extra_top_space": title_extra_top_space,
@@ -1176,6 +1179,8 @@ include = ["{root_package}*"]
                 resolved_config_path = existing_config
 
         config_dir = resolved_config_path.parent
+        skills_path = config_dir / "skills"
+        skills_path.mkdir(parents=True, exist_ok=True)
         config_commands_dir = os.path.relpath(commands_path, start=config_dir)
         config_templates_dir = os.path.relpath(templates_path, start=config_dir)
         config_themes_dir = os.path.relpath(themes_path, start=config_dir)
