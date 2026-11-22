@@ -43,24 +43,6 @@ class TestMakeSkillCommandMetadata:
         assert make_skill_command.description() == "Create a new bundled skill"
 
 
-class TestMakeSkillVisibility:
-    @patch("usecli.cli.commands.defaults.make.make_skill_command.sys")
-    @patch("usecli.cli.commands.defaults.make.make_skill_command.os")
-    def test_visible_when_usecli_command(self, mock_os, mock_sys, make_skill_command):
-        mock_sys.argv = ["/usr/bin/usecli"]
-        mock_os.path.basename.return_value = "usecli"
-        assert make_skill_command.visible() is True
-
-    @patch("usecli.cli.commands.defaults.make.make_skill_command.sys")
-    @patch("usecli.cli.commands.defaults.make.make_skill_command.os")
-    def test_not_visible_when_other_command(
-        self, mock_os, mock_sys, make_skill_command
-    ):
-        mock_sys.argv = ["/usr/bin/mycli"]
-        mock_os.path.basename.return_value = "mycli"
-        assert make_skill_command.visible() is False
-
-
 class TestFrontmatterDescription:
     def test_normalizes_whitespace_and_escapes_quotes(self):
         assert _frontmatter_description(' line one\n line "two" ') == (
