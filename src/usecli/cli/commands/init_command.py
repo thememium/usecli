@@ -271,6 +271,15 @@ class InitCommand(BaseCommand):
             return "themes"
         return str(parent / "themes")
 
+    def _derive_skills_dir(self, commands_dir: str) -> str:
+        commands_path = Path(commands_dir)
+        parent = commands_path.parent
+        if commands_path.is_absolute():
+            return str(parent / "skills")
+        if parent == Path("."):
+            return "skills"
+        return str(parent / "skills")
+
     def _infer_commands_dir(self, project_root: Path) -> str:
         src_dir = project_root / "src"
         if src_dir.exists() and src_dir.is_dir():
@@ -615,8 +624,12 @@ include = ["{root_package}*"]
         title_extra_bottom_space: bool = True,
         show_description: bool | None = None,
         show_version: bool | None = None,
+        skills_dir: str | None = None,
     ) -> dict[str, object]:
         from usecli.cli.core.runtime import NonInteractiveError
+
+        if not isinstance(skills_dir, str):
+            skills_dir = None
 
         missing: list[str] = []
         if not command_name or command_name == "usecli":
@@ -657,6 +670,8 @@ include = ["{root_package}*"]
             templates_dir = self._derive_templates_dir(commands_dir)
         if themes_dir is None:
             themes_dir = self._derive_themes_dir(commands_dir)
+        if skills_dir is None:
+            skills_dir = self._derive_skills_dir(commands_dir)
         templates_path = (
             Path(templates_dir)
             if Path(templates_dir).is_absolute()
@@ -667,10 +682,16 @@ include = ["{root_package}*"]
             if Path(themes_dir).is_absolute()
             else project_root / themes_dir
         )
+        skills_path = (
+            Path(skills_dir)
+            if Path(skills_dir).is_absolute()
+            else project_root / skills_dir
+        )
 
         commands_path.mkdir(parents=True, exist_ok=True)
         templates_path.mkdir(parents=True, exist_ok=True)
         themes_path.mkdir(parents=True, exist_ok=True)
+        skills_path.mkdir(parents=True, exist_ok=True)
         self._ensure_package_init_files(commands_path, cwd)
 
         make_template_path = templates_path / "command.py.j2"
@@ -729,11 +750,10 @@ include = ["{root_package}*"]
                 resolved_config_path = config_root / USECLI_CONFIG_TOML
 
         config_dir = resolved_config_path.parent
-        skills_path = config_dir / "skills"
-        skills_path.mkdir(parents=True, exist_ok=True)
         config_commands_dir = os.path.relpath(commands_path, start=config_dir)
         config_templates_dir = os.path.relpath(templates_path, start=config_dir)
         config_themes_dir = os.path.relpath(themes_path, start=config_dir)
+        config_skills_dir = os.path.relpath(skills_path, start=config_dir)
 
         template_path = (
             Path(__file__).parent.parent / "templates" / "usecli.config.toml.j2"
@@ -752,6 +772,7 @@ include = ["{root_package}*"]
             commands_dir=config_commands_dir,
             templates_dir=config_templates_dir,
             themes_dir=config_themes_dir,
+            skills_dir=config_skills_dir,
             title_font=title_font,
             theme=theme,
             command_name=command_name,
@@ -772,7 +793,7 @@ include = ["{root_package}*"]
             "commands_dir": commands_dir,
             "templates_dir": templates_dir,
             "themes_dir": themes_dir,
-            "skills_dir": str(skills_path),
+            "skills_dir": skills_dir,
             "theme": theme,
             "title_font": title_font,
             "title_extra_top_space": title_extra_top_space,
@@ -796,6 +817,9 @@ include = ["{root_package}*"]
         ),
         themes_dir: str = typer.Option(
             None, "--themes-dir", help="Directory for theme TOML files"
+        ),
+        skills_dir: str = typer.Option(
+            None, "--skills-dir", help="Directory for bundled Agent Skills"
         ),
         config_path: str = typer.Option(
             None, "--config-path", help="Path for usecli.config.toml"
@@ -864,6 +888,7 @@ include = ["{root_package}*"]
                 commands_dir=commands_dir,
                 templates_dir=templates_dir,
                 themes_dir=themes_dir,
+                skills_dir=skills_dir,
                 config_path=config_path,
                 command_name=command_name,
                 force=force,
@@ -940,6 +965,14 @@ include = ["{root_package}*"]
             default=self._derive_themes_dir(commands_dir),
         )
         console.print()
+        if not isinstance(skills_dir, str):
+            skills_dir = None
+        skills_dir = Prompt.ask(
+            f"[bold {COLOR.SECONDARY}]Skills directory[/bold {COLOR.SECONDARY}]"
+            " (bundled Agent Skills for coding agents)",
+            default=skills_dir or self._derive_skills_dir(commands_dir),
+        )
+        console.print()
         commands_path = (
             Path(commands_dir)
             if Path(commands_dir).is_absolute()
@@ -954,6 +987,11 @@ include = ["{root_package}*"]
             Path(themes_dir)
             if Path(themes_dir).is_absolute()
             else project_root / themes_dir
+        )
+        skills_path = (
+            Path(skills_dir)
+            if Path(skills_dir).is_absolute()
+            else project_root / skills_dir
         )
 
         console.rule(
@@ -1061,6 +1099,16 @@ include = ["{root_package}*"]
         else:
             console.print(
                 f"[{COLOR.WARNING}]Themes directory already exists:[/{COLOR.WARNING}] {themes_path}"
+            )
+
+        if not skills_path.exists():
+            skills_path.mkdir(parents=True, exist_ok=True)
+            console.print(
+                f"[{COLOR.SUCCESS}]Created skills directory:[/{COLOR.SUCCESS}] {skills_path}"
+            )
+        else:
+            console.print(
+                f"[{COLOR.WARNING}]Skills directory already exists:[/{COLOR.WARNING}] {skills_path}"
             )
 
         if self._ensure_package_init_files(commands_path, cwd):
@@ -1179,11 +1227,10 @@ include = ["{root_package}*"]
                 resolved_config_path = existing_config
 
         config_dir = resolved_config_path.parent
-        skills_path = config_dir / "skills"
-        skills_path.mkdir(parents=True, exist_ok=True)
         config_commands_dir = os.path.relpath(commands_path, start=config_dir)
         config_templates_dir = os.path.relpath(templates_path, start=config_dir)
         config_themes_dir = os.path.relpath(themes_path, start=config_dir)
+        config_skills_dir = os.path.relpath(skills_path, start=config_dir)
 
         # Load the template
         template_path = (
@@ -1199,6 +1246,7 @@ include = ["{root_package}*"]
             commands_dir=config_commands_dir,
             templates_dir=config_templates_dir,
             themes_dir=config_themes_dir,
+            skills_dir=config_skills_dir,
             title_font=title_font,
             theme=theme,
             command_name=command_name,
