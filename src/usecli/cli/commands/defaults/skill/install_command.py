@@ -32,7 +32,6 @@ from usecli.skills import (
     resolve_agents,
     select_skills,
 )
-from usecli.ui import Confirm
 
 console = Console()
 
@@ -115,16 +114,6 @@ def _prompt_skill(skills: list[Skill], *, single: bool = False) -> list[Skill]:
         )
         return skills
     return [by_label[label] for label in selected_labels]
-
-
-def _prompt_force(force: bool) -> bool:
-    """Ask whether locally edited skills should be overwritten."""
-    if force:
-        return True
-    return Confirm.ask(
-        "Overwrite skills that have local edits?",
-        default=False,
-    )
 
 
 def _framework_version() -> str:
@@ -457,7 +446,9 @@ class InstallSkillCommand(BaseCommand):
         if interactive and not list_:
             if skill is None:
                 skills = _prompt_skill(skills, single=path is not None)
-            force = _prompt_force(force)
+            # Match `npx skills add`: an explicit interactive install replaces
+            # any existing managed copy instead of asking a second question.
+            force = True
 
         if path is not None and not skill:
             matches = [entry for entry in skills if entry.name == path.name]
