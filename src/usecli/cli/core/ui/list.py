@@ -11,11 +11,11 @@ from rich.console import Console
 from rich.markup import escape
 
 from usecli.cli.config.colors import COLOR
+from usecli.cli.core.options import hidden_option_names, is_hidden_option
 from usecli.cli.core.ui.title import (
     get_project_name,
     get_script_command_name,
     print_title,
-    running_framework_distribution,
 )
 
 console = Console()
@@ -40,30 +40,6 @@ def _skill_install_available() -> bool:
 
 def _is_skill_install_option(param: Any) -> bool:
     return "--install-skills" in getattr(param, "opts", ())
-
-
-def _hidden_root_options() -> set[str]:
-    """Return root option names the project config leaves unregistered."""
-    if running_framework_distribution() is not None:
-        return set()
-
-    from usecli.shared.config.manager import get_config
-
-    return set(get_config().get_hidden_options())
-
-
-def _is_hidden_root_option(param: Any, hidden: set[str]) -> bool:
-    """Whether *param* matches a hidden root option name.
-
-    ``--help``/``-h`` is never hidden.
-    """
-    if not hidden:
-        return False
-    opts = getattr(param, "opts", ()) or ()
-    if "--help" in opts:
-        return False
-    names = {opt.lstrip("-").lower() for opt in opts if opt.startswith("--")}
-    return bool(names & hidden)
 
 
 def _is_click_group(obj: object) -> bool:
@@ -163,7 +139,7 @@ def collect_commands_data(
     if skill_install_mode != "command":
         commands = [c for c in commands if c["name"] != "skill:install"]
     option_flags = []
-    hidden_options = _hidden_root_options()
+    hidden_options = hidden_option_names()
     display_params = _order_completion_params(click_group.params or [])
     has_skill_option = any(_is_skill_install_option(p) for p in display_params)
     show_skill_option = (
@@ -176,7 +152,7 @@ def collect_commands_data(
             flags = ", ".join(param.opts)
             if "--help" in flags:
                 continue
-            if _is_hidden_root_option(param, hidden_options):
+            if is_hidden_option(param, hidden_options):
                 continue
             if _is_skill_install_option(param) and not show_skill_option:
                 continue
@@ -257,7 +233,7 @@ def list_commands(app: typer.Typer, prefix_filter: str | None = None) -> Command
     command_name = get_script_command_name(default="usecli")
 
     help_flags = "--help, -h"
-    hidden_options = _hidden_root_options()
+    hidden_options = hidden_option_names()
     all_display_names = [cmd["display_name"] for cmd in commands] + [
         entry["display_name"] for entry in group_entries
     ]
@@ -341,7 +317,7 @@ def list_commands(app: typer.Typer, prefix_filter: str | None = None) -> Command
                 flags = ", ".join(param.opts)
                 if "--help" in flags:
                     continue
-                if _is_hidden_root_option(param, hidden_options):
+                if is_hidden_option(param, hidden_options):
                     continue
                 if _is_skill_install_option(param) and not show_skill_option:
                     continue
@@ -479,11 +455,14 @@ def list_group_commands(
 
     click_group = typer.main.get_command(group_app)
     option_flags = []
+    hidden_options = hidden_option_names()
     display_params = _order_completion_params(click_group.params or [])
     if display_params:
         for param in display_params:
             flags = ", ".join(param.opts)
             if "--help" in flags:
+                continue
+            if is_hidden_option(param, hidden_options):
                 continue
             option_flags.append(flags)
 
@@ -503,6 +482,8 @@ def list_group_commands(
         for param in display_params:
             flags = ", ".join(param.opts)
             if "--help" in flags:
+                continue
+            if is_hidden_option(param, hidden_options):
                 continue
             description = _get_option_description(param)
             padding = " " * (longest_label_length - len(flags) + SPACER_LENGTH)
