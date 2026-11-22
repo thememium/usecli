@@ -15,6 +15,7 @@ import click
 
 from usecli.cli.config.colors import COLOR
 from usecli.cli.core.ui.list import (
+    _hidden_root_options,
     _is_hidden_root_option,
     collect_commands_data,
     list_commands,
@@ -44,6 +45,20 @@ class TestIsHiddenRootOption:
         param.opts = ["--version", "-v"]
 
         assert _is_hidden_root_option(param, {"interactive"}) is False
+
+
+class TestHiddenRootOptions:
+    def test_framework_binary_ignores_project_hidden_options(self, monkeypatch):
+        monkeypatch.setattr(
+            "usecli.cli.core.ui.list.running_framework_distribution",
+            lambda: object(),
+        )
+        monkeypatch.setattr(
+            "usecli.shared.config.manager.get_config",
+            Mock(side_effect=AssertionError("config must not be read")),
+        )
+
+        assert _hidden_root_options() == set()
 
 
 class TestListCommands:

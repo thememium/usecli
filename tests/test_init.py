@@ -594,6 +594,26 @@ class TestFilterHiddenRootParams:
 
         assert command.params == []
 
+    def test_framework_binary_keeps_project_hidden_options(self):
+        version = MagicMock()
+        version.opts = ["--version", "-v"]
+        command = MagicMock()
+        command.params = [version]
+        config = MagicMock()
+        config.get_hidden_options.return_value = ["version"]
+
+        with (
+            patch(
+                "usecli.cli.core.ui.title.running_framework_distribution",
+                return_value=object(),
+            ),
+            patch("usecli.shared.config.manager.get_config", return_value=config),
+        ):
+            usecli._filter_hidden_root_params(command)
+
+        assert command.params == [version]
+        config.get_hidden_options.assert_not_called()
+
 
 class TestGetattrRunApp:
     def test_run_app_lazy_getattr_path(self):
