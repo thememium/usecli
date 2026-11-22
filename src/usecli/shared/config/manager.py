@@ -359,6 +359,7 @@ class ConfigManager:
             "top_space": True,
             "bottom_space": True,
         },
+        "options": {"hidden": []},
         "commands": {"hidden": [], "skill_install": "option"},
         "environment": "prod",
         # The built-in `upgrade` command reads [usecli.upgrade]. `source`
@@ -951,6 +952,20 @@ class ConfigManager:
         }:
             return value.strip().lower()
         return "option"
+
+    def get_hidden_options(self) -> list[str]:
+        """Root options to leave unregistered, e.g. ``["interactive", "json"]``.
+
+        Names are long option names without the leading dashes. The help
+        option (``--help``/``-h``) can never be hidden.
+        """
+        hidden: list[str] = []
+        for entry in _normalize_str_list(self.get("options.hidden", [])):
+            name = entry.lower().lstrip("-")
+            if not name or name in {"help", "h"} or name in hidden:
+                continue
+            hidden.append(name)
+        return hidden
 
     def get_all(self) -> dict[str, Any]:
         """Get the complete merged configuration."""
