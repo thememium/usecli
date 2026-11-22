@@ -35,8 +35,9 @@ show_description = {{ show_description | default(true) | lower }}
 
 [usecli.options]
 # Built-in root options to leave unregistered for this project's CLI, for
-# example ["interactive", "json", "install-skills"]. The `usecli` framework
-# binary always exposes its own root options; --help/-h is always available.
+# example ["interactive", "json", "install-skills"]. "interactive" and "json"
+# apply to every command and command group; the others are root-only. The
+# `usecli` framework binary ignores this list; --help/-h is always available.
 hidden = []
 
 [usecli.commands]
