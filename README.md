@@ -378,7 +378,6 @@ limits the agent choices, and lets you enable or skip each prompt:
 from usecli import prompt_skill_install
 
 prompt_skill_install(
-    app,
     skills_dir="src/mycli/skills",  # or skills=[Skill(...)]
     agents=["claude", "codex"],  # agent choices shown in the menu
     show_scope=True,  # offer project vs. global
@@ -387,9 +386,11 @@ prompt_skill_install(
 )
 ```
 
-Set `scope="global"` to skip the scope prompt, or pass `show_scope=False`,
-`show_agents=False`, `show_skills=False`, and `print_results=False` to disable
-individual steps and output.
+`app` is optional: omit it to use the running CLI's Typer app. Pass
+`app=other_app` only when installing another app's skills. Set `scope="global"`
+to skip the scope prompt, or pass `show_scope=False`, `show_agents=False`,
+`show_skills=False`, and `print_results=False` to disable individual steps and
+output.
 
 ### Upgrades
 
