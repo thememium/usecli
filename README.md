@@ -293,19 +293,25 @@ mycli make:skill deploy-checks --description "Check deployments"
 `usecli make:skill` works too when run inside the project; the generated skill
 belongs to the project CLI and is independent of the generated `usecli` skill.
 
-`skill:install` discovers every bundled skill and installs it into each coding
-agent's own directory. It also generates a `usecli` skill from the running app,
-so the installed reference always lists the live commands, options, themes,
-JSON contract, prompts, progress, configuration, and packaging.
+`skill:install` is available on both the project CLI and `usecli`. Run it
+from the project root. It discovers every bundled project skill and installs
+it into each coding agent's own directory, alongside the generated `usecli`
+skill file. The generated `usecli` skill is derived from the running app, so
+the installed reference always lists the live commands, options, themes, JSON
+contract, prompts, progress, configuration, and packaging.
 
 ```bash
 mycli skill:install                          # project: .claude/, .agents/, .cursor/
 mycli skill:install --global                 # user: ~/.claude/, ~/.agents/, ~/.cursor/
 mycli skill:install --list                   # show bundled skills and targets
-mycli skill:install --skill deploy-checks    # one skill
+mycli skill:install --skill deploy-checks    # one project skill
 mycli skill:install --agent claude,codex     # one or more agents
 mycli skill:install --path ./skills/usecli --skill usecli
 ```
+
+`usecli skill:install` is equivalent when the project CLI is not available.
+Both commands install the same project skills; their generated `usecli` skill
+file reflects the app that ran the command.
 
 Supported targets are `claude`, `opencode`, `codex`, `pi`, `prime-agent`,
 `omp`, `cursor`, and `agents`; `--agent all` selects every target. Global
