@@ -329,6 +329,63 @@ def _print_list(data: dict[str, Any]) -> None:
     console.print()
 
 
+def _build_install_data(
+    skills: list[Skill],
+    results: list[InstallResult],
+    scope: str,
+) -> dict[str, Any]:
+    errors = [
+        f"{result.skill} -> {result.agent}: {result.status}"
+        for result in results
+        if result.status.startswith("error:")
+    ]
+    return {
+        "scope": scope,
+        "skills": [skill.name for skill in skills],
+        "installed": [
+            {
+                "skill": result.skill,
+                "agent": result.agent,
+                "path": str(result.path),
+                "status": result.status,
+            }
+            for result in results
+        ],
+        "errors": errors,
+    }
+
+
+def install_skill_interactive(app: typer.Typer) -> dict[str, Any]:
+    """Prompt for scope, agents, and skills, then install them."""
+    from usecli.cli.core.runtime import NonInteractiveError, is_json_mode
+
+    if is_json_mode():
+        raise NonInteractiveError("Interactive mode is unavailable in JSON mode")
+
+    project_root = _project_root()
+    global_ = _prompt_scope(False)
+    scope = "global" if global_ else "project"
+    agents = _prompt_agents(None)
+
+    try:
+        skills = _select_skills(app, None)
+        if len(skills) > 1:
+            skills = _prompt_skill(skills)
+    except SkillError as error:
+        raise UsecliBadParameter(str(error)) from error
+
+    results = install_skills(
+        skills,
+        agents=agents,
+        scope=scope,
+        project_root=project_root,
+        force=True,
+    )
+    data = _build_install_data(skills, results, scope)
+    _print_results(data)
+    return data
+
+
 def _print_results(data: dict[str, Any]) -> None:
     console.print()
     for result in data["installed"]:
@@ -514,25 +571,7 @@ class InstallSkillCommand(BaseCommand):
                 force=force,
             )
 
-        errors = [
-            f"{result.skill} -> {result.agent}: {result.status}"
-            for result in results
-            if result.status.startswith("error:")
-        ]
-        data: dict[str, Any] = {
-            "scope": scope,
-            "skills": [skill.name for skill in skills],
-            "installed": [
-                {
-                    "skill": result.skill,
-                    "agent": result.agent,
-                    "path": str(result.path),
-                    "status": result.status,
-                }
-                for result in results
-            ],
-            "errors": errors,
-        }
+        data = _build_install_data(skills, results, scope)
 
         from usecli.cli.core.runtime import is_json_mode
 
