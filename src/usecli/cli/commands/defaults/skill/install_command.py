@@ -63,13 +63,14 @@ def _project_root() -> Path:
 
 
 def _prompt_scope(global_: bool) -> bool:
-    """Ask whether to install globally when the flag was omitted."""
+    """Choose between the current project and the global install scope."""
     if global_:
         return True
-    return Confirm.ask(
-        "Install for every project instead of just this one?",
-        default=False,
+    choice = Menu.select(
+        ["Project", "Global"],
+        title="Installation scope",
     )
+    return choice == "Global"
 
 
 def _prompt_agents(agent: list[str] | None) -> list[str] | None:

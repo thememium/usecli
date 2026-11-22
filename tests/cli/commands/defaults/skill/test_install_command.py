@@ -388,19 +388,29 @@ class TestInteractivePrompts:
     def test_scope_is_kept_when_global(self) -> None:
         assert _prompt_scope(True) is True
 
-    def test_scope_asks_for_project_installs(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        asked: list[tuple[object, object]] = []
+    def test_scope_asks_with_a_menu(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        calls: list[tuple[list[str], str]] = []
 
-        def ask(prompt: str, *, default: bool) -> bool:
-            asked.append((prompt, default))
-            return True
+        def select(options: list[str], *, title: str) -> str:
+            calls.append((options, title))
+            return "Project"
 
-        monkeypatch.setattr(module.Confirm, "ask", ask)
+        monkeypatch.setattr(module.Menu, "select", select)
+
+        assert _prompt_scope(False) is False
+        assert calls == [(["Project", "Global"], "Installation scope")]
+
+    def test_scope_can_select_global(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(module.Menu, "select", lambda options, title: "Global")
 
         assert _prompt_scope(False) is True
-        assert asked == [("Install for every project instead of just this one?", False)]
+
+    def test_scope_cancel_defaults_to_project(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(module.Menu, "select", lambda options, title: None)
+
+        assert _prompt_scope(False) is False
 
     def test_agents_are_kept_when_supplied(self) -> None:
         assert _prompt_agents(["codex"]) == ["codex"]
