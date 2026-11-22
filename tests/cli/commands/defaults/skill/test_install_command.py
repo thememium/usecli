@@ -23,13 +23,18 @@ from usecli.cli.commands.defaults.skill.install_command import (
     _print_list,
     _print_results,
     _project_root,
+    _prompt_agents,
+    _prompt_force,
+    _prompt_scope,
+    _prompt_skill,
     _select_skills,
     _status_color,
     collect_skill_commands,
     render_skill,
 )
 from usecli.cli.core.exceptions import UsecliBadParameter
-from usecli.skills import Skill, SkillError
+from usecli.cli.core.runtime import NonInteractiveError
+from usecli.skills import DEFAULT_AGENTS, Skill, SkillError
 
 
 def _skill(name: str = "demo", *, body: str = "# Demo\n") -> Skill:
@@ -379,6 +384,116 @@ class TestStatusAndOutput:
         assert "error: denied" in capsys.readouterr().out
 
 
+class TestInteractivePrompts:
+    def test_scope_is_kept_when_global(self) -> None:
+        assert _prompt_scope(True) is True
+
+    def test_scope_asks_for_project_installs(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        asked: list[tuple[object, object]] = []
+
+        def ask(prompt: str, *, default: bool) -> bool:
+            asked.append((prompt, default))
+            return True
+
+        monkeypatch.setattr(module.Confirm, "ask", ask)
+
+        assert _prompt_scope(False) is True
+        assert asked == [("Install for every project instead of just this one?", False)]
+
+    def test_agents_are_kept_when_supplied(self) -> None:
+        assert _prompt_agents(["codex"]) == ["codex"]
+
+    def test_agents_are_selected_from_the_menu(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            module.Menu,
+            "multi_select",
+            lambda options, title: ["codex", "cursor"],
+        )
+
+        assert _prompt_agents(None) == ["codex", "cursor"]
+
+    def test_agent_selection_falls_back_to_defaults(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        monkeypatch.setattr(module.Menu, "multi_select", lambda options, title: [])
+
+        assert _prompt_agents(None) == list(DEFAULT_AGENTS)
+        assert "using claude, codex, cursor" in capsys.readouterr().out
+
+    def test_skill_prompt_is_skipped_for_one_skill(
+        self, monkeypatch: pytest.MonkeyPatch, project_skill: Skill
+    ) -> None:
+        monkeypatch.setattr(
+            module.Menu,
+            "multi_select",
+            lambda *args, **kwargs: pytest.fail("menu should not be shown"),
+        )
+
+        assert _prompt_skill([project_skill]) == [project_skill]
+
+    def test_skills_are_selected_from_the_menu(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        first = _skill("first")
+        second = _skill("second")
+
+        def select(labels: list[str], *, title: str) -> list[str]:
+            assert title == "Select skills to install"
+            return [labels[1]]
+
+        monkeypatch.setattr(module.Menu, "multi_select", select)
+
+        assert _prompt_skill([first, second]) == [second]
+
+    def test_skill_selection_falls_back_to_all(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        first = _skill("first")
+        second = _skill("second")
+        monkeypatch.setattr(module.Menu, "multi_select", lambda options, title: [])
+
+        assert _prompt_skill([first, second]) == [first, second]
+        assert "using all 2 bundled skills" in capsys.readouterr().out
+
+    def test_single_skill_selection(
+        self, monkeypatch: pytest.MonkeyPatch, project_skill: Skill
+    ) -> None:
+        second = _skill("second")
+
+        def select(labels: list[str], *, title: str) -> str:
+            assert title == "Select a skill to install"
+            return labels[1]
+
+        monkeypatch.setattr(module.Menu, "select", select)
+
+        assert _prompt_skill([project_skill, second], single=True) == [second]
+
+    def test_single_skill_selection_can_be_cancelled(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        first = _skill("first")
+        second = _skill("second")
+        monkeypatch.setattr(module.Menu, "select", lambda options, title: None)
+
+        assert _prompt_skill([first, second], single=True) == [first, second]
+
+    def test_force_is_kept_when_set(self) -> None:
+        assert _prompt_force(True) is True
+
+    def test_force_asks_when_not_set(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(module.Confirm, "ask", lambda *args, **kwargs: True)
+
+        assert _prompt_force(False) is True
+
+
 class TestHandle:
     def test_project_install(
         self, command: InstallSkillCommand, tmp_path: Path
@@ -580,3 +695,105 @@ class TestHandle:
 
         assert data["installed"][0]["status"] == "installed"
         assert capsys.readouterr().out == ""
+
+    def test_interactive_options_are_applied(
+        self,
+        command: InstallSkillCommand,
+        monkeypatch: pytest.MonkeyPatch,
+        project_skill: Skill,
+        tmp_path: Path,
+    ) -> None:
+        calls: list[tuple[str, object]] = []
+
+        def prompt_scope(global_: bool) -> bool:
+            calls.append(("scope", global_))
+            return True
+
+        def prompt_agents(agent: list[str] | None) -> list[str] | None:
+            calls.append(("agents", agent))
+            return ["claude"]
+
+        def prompt_skill(skills: list[Skill], *, single: bool = False) -> list[Skill]:
+            calls.append(("skills", single))
+            return [project_skill]
+
+        def prompt_force(force: bool) -> bool:
+            calls.append(("force", force))
+            return True
+
+        monkeypatch.setattr(module, "_prompt_scope", prompt_scope)
+        monkeypatch.setattr(module, "_prompt_agents", prompt_agents)
+        monkeypatch.setattr(module, "_prompt_skill", prompt_skill)
+        monkeypatch.setattr(module, "_prompt_force", prompt_force)
+        monkeypatch.setattr(Path, "home", lambda: tmp_path / "home")
+
+        data = command.handle(interactive=True)
+
+        assert data["scope"] == "global"
+        assert data["skills"] == ["project-skill"]
+        assert calls == [
+            ("scope", False),
+            ("agents", None),
+            ("skills", False),
+            ("force", False),
+        ]
+        assert (
+            tmp_path / "home" / ".claude" / "skills" / "project-skill" / "SKILL.md"
+        ).exists()
+
+    def test_interactive_path_skips_scope_and_agents(
+        self,
+        command: InstallSkillCommand,
+        monkeypatch: pytest.MonkeyPatch,
+        project_skill: Skill,
+        tmp_path: Path,
+    ) -> None:
+        def fail(*_args, **_kwargs):
+            pytest.fail("scope and agent prompts should be skipped for --path")
+
+        monkeypatch.setattr(module, "_prompt_scope", fail)
+        monkeypatch.setattr(module, "_prompt_agents", fail)
+        monkeypatch.setattr(
+            module,
+            "_prompt_skill",
+            lambda skills, *, single=False: [project_skill],
+        )
+        monkeypatch.setattr(module, "_prompt_force", lambda force: False)
+
+        target = tmp_path / "custom"
+        data = command.handle(interactive=True, path=target)
+
+        assert data["scope"] == "custom"
+        assert (target / "SKILL.md").exists()
+
+    def test_interactive_list_skips_prompts(
+        self,
+        command: InstallSkillCommand,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        def fail(*_args, **_kwargs):
+            pytest.fail("list mode should not prompt")
+
+        monkeypatch.setattr(module, "_prompt_scope", fail)
+        monkeypatch.setattr(module, "_prompt_agents", fail)
+        monkeypatch.setattr(module, "_prompt_skill", fail)
+        monkeypatch.setattr(module, "_prompt_force", fail)
+
+        data = command.handle(interactive=True, list_=True, agent=["claude"])
+
+        assert data["skills"][0]["name"] == "project-skill"
+        assert "Bundled skills" in capsys.readouterr().out
+
+    def test_interactive_mode_is_unavailable_in_json_mode(
+        self,
+        command: InstallSkillCommand,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        monkeypatch.setattr(
+            "usecli.cli.core.runtime.is_json_mode",
+            lambda: True,
+        )
+
+        with pytest.raises(NonInteractiveError, match="unavailable in JSON mode"):
+            command.handle(interactive=True)

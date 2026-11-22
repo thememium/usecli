@@ -124,6 +124,18 @@ class TestIsInteractiveFlagPresent:
         with patch.object(usecli, "sys", argv=["usecli", "magic"]):
             assert usecli._is_interactive_flag_present() is False
 
+    def test_returns_false_after_the_command(self):
+        import usecli
+
+        with patch.object(usecli, "sys", argv=["usecli", "magic", "--interactive"]):
+            assert usecli._is_interactive_flag_present() is False
+
+    def test_returns_false_with_only_options(self):
+        import usecli
+
+        with patch.object(usecli, "sys", argv=["usecli", "--version"]):
+            assert usecli._is_interactive_flag_present() is False
+
 
 # ---------------------------------------------------------------------------
 # _get_cli_help_text
