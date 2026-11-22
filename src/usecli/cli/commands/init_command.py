@@ -1365,7 +1365,6 @@ include = ["{root_package}*"]
                 _prompt_scope,
             )
 
-            console.print()
             skill_global = _prompt_scope(False)
             console.print()
             skill_agents = _prompt_agents(None)
