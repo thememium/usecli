@@ -1186,6 +1186,7 @@ include = ["{root_package}*"]
             console.print(
                 f"[{COLOR.WARNING}]Skills directory already exists:[/{COLOR.WARNING}] {skills_path}"
             )
+        console.print()
 
         if self._ensure_package_init_files(commands_path, cwd):
             console.print(
@@ -1213,6 +1214,7 @@ include = ["{root_package}*"]
             console.print(
                 f"[{COLOR.WARNING}]Default theme already exists:[/{COLOR.WARNING}] {theme_template_path}"
             )
+        console.print()
 
         scripts_status: str | None = None
         usecli_config_status: str | None = None
@@ -1266,6 +1268,7 @@ include = ["{root_package}*"]
 
             self._sync_environment(project_root, command_name)
 
+        console.print()
         config_root = project_root
         if commands_path.parent != project_root:
             config_root = commands_path.parent
@@ -1332,6 +1335,7 @@ include = ["{root_package}*"]
             show_version=show_version,
         )
 
+        console.print()
         usecli_config_status = self._write_usecli_config(
             resolved_config_path, config_content, force
         )
@@ -1347,6 +1351,7 @@ include = ["{root_package}*"]
             console.print(
                 f"[{COLOR.WARNING}]Skipped updating {USECLI_CONFIG_TOML}.[/{COLOR.WARNING}]"
             )
+        console.print()
 
         skill_install: list[dict[str, str]] = []
         if install_skill is None:
@@ -1360,7 +1365,9 @@ include = ["{root_package}*"]
                 _prompt_scope,
             )
 
+            console.print()
             skill_global = _prompt_scope(False)
+            console.print()
             skill_agents = _prompt_agents(None)
             skill_install = self._install_usecli_skill(
                 project_root,
