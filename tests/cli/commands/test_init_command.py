@@ -990,7 +990,7 @@ class TestInitCommandPathHelpers:
 
     def test_derive_skills_dir_simple(self, init_cmd):
         result = init_cmd._derive_skills_dir("commands")
-        assert result == "skills"
+        assert result == "cli/skills"
 
     def test_infer_commands_dir_with_src(self, init_cmd, tmp_path):
         src_dir = tmp_path / "src" / "mypackage"
