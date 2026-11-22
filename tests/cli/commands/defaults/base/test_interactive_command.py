@@ -17,6 +17,7 @@ from usecli.cli.commands.defaults.base.internal.interactive_command import (
     _fit,
     _get_optional_options,
     _get_required_arguments,
+    _has_explicit_interactive,
     _humanize_name,
     _menu_entry,
     _open_tty_fd,
@@ -223,6 +224,63 @@ class TestGetOptionalOptions:
         cmd.params = [arg]
         result = _get_optional_options(cmd)
         assert len(result) == 0
+
+    def test_skips_parameter_without_opts(self):
+        param = MagicMock()
+        param.param_type_name = "option"
+        param.opts = ()
+        cmd = MagicMock(spec=click.Command)
+        cmd.params = [param]
+
+        assert _get_optional_options(cmd) == []
+
+
+# ---------------------------------------------------------------------------
+# _has_explicit_interactive
+# ---------------------------------------------------------------------------
+
+
+class TestHasExplicitInteractive:
+    def test_click_command_with_interactive_option(self):
+        cmd = click.Command(
+            "test",
+            params=[click.Option(["--interactive", "-i"], is_flag=True)],
+        )
+
+        assert _has_explicit_interactive(cmd) is True
+
+    def test_click_command_without_interactive_option(self):
+        cmd = click.Command("test", params=[click.Option(["--verbose"])])
+
+        assert _has_explicit_interactive(cmd) is False
+
+    def test_ignores_injected_interactive_option(self):
+        cmd = click.Command(
+            "test",
+            params=[click.Option(["--interactive", "-i"], is_flag=True)],
+        )
+        vars(cmd)["_usecli_injected_interactive"] = True
+
+        assert _has_explicit_interactive(cmd) is False
+
+    def test_typer_command_info(self):
+        cmd = MagicMock(spec=typer.models.CommandInfo)
+        with patch(
+            "usecli.cli.commands.defaults.base.internal.interactive_command.typer.main.get_command_from_info"
+        ) as mock:
+            mock.return_value = MagicMock(
+                params=[click.Option(["--interactive", "-i"], is_flag=True)]
+            )
+            assert _has_explicit_interactive(cmd) is True
+
+    def test_non_command(self):
+        assert _has_explicit_interactive(MagicMock()) is False
+
+    def test_command_without_parameter_list(self):
+        cmd = MagicMock(spec=click.Command)
+        cmd.params = MagicMock()
+
+        assert _has_explicit_interactive(cmd) is False
 
 
 # ---------------------------------------------------------------------------
@@ -635,6 +693,35 @@ class TestRunInteractive:
             mock_get_cmd.return_value = MagicMock(spec=click.Group, commands={})
             run_interactive(app)
         mock_run.assert_called_once()
+
+    @patch(
+        "usecli.cli.commands.defaults.base.internal.interactive_command._get_optional_options"
+    )
+    @patch(
+        "usecli.cli.commands.defaults.base.internal.interactive_command.subprocess.run"
+    )
+    @patch(
+        "usecli.cli.commands.defaults.base.internal.interactive_command._select_command",
+        return_value=("test", False),
+    )
+    def test_self_interactive_command_gets_the_flag(
+        self, _mock_select, mock_run, mock_optional
+    ):
+        app = MagicMock()
+        cmd = click.Command(
+            "test",
+            params=[click.Option(["--interactive", "-i"], is_flag=True)],
+        )
+        app.registered_commands = [cmd]
+        with patch(
+            "usecli.cli.commands.defaults.base.internal.interactive_command.typer.main.get_command"
+        ) as mock_get_cmd:
+            mock_get_cmd.return_value = MagicMock(spec=click.Group, commands={})
+            run_interactive(app)
+
+        mock_optional.assert_not_called()
+        mock_run.assert_called_once()
+        assert "--interactive" in mock_run.call_args.args[0]
 
     @patch(f"{_FZF}._type_into_terminal", return_value=True)
     @patch(

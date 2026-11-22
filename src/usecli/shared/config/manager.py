@@ -977,6 +977,18 @@ class ConfigManager:
         config_dir = self.usecli_config_path.parent
         return (config_dir / templates_path).resolve()
 
+    def get_project_skills_dir(self) -> Path:
+        """The directory containing the project's bundled Agent Skills.
+
+        Defaults to ``skills`` beside ``usecli.config.toml``. Each skill is a
+        subdirectory containing a ``SKILL.md``.
+        """
+        skills_dir = self.get("paths.skills", "skills")
+        skills_path = _get_path()(skills_dir)
+        if skills_path.is_absolute():
+            return skills_path
+        return (self.usecli_config_path.parent / skills_path).resolve()
+
     def _resolve_path_setting(self, entry: str) -> Path:
         path = _get_path()(entry)
         if not path.is_absolute():

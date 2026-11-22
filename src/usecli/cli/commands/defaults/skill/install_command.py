@@ -1,0 +1,541 @@
+"""Install bundled usecli skills for AI coding agents."""
+
+from __future__ import annotations
+
+import os
+import sys
+from importlib.metadata import PackageNotFoundError, version
+from pathlib import Path
+from typing import Annotated, Any
+
+import typer
+from jinja2 import Template
+from rich.console import Console
+
+from usecli.cli.config.colors import COLOR
+from usecli.cli.core.base_command import BaseCommand
+from usecli.cli.core.exceptions import UsecliBadParameter
+from usecli.cli.core.ui.list import collect_commands_data
+from usecli.cli.core.ui.title import get_script_command_name
+from usecli.menu import Menu
+from usecli.shared.config.globals import TEMPLATES_DIR
+from usecli.shared.config.manager import find_project_root, get_config, reset_config
+from usecli.skills import (
+    AGENT_TARGETS,
+    DEFAULT_AGENTS,
+    InstallResult,
+    Skill,
+    SkillError,
+    discover_skills,
+    install_skill,
+    install_skills,
+    resolve_agents,
+    select_skills,
+)
+
+console = Console()
+
+FRAMEWORK_SKILL_NAME = "usecli"
+FRAMEWORK_SKILL_DESCRIPTION = (
+    "Build, extend, and operate usecli-based Python CLIs. Use when a repository "
+    "depends on usecli, contains a usecli.config.toml, or the user asks to add, "
+    "change, or debug usecli commands, themes, JSON output, or packaging."
+)
+
+_STATUS_COLORS = {
+    "installed": COLOR.SUCCESS,
+    "updated": COLOR.SUCCESS,
+    "adopted": COLOR.SUCCESS,
+    "already_installed": COLOR.FOREGROUND_MUTED,
+    "user_modified": COLOR.WARNING,
+    "overwritten": COLOR.WARNING,
+}
+
+
+def _is_framework_binary() -> bool:
+    """Whether the running console script is the usecli framework binary."""
+    return os.path.basename(sys.argv[0]) == "usecli"
+
+
+def _project_root() -> Path:
+    return find_project_root(Path.cwd()) or Path.cwd().resolve()
+
+
+def _prompt_scope(global_: bool) -> bool:
+    """Choose between the current project and the global install scope."""
+    if global_:
+        return True
+    choice = Menu.select(
+        ["Project", "Global"],
+        title="Installation scope",
+    )
+    return choice == "Global"
+
+
+def _prompt_agents(agent: list[str] | None) -> list[str] | None:
+    """Ask which agent targets should receive the skills."""
+    if agent is not None:
+        return agent
+
+    selected = Menu.multi_select(
+        list(AGENT_TARGETS),
+        title="Select agents to install the skills for",
+    )
+    if selected:
+        return selected
+
+    console.print(
+        f"[{COLOR.FOREGROUND_MUTED}]No agents selected; using "
+        f"{', '.join(DEFAULT_AGENTS)}.[/]"
+    )
+    return list(DEFAULT_AGENTS)
+
+
+def _prompt_skill(skills: list[Skill], *, single: bool = False) -> list[Skill]:
+    """Ask which bundled skills to install."""
+    if len(skills) <= 1:
+        return skills
+
+    by_label = {f"{skill.name} — {skill.description}": skill for skill in skills}
+    labels = list(by_label)
+
+    if single:
+        selected = Menu.select(labels, title="Select a skill to install")
+        return [by_label[selected]] if selected else skills
+
+    selected_labels = Menu.multi_select(
+        labels,
+        title="Select skills to install",
+    )
+    if not selected_labels:
+        console.print(
+            f"[{COLOR.FOREGROUND_MUTED}]No skills selected; using all "
+            f"{len(skills)} bundled skills.[/]"
+        )
+        return skills
+    return [by_label[label] for label in selected_labels]
+
+
+def _framework_version() -> str:
+    try:
+        return version("usecli")
+    except PackageNotFoundError:
+        return "0.0.0"
+
+
+def _param_label(param: Any) -> str | None:
+    """Human-readable flag/argument label for a click parameter."""
+    if getattr(param, "param_type_name", "option") == "argument":
+        name = getattr(param, "name", None)
+        return f"<{name.upper()}>" if name else "<ARG>"
+
+    flags = [*getattr(param, "opts", []), *getattr(param, "secondary_opts", [])]
+    if not flags:
+        return None
+    return ", ".join(flags)
+
+
+def _is_global_option(param: Any) -> bool:
+    flags = set(getattr(param, "opts", [])) | set(getattr(param, "secondary_opts", []))
+    return bool(
+        flags
+        & {
+            "--help",
+            "-h",
+            "--interactive",
+            "-i",
+            "--json",
+            "--show-completion",
+            "--install-completion",
+        }
+    )
+
+
+def _describe_param(param: Any) -> dict[str, str] | None:
+    if _is_global_option(param):
+        return None
+    label = _param_label(param)
+    if not label:
+        return None
+    return {"label": label, "help": getattr(param, "help", None) or ""}
+
+
+def _describe_command(
+    name: str,
+    command: Any | None,
+    aliases: list[str],
+) -> dict[str, Any]:
+    params: list[dict[str, str]] = []
+    for param in getattr(command, "params", []) or []:
+        described = _describe_param(param)
+        if described is not None:
+            params.append(described)
+
+    help_text = ""
+    if command is not None:
+        help_text = getattr(command, "help", None) or getattr(
+            command, "short_help", None
+        )
+    if help_text:
+        help_text = " ".join(str(help_text).split())
+
+    return {
+        "name": name,
+        "help": help_text,
+        "aliases": aliases,
+        "params": params,
+    }
+
+
+def collect_skill_commands(app: typer.Typer) -> list[dict[str, Any]]:
+    """Describe every registered command for the generated skill."""
+    data = collect_commands_data(app)
+    click_root = typer.main.get_command(app)
+    root_commands = getattr(click_root, "commands", {}) or {}
+
+    commands: list[dict[str, Any]] = []
+    for entry in data["commands"]:
+        commands.append(
+            _describe_command(
+                entry["name"],
+                root_commands.get(entry["name"]),
+                entry["aliases"],
+            )
+        )
+
+    for entry in data["groups"]:
+        group_name = entry["name"]
+        group_command = root_commands.get(group_name)
+        commands.append(_describe_command(group_name, group_command, entry["aliases"]))
+        subcommands = getattr(group_command, "commands", {}) or {}
+        for sub_name, sub_command in subcommands.items():
+            commands.append(
+                _describe_command(f"{group_name} {sub_name}", sub_command, [])
+            )
+
+    commands.sort(key=lambda command: command["name"])
+    return commands
+
+
+def render_skill(app: typer.Typer, *, command_name: str) -> str:
+    """Render the framework skill for the current app and project."""
+    template = Template(
+        (TEMPLATES_DIR / "skill.md.j2").read_text(encoding="utf-8"),
+        trim_blocks=True,
+        lstrip_blocks=True,
+    )
+    return template.render(
+        command_name=command_name,
+        version=_framework_version(),
+        commands=collect_skill_commands(app),
+    )
+
+
+def _framework_skill(app: typer.Typer) -> Skill:
+    command_name = get_script_command_name(default="usecli") or "usecli"
+    return Skill(
+        name=FRAMEWORK_SKILL_NAME,
+        description=FRAMEWORK_SKILL_DESCRIPTION,
+        content=render_skill(app, command_name=command_name),
+    )
+
+
+def install_framework_skill(
+    app: typer.Typer,
+    *,
+    project_root: Path | None = None,
+    agents: list[str] | str | None = None,
+    scope: str = "project",
+    force: bool = False,
+) -> list[InstallResult]:
+    """Install the generated ``usecli`` skill for coding agents."""
+    return install_skills(
+        [_framework_skill(app)],
+        agents=agents,
+        scope=scope,
+        project_root=project_root,
+        force=force,
+    )
+
+
+def _discover_project_skills() -> list[Skill]:
+    config = get_config()
+    current_root = _project_root()
+    if config.get_project_root().resolve() != current_root:
+        reset_config()
+        config = get_config()
+    return discover_skills(config.get_project_skills_dir())
+
+
+def _select_skills(app: typer.Typer, names: list[str] | None) -> list[Skill]:
+    if _is_framework_binary():
+        available = [_framework_skill(app)]
+    else:
+        available = _discover_project_skills()
+    return select_skills(available, names)
+
+
+def _status_color(status: str) -> str:
+    if status.startswith("error:"):
+        return COLOR.ERROR
+    return _STATUS_COLORS.get(status, COLOR.FOREGROUND)
+
+
+def _list_data(
+    skills: list[Skill],
+    agents: list[str],
+    *,
+    scope: str,
+    project_root: Path,
+) -> dict[str, Any]:
+    return {
+        "scope": scope,
+        "skills": [
+            {
+                "name": skill.name,
+                "description": skill.description,
+                "source": skill.source,
+            }
+            for skill in skills
+        ],
+        "agents": [
+            {
+                "name": agent,
+                "path": str(
+                    AGENT_TARGETS[agent].base(
+                        scope,
+                        project_root=project_root,
+                    )
+                    / "skills"
+                ),
+            }
+            for agent in agents
+        ],
+    }
+
+
+def _print_list(data: dict[str, Any]) -> None:
+    console.print()
+    console.print(f"[bold {COLOR.PRIMARY}]Bundled skills[/bold {COLOR.PRIMARY}]")
+    for skill in data["skills"]:
+        console.print(
+            f"  [{COLOR.COMMAND}]{skill['name']}[/{COLOR.COMMAND}]  "
+            f"{skill['description']}"
+        )
+    console.print()
+    console.print(f"[bold {COLOR.PRIMARY}]Agent targets[/bold {COLOR.PRIMARY}]")
+    for agent in data["agents"]:
+        console.print(f"  {agent['name']:<12} {agent['path']}")
+    console.print()
+
+
+def _print_results(data: dict[str, Any]) -> None:
+    console.print()
+    for result in data["installed"]:
+        console.print(
+            f"  [{_status_color(result['status'])}]{result['status']:<16}"
+            f"[/{_status_color(result['status'])}] "
+            f"{result['skill']} [{COLOR.FOREGROUND_MUTED}]->[/] "
+            f"{result['agent']} {result['path']}"
+        )
+
+    if any(result["status"] == "user_modified" for result in data["installed"]):
+        console.print()
+        console.print(
+            f"[{COLOR.WARNING}]Some skills were left untouched because they "
+            f"were edited locally. Re-run with --force to overwrite them."
+            f"[/{COLOR.WARNING}]"
+        )
+    if data["errors"]:
+        console.print()
+        for error in data["errors"]:
+            console.print(f"[{COLOR.ERROR}]{error}[/{COLOR.ERROR}]")
+    console.print()
+
+
+class InstallSkillCommand(BaseCommand):
+    """Install bundled skills for AI coding agents."""
+
+    def visible(self) -> bool:
+        if _is_framework_binary():
+            return True
+        try:
+            return bool(_discover_project_skills())
+        except SkillError:
+            # Keep the command visible so running it reports the malformed
+            # skill instead of silently hiding the only installation entry.
+            return True
+
+    def signature(self) -> str:
+        return "skill:install"
+
+    def description(self) -> str:
+        if _is_framework_binary():
+            return "Install the usecli skill for coding agents"
+        return "Install bundled skills for coding agents"
+
+    def handle(
+        self,
+        global_: Annotated[
+            bool,
+            typer.Option(
+                "--global",
+                "-g",
+                help="Install for every project instead of the current project.",
+            ),
+        ] = False,
+        agent: Annotated[
+            list[str] | None,
+            typer.Option(
+                "--agent",
+                "-a",
+                help=(
+                    "Agent target: all, claude, codex, cursor, opencode, pi, "
+                    "prime-agent, omp, or agents. Repeat or comma-separate."
+                ),
+            ),
+        ] = None,
+        skill: Annotated[
+            list[str] | None,
+            typer.Option(
+                "--skill",
+                "-s",
+                help="Install only these skills. Repeat or comma-separate.",
+            ),
+        ] = None,
+        path: Annotated[
+            Path | None,
+            typer.Option(
+                "--path",
+                help="Install one selected skill into this exact directory.",
+            ),
+        ] = None,
+        force: Annotated[
+            bool,
+            typer.Option(
+                "--force",
+                "-f",
+                help="Overwrite skills that have local edits.",
+            ),
+        ] = False,
+        interactive: Annotated[
+            bool,
+            typer.Option(
+                "--interactive",
+                "-i",
+                help="Prompt for the install scope, skills, and agents.",
+            ),
+        ] = False,
+        list_: Annotated[
+            bool,
+            typer.Option(
+                "--list",
+                "-l",
+                help="List bundled skills and agent targets without installing.",
+            ),
+        ] = False,
+    ) -> dict[str, Any]:
+        if global_ and path is not None:
+            raise UsecliBadParameter("--global and --path cannot be used together")
+        if path is not None and agent:
+            raise UsecliBadParameter("--path and --agent cannot be used together")
+
+        project_root = _project_root()
+        scope = "global" if global_ else "project"
+
+        if interactive and not list_:
+            from usecli.cli.core.runtime import NonInteractiveError, is_json_mode
+
+            if is_json_mode():
+                raise NonInteractiveError(
+                    "Interactive mode is unavailable in JSON mode"
+                )
+            if path is None:
+                global_ = _prompt_scope(global_)
+                scope = "global" if global_ else "project"
+                agent = _prompt_agents(agent)
+
+        try:
+            skills = _select_skills(self.app, skill)
+            agents = resolve_agents(agent)
+        except SkillError as error:
+            raise UsecliBadParameter(str(error)) from error
+
+        if interactive and not list_:
+            if skill is None:
+                skills = _prompt_skill(skills, single=path is not None)
+            # Match `npx skills add`: an explicit interactive install replaces
+            # any existing managed copy instead of asking a second question.
+            force = True
+
+        if path is not None and not skill:
+            matches = [entry for entry in skills if entry.name == path.name]
+            if len(matches) == 1:
+                skills = matches
+
+        if list_:
+            data = _list_data(
+                skills,
+                agents,
+                scope=scope,
+                project_root=project_root,
+            )
+            from usecli.cli.core.runtime import is_json_mode
+
+            if not is_json_mode():
+                _print_list(data)
+            return data
+
+        if path is not None:
+            if len(skills) != 1:
+                raise UsecliBadParameter(
+                    "--path requires exactly one skill; use --skill to choose one"
+                )
+            scope = "custom"
+            target = path.expanduser().resolve() / "SKILL.md"
+            try:
+                status = install_skill(skills[0], target, force=force)
+            except OSError as error:
+                status = f"error: {error}"
+            results = [
+                InstallResult(
+                    skill=skills[0].name,
+                    agent="custom",
+                    path=target,
+                    status=status,
+                )
+            ]
+        else:
+            results = install_skills(
+                skills,
+                agents=agents,
+                scope=scope,
+                project_root=project_root,
+                force=force,
+            )
+
+        errors = [
+            f"{result.skill} -> {result.agent}: {result.status}"
+            for result in results
+            if result.status.startswith("error:")
+        ]
+        data: dict[str, Any] = {
+            "scope": scope,
+            "skills": [skill.name for skill in skills],
+            "installed": [
+                {
+                    "skill": result.skill,
+                    "agent": result.agent,
+                    "path": str(result.path),
+                    "status": result.status,
+                }
+                for result in results
+            ],
+            "errors": errors,
+        }
+
+        from usecli.cli.core.runtime import is_json_mode
+
+        if not is_json_mode():
+            _print_results(data)
+        return data

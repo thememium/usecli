@@ -3,7 +3,11 @@
 import pytest
 
 from usecli.cli.core.exceptions import UsecliBadParameter
-from usecli.cli.core.validators.string import validate_command_name, validate_not_empty
+from usecli.cli.core.validators.string import (
+    validate_command_name,
+    validate_not_empty,
+    validate_skill_name,
+)
 
 
 class TestValidateNotEmpty:
@@ -260,6 +264,37 @@ class TestValidateCommandName:
         for letter in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ":
             result = validate_command_name(letter)
             assert result == letter
+
+
+class TestValidateSkillName:
+    """Test suite for validate_skill_name validator."""
+
+    @pytest.mark.parametrize(
+        "name",
+        ["skill", "my-skill", "skill-123", "a", "123"],
+    )
+    def test_valid_skill_names(self, name):
+        assert validate_skill_name(name) == name
+
+    @pytest.mark.parametrize(
+        "name,expected_error",
+        [
+            ("", "Skill name cannot be empty"),
+            ("MySkill", "Invalid skill name"),
+            ("my_skill", "Invalid skill name"),
+            ("my skill", "Invalid skill name"),
+            ("my--skill", "Invalid skill name"),
+            ("-skill", "Invalid skill name"),
+            ("skill-", "Invalid skill name"),
+            ("skill@1", "Invalid skill name"),
+        ],
+    )
+    def test_invalid_skill_names(self, name, expected_error):
+        with pytest.raises(UsecliBadParameter) as exc_info:
+            validate_skill_name(name)
+
+        assert expected_error in str(exc_info.value)
+        assert exc_info.value.param_hint == "NAME"
 
 
 class TestStringValidatorIntegration:

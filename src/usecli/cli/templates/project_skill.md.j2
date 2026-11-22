@@ -1,0 +1,31 @@
+---
+name: {{ name }}
+description: "{{ description }}"
+---
+
+# {{ name }}
+
+{{ description }}
+
+## When to use this skill
+
+Use this skill when working in a project that uses the `{{ command_name }}` CLI
+and the task involves {{ name }}.
+
+## Commands
+
+Start with the live help, then keep the examples below in sync with the CLI:
+
+```sh
+{{ command_name }} --help
+{{ command_name }} <command> --help
+```
+
+Add the commands, flags, and workflows an agent must know about here. Keep each
+example copy-pasteable and prefer `--json` when the agent needs to parse output.
+
+## Notes
+
+- Replace this scaffold with project-specific guidance.
+- Keep this skill focused on what an agent cannot infer from `--help`.
+- Re-run `{{ command_name }} skill:install` after editing to update installed copies.

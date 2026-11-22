@@ -128,6 +128,40 @@ class TestCommandService:
         service._load_from_dir(tmp_path)
         assert service.commands == []
 
+    def test_load_from_dir_keeps_skill_install_for_downstream(self, tmp_path):
+        skill_dir = tmp_path / "skill"
+        skill_dir.mkdir()
+        install_file = skill_dir / "install_command.py"
+        install_file.write_text("class Install: pass")
+
+        service = self._make_service()
+        service._skip_usecli_only_commands = True
+
+        with patch.object(service, "_import_file", return_value=None) as mock_import:
+            service._load_from_dir(tmp_path)
+
+        mock_import.assert_called_once_with(install_file)
+
+    def test_load_from_dir_skips_make_skill_for_downstream(self, tmp_path):
+        make_dir = tmp_path / "make"
+        make_dir.mkdir()
+        for name in (
+            "make_command.py",
+            "make_skill_command.py",
+            "make_theme_command.py",
+            "make_bundle_command.py",
+        ):
+            (make_dir / name).write_text("class Cmd: pass")
+        (tmp_path / "init_command.py").write_text("class Init: pass")
+
+        service = self._make_service()
+        service._skip_usecli_only_commands = True
+
+        with patch.object(service, "_import_file") as mock_import_file:
+            service._load_from_dir(tmp_path)
+
+        mock_import_file.assert_not_called()
+
     @patch("usecli.shared.config.manager._find_distribution_for_console_script")
     @patch("usecli.cli.core.ui.title.get_script_command_name")
     def test_get_application_version_from_command_name(self, mock_name, mock_find):

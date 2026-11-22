@@ -106,7 +106,7 @@ class InitCommand(BaseCommand):
         root_package = parts[0]
         package_data_block = (
             "[tool.setuptools.package-data]\n"
-            f'{root_package} = ["**/*.toml", "**/*.j2"]\n\n'
+            f'{root_package} = ["**/*.toml", "**/*.j2", "**/*.md"]\n\n'
         )
 
         content = content.rstrip() + f"\n\n{package_data_block}"
@@ -125,7 +125,7 @@ class InitCommand(BaseCommand):
             should_overwrite = Confirm.ask(
                 f"[{COLOR.WARNING}]usecli.config.toml already exists at {config_path}.[/{COLOR.WARNING}]\n"
                 "Overwrite it with the new settings from this init run?",
-                default=False,
+                default=True,
             )
             if not should_overwrite:
                 return "skipped"
@@ -271,6 +271,15 @@ class InitCommand(BaseCommand):
             return "themes"
         return str(parent / "themes")
 
+    def _derive_skills_dir(self, commands_dir: str) -> str:
+        commands_path = Path(commands_dir)
+        parent = commands_path.parent
+        if commands_path.is_absolute():
+            return str(parent / "skills")
+        if parent == Path("."):
+            return "skills"
+        return str(parent / "skills")
+
     def _infer_commands_dir(self, project_root: Path) -> str:
         src_dir = project_root / "src"
         if src_dir.exists() and src_dir.is_dir():
@@ -352,6 +361,57 @@ class InitCommand(BaseCommand):
             console.print(
                 f"[{COLOR.WARNING}]Failed to install with pip. Run 'pip install -e .'[/{COLOR.WARNING}]"
             )
+
+    def _install_usecli_skill(
+        self,
+        project_root: Path,
+        *,
+        force: bool,
+        scope: str = "project",
+        agents: list[str] | None = None,
+        quiet: bool = False,
+    ) -> list[dict[str, str]]:
+        from usecli.cli.commands.defaults.skill.install_command import (
+            install_framework_skill,
+        )
+
+        results = install_framework_skill(
+            self.app,
+            project_root=project_root,
+            agents=agents,
+            scope=scope,
+            force=force,
+        )
+        data = [
+            {
+                "skill": result.skill,
+                "agent": result.agent,
+                "path": str(result.path),
+                "status": result.status,
+            }
+            for result in results
+        ]
+        if not quiet:
+            self._print_skill_install(data)
+        return data
+
+    def _print_skill_install(self, results: list[dict[str, str]]) -> None:
+        if not results:
+            return
+        console.print()
+        for result in results:
+            status = result["status"]
+            if status.startswith("error:"):
+                color = COLOR.ERROR
+            elif status in {"installed", "updated", "adopted", "already_installed"}:
+                color = COLOR.SUCCESS
+            else:
+                color = COLOR.WARNING
+            console.print(
+                f"  [{color}]{status}[/{color}] "
+                f"{result['skill']} -> {result['agent']} {result['path']}"
+            )
+        console.print()
 
     def _get_project_name_from_pyproject(self, pyproject_path: Path) -> str | None:
         if not pyproject_path.exists():
@@ -593,7 +653,7 @@ where = ["."]
 include = ["{root_package}*"]
 
 [tool.setuptools.package-data]
-{root_package} = ["**/*.toml", "**/*.j2"]
+{root_package} = ["**/*.toml", "**/*.j2", "**/*.md"]
 '''
 
         pyproject_path.write_text(pyproject_content)
@@ -615,8 +675,13 @@ include = ["{root_package}*"]
         title_extra_bottom_space: bool = True,
         show_description: bool | None = None,
         show_version: bool | None = None,
+        skills_dir: str | None = None,
+        install_skill: bool | None = None,
     ) -> dict[str, object]:
         from usecli.cli.core.runtime import NonInteractiveError
+
+        if not isinstance(skills_dir, str):
+            skills_dir = None
 
         missing: list[str] = []
         if not command_name or command_name == "usecli":
@@ -657,6 +722,8 @@ include = ["{root_package}*"]
             templates_dir = self._derive_templates_dir(commands_dir)
         if themes_dir is None:
             themes_dir = self._derive_themes_dir(commands_dir)
+        if skills_dir is None:
+            skills_dir = self._derive_skills_dir(commands_dir)
         templates_path = (
             Path(templates_dir)
             if Path(templates_dir).is_absolute()
@@ -667,10 +734,16 @@ include = ["{root_package}*"]
             if Path(themes_dir).is_absolute()
             else project_root / themes_dir
         )
+        skills_path = (
+            Path(skills_dir)
+            if Path(skills_dir).is_absolute()
+            else project_root / skills_dir
+        )
 
         commands_path.mkdir(parents=True, exist_ok=True)
         templates_path.mkdir(parents=True, exist_ok=True)
         themes_path.mkdir(parents=True, exist_ok=True)
+        skills_path.mkdir(parents=True, exist_ok=True)
         self._ensure_package_init_files(commands_path, cwd)
 
         make_template_path = templates_path / "command.py.j2"
@@ -732,6 +805,7 @@ include = ["{root_package}*"]
         config_commands_dir = os.path.relpath(commands_path, start=config_dir)
         config_templates_dir = os.path.relpath(templates_path, start=config_dir)
         config_themes_dir = os.path.relpath(themes_path, start=config_dir)
+        config_skills_dir = os.path.relpath(skills_path, start=config_dir)
 
         template_path = (
             Path(__file__).parent.parent / "templates" / "usecli.config.toml.j2"
@@ -750,6 +824,7 @@ include = ["{root_package}*"]
             commands_dir=config_commands_dir,
             templates_dir=config_templates_dir,
             themes_dir=config_themes_dir,
+            skills_dir=config_skills_dir,
             title_font=title_font,
             theme=theme,
             command_name=command_name,
@@ -762,6 +837,13 @@ include = ["{root_package}*"]
         usecli_config_status = self._write_usecli_config(
             resolved_config_path, config_content, force=True
         )
+        skill_install: list[dict[str, str]] = []
+        if install_skill:
+            skill_install = self._install_usecli_skill(
+                project_root,
+                force=force,
+                quiet=True,
+            )
 
         return {
             "command_name": command_name,
@@ -770,6 +852,7 @@ include = ["{root_package}*"]
             "commands_dir": commands_dir,
             "templates_dir": templates_dir,
             "themes_dir": themes_dir,
+            "skills_dir": skills_dir,
             "theme": theme,
             "title_font": title_font,
             "title_extra_top_space": title_extra_top_space,
@@ -779,6 +862,7 @@ include = ["{root_package}*"]
             "config_path": str(resolved_config_path),
             "scripts_status": scripts_status,
             "config_status": usecli_config_status,
+            "skill_install": skill_install,
         }
 
     def handle(
@@ -793,6 +877,9 @@ include = ["{root_package}*"]
         ),
         themes_dir: str = typer.Option(
             None, "--themes-dir", help="Directory for theme TOML files"
+        ),
+        skills_dir: str = typer.Option(
+            None, "--skills-dir", help="Directory for bundled Agent Skills"
         ),
         config_path: str = typer.Option(
             None, "--config-path", help="Path for usecli.config.toml"
@@ -851,6 +938,21 @@ include = ["{root_package}*"]
                 ),
             ),
         ] = None,
+        install_skill: Annotated[
+            bool | None,
+            typer.Option(
+                "--install-skill/--no-install-skill",
+                help="Install the usecli skill for coding agents",
+            ),
+        ] = None,
+        interactive: Annotated[
+            bool,
+            typer.Option(
+                "--interactive",
+                "-i",
+                help="Run in interactive mode.",
+            ),
+        ] = False,
     ) -> dict[str, object] | None:
         from usecli.cli.core.runtime import is_json_mode
 
@@ -861,6 +963,7 @@ include = ["{root_package}*"]
                 commands_dir=commands_dir,
                 templates_dir=templates_dir,
                 themes_dir=themes_dir,
+                skills_dir=skills_dir,
                 config_path=config_path,
                 command_name=command_name,
                 force=force,
@@ -870,6 +973,7 @@ include = ["{root_package}*"]
                 title_extra_bottom_space=title_extra_bottom_space,
                 show_description=show_description,
                 show_version=show_version,
+                install_skill=install_skill,
             )
 
         cwd = Path.cwd()
@@ -937,6 +1041,14 @@ include = ["{root_package}*"]
             default=self._derive_themes_dir(commands_dir),
         )
         console.print()
+        if not isinstance(skills_dir, str):
+            skills_dir = None
+        skills_dir = Prompt.ask(
+            f"[bold {COLOR.SECONDARY}]Skills directory[/bold {COLOR.SECONDARY}]"
+            " (bundled Agent Skills for coding agents)",
+            default=skills_dir or self._derive_skills_dir(commands_dir),
+        )
+        console.print()
         commands_path = (
             Path(commands_dir)
             if Path(commands_dir).is_absolute()
@@ -951,6 +1063,11 @@ include = ["{root_package}*"]
             Path(themes_dir)
             if Path(themes_dir).is_absolute()
             else project_root / themes_dir
+        )
+        skills_path = (
+            Path(skills_dir)
+            if Path(skills_dir).is_absolute()
+            else project_root / skills_dir
         )
 
         console.rule(
@@ -1060,6 +1177,17 @@ include = ["{root_package}*"]
                 f"[{COLOR.WARNING}]Themes directory already exists:[/{COLOR.WARNING}] {themes_path}"
             )
 
+        if not skills_path.exists():
+            skills_path.mkdir(parents=True, exist_ok=True)
+            console.print(
+                f"[{COLOR.SUCCESS}]Created skills directory:[/{COLOR.SUCCESS}] {skills_path}"
+            )
+        else:
+            console.print(
+                f"[{COLOR.WARNING}]Skills directory already exists:[/{COLOR.WARNING}] {skills_path}"
+            )
+        console.print()
+
         if self._ensure_package_init_files(commands_path, cwd):
             console.print(
                 f"[{COLOR.SUCCESS}]Added __init__.py files for package discovery[/{COLOR.SUCCESS}]"
@@ -1086,6 +1214,7 @@ include = ["{root_package}*"]
             console.print(
                 f"[{COLOR.WARNING}]Default theme already exists:[/{COLOR.WARNING}] {theme_template_path}"
             )
+        console.print()
 
         scripts_status: str | None = None
         usecli_config_status: str | None = None
@@ -1139,6 +1268,7 @@ include = ["{root_package}*"]
 
             self._sync_environment(project_root, command_name)
 
+        console.print()
         config_root = project_root
         if commands_path.parent != project_root:
             config_root = commands_path.parent
@@ -1158,7 +1288,7 @@ include = ["{root_package}*"]
             default_config_path = config_root / USECLI_CONFIG_TOML
         config_location = Prompt.ask(
             f"[bold {COLOR.SECONDARY}]Config file location[/bold {COLOR.SECONDARY}]"
-            " (path or directory)",
+            " (path or directory; empty = default)",
             default=str(default_config_path),
         )
         resolved_config_path = self._resolve_config_path(config_location, project_root)
@@ -1179,6 +1309,7 @@ include = ["{root_package}*"]
         config_commands_dir = os.path.relpath(commands_path, start=config_dir)
         config_templates_dir = os.path.relpath(templates_path, start=config_dir)
         config_themes_dir = os.path.relpath(themes_path, start=config_dir)
+        config_skills_dir = os.path.relpath(skills_path, start=config_dir)
 
         # Load the template
         template_path = (
@@ -1194,6 +1325,7 @@ include = ["{root_package}*"]
             commands_dir=config_commands_dir,
             templates_dir=config_templates_dir,
             themes_dir=config_themes_dir,
+            skills_dir=config_skills_dir,
             title_font=title_font,
             theme=theme,
             command_name=command_name,
@@ -1203,6 +1335,7 @@ include = ["{root_package}*"]
             show_version=show_version,
         )
 
+        console.print()
         usecli_config_status = self._write_usecli_config(
             resolved_config_path, config_content, force
         )
@@ -1217,6 +1350,29 @@ include = ["{root_package}*"]
         elif usecli_config_status == "skipped":
             console.print(
                 f"[{COLOR.WARNING}]Skipped updating {USECLI_CONFIG_TOML}.[/{COLOR.WARNING}]"
+            )
+        console.print()
+
+        skill_install: list[dict[str, str]] = []
+        if install_skill is None:
+            install_skill = Confirm.ask(
+                f"[bold {COLOR.SECONDARY}]Install the usecli skill for coding agents?[/bold {COLOR.SECONDARY}]",
+                default=True,
+            )
+        if install_skill:
+            from usecli.cli.commands.defaults.skill.install_command import (
+                _prompt_agents,
+                _prompt_scope,
+            )
+
+            skill_global = _prompt_scope(False)
+            console.print()
+            skill_agents = _prompt_agents(None)
+            skill_install = self._install_usecli_skill(
+                project_root,
+                force=force,
+                scope="global" if skill_global else "project",
+                agents=skill_agents,
             )
 
         # Show summary
@@ -1233,13 +1389,14 @@ include = ["{root_package}*"]
             )
         else:
             command_summary = "Create new commands after adding a [project.scripts] entry for usecli:main."
+        skill_summary = "\nCoding agent skill: installed" if skill_install else ""
         console.print(
             Panel.fit(
                 f"[bold {COLOR.PRIMARY}]usecli initialized![/bold {COLOR.PRIMARY}]\n\n"
                 f"Title: {title}\n"
                 f"Description: {description}\n"
                 f"Commands Directory: {commands_dir}\n"
-                f"{command_summary}",
+                f"{command_summary}{skill_summary}",
                 title="usecli Init",
                 border_style=COLOR.PANEL_PRIMARY,
             )

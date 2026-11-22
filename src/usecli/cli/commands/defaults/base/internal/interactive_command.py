@@ -136,6 +136,38 @@ def _get_required_arguments(command: ClickCommand) -> list[tuple[str, str, type]
     return required
 
 
+def _has_explicit_interactive(
+    command: ClickCommand | typer.models.CommandInfo,
+) -> bool:
+    """Whether the command declares its own ``--interactive`` option."""
+    if isinstance(command, click.Command):
+        click_command: click.Command | None = command
+    elif isinstance(command, typer.models.CommandInfo):
+        click_command = cast(
+            click.Command,
+            typer.main.get_command_from_info(
+                command,
+                pretty_exceptions_short=False,
+                rich_markup_mode=None,
+            ),
+        )
+    else:
+        click_command = None
+
+    if click_command is None:
+        return False
+    if getattr(click_command, "_usecli_injected_interactive", False) is True:
+        return False
+    params = getattr(click_command, "params", None)
+    if not isinstance(params, list | tuple):
+        return False
+    return any(
+        "--interactive" in getattr(param, "opts", ())
+        or "-i" in getattr(param, "opts", ())
+        for param in params
+    )
+
+
 def _get_optional_options(
     command: ClickCommand | typer.models.CommandInfo,
 ) -> list[tuple[str, str, str, type]]:
@@ -159,10 +191,14 @@ def _get_optional_options(
 
     options: list[tuple[str, str, str, type]] = []
     for param in click_command.params:
-        if not isinstance(param, click.Option):
+        if getattr(param, "param_type_name", "option") == "argument":
             continue
 
-        option_names = ", ".join(param.opts)
+        opts = getattr(param, "opts", ())
+        if not opts:
+            continue
+
+        option_names = ", ".join([*opts, *getattr(param, "secondary_opts", ())])
         if "--help" in option_names:
             continue
         if "--interactive" in option_names or "-i" in option_names:
@@ -170,12 +206,15 @@ def _get_optional_options(
         if "--json" in option_names:
             continue
 
-        help_text = param.help or ""
-        param_name = param.name or ""
+        help_text = getattr(param, "help", "") or ""
+        param_name = getattr(param, "name", "") or ""
+        param_value_type = getattr(param, "type", None)
 
-        if param.is_flag or isinstance(param.type, click.types.BoolParamType):
+        if getattr(param, "is_flag", False) or isinstance(
+            param_value_type, click.types.BoolParamType
+        ):
             param_type = bool
-        elif isinstance(param.type, click.types.IntParamType):
+        elif isinstance(param_value_type, click.types.IntParamType):
             param_type = int
         else:
             param_type = str
@@ -506,6 +545,11 @@ def run_interactive(
         raise typer.Exit(code=1)
 
     extra = " ".join(extra_args) if extra_args else ""
+    command_interactive = bool(
+        selected_cmd and _has_explicit_interactive(selected_cmd["command"])
+    )
+    if command_interactive:
+        extra = f"{extra} --interactive".strip()
 
     if prefill:
         full_cmd = f"{script_name} {cmd_name}{' ' + extra if extra else ''}"
@@ -526,7 +570,11 @@ def run_interactive(
         return
 
     required_args = (
-        _get_required_arguments(selected_cmd["command"]) if selected_cmd else []
+        []
+        if command_interactive
+        else _get_required_arguments(selected_cmd["command"])
+        if selected_cmd
+        else []
     )
     if required_args:
         help_result = subprocess.run(
@@ -589,7 +637,11 @@ def run_interactive(
             extra = " ".join(arg_values)
 
     optional_options = (
-        _get_optional_options(selected_cmd["command"]) if selected_cmd else []
+        []
+        if command_interactive
+        else _get_optional_options(selected_cmd["command"])
+        if selected_cmd
+        else []
     )
     if optional_options:
         console.print()

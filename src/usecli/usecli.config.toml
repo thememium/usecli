@@ -12,6 +12,8 @@ templates = "cli/templates"
 # One directory or a list of directories; the first is where `make:theme`
 # writes new themes.
 themes = ["cli/themes"]
+# Bundled Agent Skills; each subdirectory contains a SKILL.md.
+skills = "cli/skills"
 
 [usecli.theme]
 # Theme TOML file to load, by name or path.
