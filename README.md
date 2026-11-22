@@ -392,6 +392,35 @@ to skip the scope prompt, or pass `show_scope=False`, `show_agents=False`,
 `show_skills=False`, and `print_results=False` to disable individual steps and
 output.
 
+### Scaffolding from Python
+
+`make:command`, `make:theme`, and `make:skill` are also functions. They return
+the path they wrote and honor the same configured paths and project templates
+as the CLI:
+
+```python
+from usecli import make_command, make_skill, make_theme
+
+make_command("deploy")
+make_theme("dusk")
+make_skill("deploy-checks", description="Check deployments")
+```
+
+Pass `commands_dir`, `themes_dir`, `skills_dir`, `templates_dir`, or
+`project_root` to write somewhere else. `force=True` overwrites an existing
+command or skill, and an existing theme instead of adding a numeric suffix.
+Invalid names and existing targets raise `ScaffoldError` from `usecli.scaffold`.
+
+Use the `prompt_make_*` variants to ask for the missing values interactively:
+
+```python
+from usecli import prompt_make_command, prompt_make_skill, prompt_make_theme
+
+prompt_make_command()
+prompt_make_theme()
+prompt_make_skill()
+```
+
 ### Upgrades
 
 Every CLI built on usecli ships `upgrade`, which detects how the running
