@@ -45,6 +45,8 @@ hidden = []
 # root options; "command" shows skill:install under a `skill:` section.
 # "none" hides both so you can provide your own installer.
 skill_install = "option"
+# Help text for --install-skills and skill:install.
+skill_install_description = "Install the usecli skill for coding agents."
 
 [usecli.upgrade]
 enabled = true
