@@ -1,6 +1,18 @@
 # Changelog
 
 
+## v0.2.12
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.2.11...v0.2.12)
+
+### 🚀 Enhancements
+
+- Custom skill description ([#22](https://github.com/thememium/usecli/pull/22))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.2.11
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.2.10...v0.2.11)
