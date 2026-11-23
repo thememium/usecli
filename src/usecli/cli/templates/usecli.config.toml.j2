@@ -49,6 +49,9 @@ hidden = []
 # root options; "command" shows skill:install under a `skill:` section.
 # "none" hides both so you can provide your own installer.
 skill_install = "option"
+# Optional help text for --install-skills and skill:install. Defaults to
+# "Install bundled skills for coding agents."
+# skill_install_description = "Install the {{ command_name | default('mycli') }} skill for coding agents."
 
 [usecli.upgrade]
 enabled = {{ upgrade_enabled | default(true) | lower }}
