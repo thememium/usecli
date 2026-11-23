@@ -1737,6 +1737,7 @@ class TestUpgradeConfigSection:
         content = config_path.read_text()
         assert "[usecli.commands]" in content
         assert 'skill_install = "option"' in content
+        assert "# skill_install_description =" in content
 
     def test_upgrade_section_round_trips_through_config_manager(
         self, temp_project_dir, init_command, monkeypatch
