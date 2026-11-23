@@ -248,6 +248,9 @@ Return data from `handle()` instead of printing JSON. Do not write to stdout in 
 - `options.hidden` leaves root options unregistered (for example
   `["interactive", "json"]`). `interactive` and `json` apply to every command;
   other names are root-only, and `--help`/`-h` is always kept.
+- `commands.skill_install` exposes the installer as `--install-skills`
+  (`"option"`), `skill:install` (`"command"`), or neither (`"none"`).
+- `commands.skill_install_description` overrides the installer help text.
 - `pyproject.toml` exposes the project command through `[project.scripts]`.
 
 Initialize a project with:

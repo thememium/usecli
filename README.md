@@ -293,7 +293,16 @@ interactive installer, but only when the CLI has bundled skills (the `usecli`
 framework binary always has its generated skill). Set
 `[usecli.commands] skill_install = "command"` to show `skill:install` under a
 `skill:` section instead, or `"none"` to hide both the option and the command
-so the project can provide its own installer.
+so the project can provide its own installer. Override the help text with
+`[usecli.commands] skill_install_description`:
+
+```toml
+[usecli.commands]
+skill_install = "option"
+skill_install_description = "Install the mycli skill for coding agents."
+```
+
+The default is `"Install bundled skills for coding agents."`.
 
 ### Coding Agent Skills
 

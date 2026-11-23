@@ -18,6 +18,9 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Default help text when a project does not customize skill installation.
+DEFAULT_SKILL_INSTALL_DESCRIPTION = "Install bundled skills for coding agents."
+
 # Config file names - inlined to avoid importing globals.py (which pulls in pathlib)
 PYPROJECT_TOML = "pyproject.toml"
 USECLI_CONFIG_TOML = "usecli.config.toml"
@@ -360,7 +363,11 @@ class ConfigManager:
             "bottom_space": True,
         },
         "options": {"hidden": []},
-        "commands": {"hidden": [], "skill_install": "option"},
+        "commands": {
+            "hidden": [],
+            "skill_install": "option",
+            "skill_install_description": DEFAULT_SKILL_INSTALL_DESCRIPTION,
+        },
         "environment": "prod",
         # The built-in `upgrade` command reads [usecli.upgrade]. `source`
         # overrides install-source detection: "auto" (packaging metadata),
@@ -952,6 +959,21 @@ class ConfigManager:
         }:
             return value.strip().lower()
         return "option"
+
+    def get_skill_install_description(self) -> str:
+        """One-line description for skill installation.
+
+        ``[usecli.commands] skill_install_description`` overrides the default
+        help text used by ``--install-skills`` and ``skill:install``. Empty or
+        non-string values fall back to the default.
+        """
+        value = self.get(
+            "commands.skill_install_description",
+            DEFAULT_SKILL_INSTALL_DESCRIPTION,
+        )
+        if isinstance(value, str) and value.strip():
+            return " ".join(value.split())
+        return DEFAULT_SKILL_INSTALL_DESCRIPTION
 
     def get_hidden_options(self) -> list[str]:
         """Root options to leave unregistered, e.g. ``["interactive", "json"]``.

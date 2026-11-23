@@ -110,14 +110,18 @@ class TestCommandMetadata:
         assert command.signature() == "skill:install"
 
     def test_description(self, command: InstallSkillCommand) -> None:
-        assert command.description() == "Install bundled skills for coding agents"
+        assert command.description() == "Install bundled skills for coding agents."
 
-    def test_description_for_the_framework_binary(
+    def test_description_uses_configured_text(
         self, command: InstallSkillCommand, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        monkeypatch.setattr(module, "_is_framework_binary", lambda: True)
+        config = MagicMock()
+        config.get_skill_install_description.return_value = (
+            "Install the demo skill for coding agents"
+        )
+        monkeypatch.setattr(module, "get_config", lambda: config)
 
-        assert command.description() == "Install the usecli skill for coding agents"
+        assert command.description() == "Install the demo skill for coding agents"
 
     def test_visible_only_when_project_has_skills(
         self, command: InstallSkillCommand, monkeypatch: pytest.MonkeyPatch

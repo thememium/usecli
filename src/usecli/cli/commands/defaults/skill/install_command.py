@@ -542,9 +542,7 @@ class InstallSkillCommand(BaseCommand):
         return "skill:install"
 
     def description(self) -> str:
-        if _is_framework_binary():
-            return "Install the usecli skill for coding agents"
-        return "Install bundled skills for coding agents"
+        return get_config().get_skill_install_description()
 
     def handle(
         self,
