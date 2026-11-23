@@ -85,9 +85,17 @@ class TestConfigManagerDefaults:
         assert manager.get("banner.bottom_space") is True
         assert manager.get("commands.hidden") == []
         assert manager.get("commands.skill_install") == "option"
+        assert (
+            manager.get("commands.skill_install_description")
+            == config_manager.DEFAULT_SKILL_INSTALL_DESCRIPTION
+        )
         assert manager.get("options.hidden") == []
         assert manager.get_hidden_options() == []
         assert manager.get_skill_install_mode() == "option"
+        assert (
+            manager.get_skill_install_description()
+            == "Install bundled skills for coding agents."
+        )
         assert manager.get("environment") == "prod"
         assert manager.get("command_name") == "usecli"
 
@@ -114,6 +122,42 @@ class TestConfigManagerDefaults:
         manager = ConfigManager()
 
         assert manager.get_skill_install_mode() == "option"
+
+    def test_reads_skill_install_description(self, temp_project_dir):
+        config_file = temp_project_dir / "usecli.config.toml"
+        config_file.write_text(
+            "[usecli.commands]\n"
+            'skill_install_description = "Install the demo skill for coding agents."\n'
+        )
+
+        manager = ConfigManager()
+
+        assert (
+            manager.get_skill_install_description()
+            == "Install the demo skill for coding agents."
+        )
+
+    def test_blank_skill_install_description_falls_back(self, temp_project_dir):
+        config_file = temp_project_dir / "usecli.config.toml"
+        config_file.write_text('[usecli.commands]\nskill_install_description = "   "\n')
+
+        manager = ConfigManager()
+
+        assert (
+            manager.get_skill_install_description()
+            == config_manager.DEFAULT_SKILL_INSTALL_DESCRIPTION
+        )
+
+    def test_non_string_skill_install_description_falls_back(self, temp_project_dir):
+        config_file = temp_project_dir / "usecli.config.toml"
+        config_file.write_text("[usecli.commands]\nskill_install_description = 3\n")
+
+        manager = ConfigManager()
+
+        assert (
+            manager.get_skill_install_description()
+            == config_manager.DEFAULT_SKILL_INSTALL_DESCRIPTION
+        )
 
     def test_hidden_options_normalizes_names_and_protects_help(self, temp_project_dir):
         config_file = temp_project_dir / "usecli.config.toml"
