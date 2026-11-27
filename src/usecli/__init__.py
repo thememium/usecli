@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     from usecli.cli.commands.defaults.skill.install_command import (
         prompt_skill_install as prompt_skill_install,
     )
+    from usecli.cli.config import colors as colors
     from usecli.cli.config.colors import COLOR
     from usecli.cli.config.colors import COLOR as theme
     from usecli.cli.core.base_command import BaseCommand
@@ -107,6 +108,7 @@ if TYPE_CHECKING:
         json_output: bool = ...,
         install_skills: bool = ...,
     ) -> object: ...
+
 
 # Lazy module-level placeholders - these are populated on first access
 _app: Any = None
