@@ -1,6 +1,22 @@
 # Changelog
 
 
+## v0.2.14
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.2.13...v0.2.14)
+
+### 📖 Documentation
+
+- **skill.md.j2:** Simplify handle() placeholder in skill template ([f9c8551](https://github.com/thememium/usecli/commit/f9c8551))
+
+### 🏡 Chore
+
+- **dependencies:** Bump typer, ruff, and ty to newer versions ([c6ddc61](https://github.com/thememium/usecli/commit/c6ddc61))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.2.13
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.2.12...v0.2.13)
