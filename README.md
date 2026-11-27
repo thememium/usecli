@@ -513,13 +513,20 @@ from usecli import run
 
 
 def main():
-    run()  # auto-detect project config
-    # run("path/to/usecli.config.toml")          # or point at a specific config
+    run("./cli/usecli.config.toml")  # resolved from the cwd, then this module
+    # run()  # auto-detect: walk up from the cwd, then from this module
 
 
 if __name__ == "__main__":
     main()
 ```
+
+A relative `config_path` (a `str` or any `os.PathLike`) is tried against the
+current working directory first, then against the directory of the file that
+calls `run()`. So `run("./cli/usecli.config.toml")` works both from the project
+root and from an installed console script started anywhere, provided the config
+ships as package data at that relative path under the module's directory
+(`uv_build` includes files under the module directory).
 
 Run it in development (no PyInstaller required):
 
@@ -535,8 +542,10 @@ at the `main` function in your `myapp` package (the usual `src/myapp` layout):
 myapp = "myapp:main"
 ```
 
-Because `run()` injects the located config explicitly, a custom `main.py` works
-regardless of whether your CLI also has a `[project.scripts]` entry.
+The module named here must be the one that calls `run()`: point at `myapp:main`
+when `main` lives in `src/myapp/__init__.py`, or at `myapp.cli:main` when it
+lives in `src/myapp/cli/__init__.py`. Discovery is anchored to that module's
+directory, not to the shell's cwd.
 
 ### 3. Bundler — standalone executable (optional, requires PyInstaller)
 
