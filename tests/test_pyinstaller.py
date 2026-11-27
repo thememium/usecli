@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -533,6 +534,68 @@ def test_resolve_config_explicit_path_skips_discovery(monkeypatch, tmp_path):
         resolved = entry_mod._resolve_config(str(config))
     mock_resolve.assert_not_called()
     assert resolved.resolve() == config.resolve()
+
+
+def test_resolve_config_relative_uses_caller_module_dir(monkeypatch, tmp_path):
+    caller = tmp_path / "pkg"
+    caller.mkdir()
+    config = caller / "usecli.config.toml"
+    config.write_text('[usecli]\ncommand_name = "pkgcli"\n', encoding="utf-8")
+    elsewhere = tmp_path / "elsewhere"
+    elsewhere.mkdir()
+    monkeypatch.chdir(elsewhere)
+    monkeypatch.setattr(entry_mod, "_calling_module_dir", lambda: caller)
+
+    # str and Path behave alike: cwd misses, the caller's directory hits.
+    assert entry_mod._resolve_config("usecli.config.toml").resolve() == config.resolve()
+    assert (
+        entry_mod._resolve_config(Path("usecli.config.toml")).resolve()
+        == config.resolve()
+    )
+    with pytest.raises(FileNotFoundError):
+        entry_mod._resolve_config("missing.toml")
+
+
+def test_resolve_config_relative_prefers_cwd(monkeypatch, tmp_path):
+    cwd_dir = tmp_path / "cwd"
+    caller_dir = tmp_path / "caller"
+    for directory in (cwd_dir, caller_dir):
+        directory.mkdir()
+        (directory / "usecli.config.toml").write_text(
+            '[usecli]\ncommand_name = "magic"\n', encoding="utf-8"
+        )
+    monkeypatch.chdir(cwd_dir)
+    monkeypatch.setattr(entry_mod, "_calling_module_dir", lambda: caller_dir)
+
+    assert (
+        entry_mod._resolve_config("usecli.config.toml").resolve()
+        == (cwd_dir / "usecli.config.toml").resolve()
+    )
+
+
+def test_resolve_config_auto_falls_back_to_caller_module_dir(monkeypatch, tmp_path):
+    caller = tmp_path / "pkg"
+    caller.mkdir()
+    config = caller / "usecli.config.toml"
+    config.write_text('[usecli]\ncommand_name = "pkgcli"\n', encoding="utf-8")
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    monkeypatch.chdir(empty)
+    monkeypatch.setattr(entry_mod, "_calling_module_dir", lambda: caller)
+
+    assert entry_mod._resolve_config().resolve() == config.resolve()
+
+
+def test_calling_module_dir_none_without_external_frame(monkeypatch):
+    # Frames belonging to usecli are skipped; if the chain runs out there is no
+    # caller directory to fall back to (e.g. ``python -c``).
+    frame = SimpleNamespace(
+        f_globals={"__name__": "usecli.fake", "__file__": "/x/fake.py"},
+        f_back=None,
+    )
+    monkeypatch.setattr(entry_mod, "_getframe", lambda depth: frame)
+
+    assert entry_mod._calling_module_dir() is None
 
 
 def test_inject_config_dev(monkeypatch, tmp_path):

@@ -58,22 +58,73 @@ def _bundled_dir() -> Path:
     return _bundle_root() / BUNDLE_DATA_DIR
 
 
+# Module-level name so tests can cover the "no caller outside usecli" exit
+# without a real usecli-only interpreter stack.
+_getframe = sys._getframe
+
+
+def _calling_module_dir() -> Path | None:
+    """Directory of the nearest stack frame outside usecli — the ``run`` caller.
+
+    Lets relative config paths fall back to the caller's package directory, so
+    an installed console script finds its config when started elsewhere.
+    """
+    frame = _getframe(1)
+    while frame is not None:
+        module_name = frame.f_globals.get("__name__", "")
+        module_file = frame.f_globals.get("__file__")
+        if module_file and not (
+            module_name == "usecli" or module_name.startswith("usecli.")
+        ):
+            return Path(module_file).resolve().parent
+        frame = frame.f_back
+    return None
+
+
+def _nearest_config(start: Path) -> Path | None:
+    """Nearest ``usecli.config.toml`` at or above ``start`` (no tree search)."""
+    from usecli.shared.config.manager import USECLI_CONFIG_TOML
+
+    for current in (start, *start.parents):
+        candidate = current / USECLI_CONFIG_TOML
+        if candidate.is_file():
+            return candidate
+    return None
+
+
 def _resolve_config(config_path: str | os.PathLike[str] | None = None) -> Path:
     """The project's ``usecli.config.toml`` for the current context.
 
     Explicit ``config_path`` wins; otherwise the frozen bundle is used when
-    frozen, else the default finder from the current directory.
+    frozen, else the default finder from the current directory. Relative paths
+    that do not exist under the current working directory are retried next to
+    the module that called :func:`run`.
     """
     if config_path is not None:
-        resolved = Path(config_path).resolve()
-        if not resolved.is_file():
-            raise FileNotFoundError(f"usecli.config.toml not found at: {resolved}")
-        return resolved
+        raw = Path(config_path)
+        resolved = raw.resolve()
+        if resolved.is_file():
+            return resolved
+        if not raw.is_absolute() and not _is_frozen():
+            caller_dir = _calling_module_dir()
+            if caller_dir is not None:
+                candidate = caller_dir / raw
+                if candidate.is_file():
+                    return candidate.resolve()
+        raise FileNotFoundError(f"usecli.config.toml not found at: {resolved}")
     if _is_frozen():
         return _bundled_dir() / "usecli.config.toml"
     from usecli.shared.config.manager import resolve_config_path
 
-    return resolve_config_path(Path.cwd())
+    try:
+        return resolve_config_path(Path.cwd())
+    except FileNotFoundError:
+        caller_dir = _calling_module_dir()
+        if caller_dir is not None:
+            near = _nearest_config(caller_dir)
+            if near is not None:
+                return near
+        raise
 
 
 def _resolve_pyproject(
@@ -179,9 +230,15 @@ def run(
     """Run the usecli CLI for a project.
 
     Args:
-        config_path: Optional ``usecli.config.toml`` path. When omitted it is
-            auto-detected: from the frozen bundle when running under PyInstaller,
-            otherwise via the default finder from the current directory.
+        config_path: Optional ``usecli.config.toml`` path, as ``str`` or
+            ``os.PathLike``. Relative paths are tried against the current
+            working directory first, then against the directory of the module
+            that calls :func:`run`, so ``run("usecli.config.toml")`` works from
+            the project root and from an installed console script started
+            elsewhere. When omitted it is auto-detected: from the frozen bundle
+            when running under PyInstaller, otherwise via the default finder
+            from the current directory, then from the calling module's
+            directory.
         pyproject_path: Optional ``pyproject.toml`` path (used for version info).
         on_path: Whether to expose the CLI on ``PATH`` so the interactive
             runner's shell-outs resolve it.
