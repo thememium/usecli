@@ -20,6 +20,7 @@ if TYPE_CHECKING:
 
     import typer
 
+    from usecli.bundler import pyinstaller
     from usecli.cli.commands.defaults.skill.install_command import (
         prompt_skill_install as prompt_skill_install,
     )
@@ -27,6 +28,7 @@ if TYPE_CHECKING:
     from usecli.cli.config.colors import COLOR as theme
     from usecli.cli.core.base_command import BaseCommand
     from usecli.cli.services.command_service import CommandService
+    from usecli.entry import run
     from usecli.menu import Menu
     from usecli.params import Argument, Option
     from usecli.progress import ProgressBar, Spinner
@@ -96,6 +98,15 @@ if TYPE_CHECKING:
     console: Console
     app: typer.Typer
     service: CommandService
+
+    def run_app(
+        ctx: typer.Context,
+        version: bool = ...,
+        help: bool = ...,
+        interactive: bool = ...,
+        json_output: bool = ...,
+        install_skills: bool = ...,
+    ) -> object: ...
 
 # Lazy module-level placeholders - these are populated on first access
 _app: Any = None
@@ -493,6 +504,7 @@ __all__ = [
     "prompt_skill_install",
     "pyinstaller",
     "run",
+    "run_app",
     "theme",
 ]
 
