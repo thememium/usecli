@@ -101,8 +101,8 @@ if TYPE_CHECKING:
 
     def run_app(
         ctx: typer.Context,
-        version: bool = ...,
-        help: bool = ...,
+        version: bool | None = ...,
+        help: bool | None = ...,
         interactive: bool = ...,
         json_output: bool = ...,
         install_skills: bool = ...,
