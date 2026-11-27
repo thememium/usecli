@@ -1,6 +1,28 @@
 # Changelog
 
 
+## v0.2.13
+
+[compare changes](https://github.com/thememium/usecli/compare/v0.2.12...v0.2.13)
+
+### 🚀 Enhancements
+
+- **usecli:** Expose run_app helper ([5c67a96](https://github.com/thememium/usecli/commit/5c67a96))
+
+### 💅 Refactors
+
+- **usecli:** Allow optional version and help flags in run_app ([e6211ad](https://github.com/thememium/usecli/commit/e6211ad))
+- **usecli:** Add colors alias import for type checking ([abd3793](https://github.com/thememium/usecli/commit/abd3793))
+- **usecli:** Add caller module resolution for config paths ([943cc5f](https://github.com/thememium/usecli/commit/943cc5f))
+
+### 📖 Documentation
+
+- Clarify run() config path handling and module naming ([997e775](https://github.com/thememium/usecli/commit/997e775))
+
+### ❤️ Contributors
+
+- Edward Boswell ([@thememium](https://github.com/thememium))
+
 ## v0.2.12
 
 [compare changes](https://github.com/thememium/usecli/compare/v0.2.11...v0.2.12)
